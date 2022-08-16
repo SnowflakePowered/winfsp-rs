@@ -1,0 +1,11 @@
+arch=x64 
+prefix=${pcfiledir}/..
+incdir=${prefix}/inc/fuse
+implib=${prefix}/bin/winfsp-${arch}.dll
+
+Name: fuse
+Description: WinFsp FUSE compatible API
+Version: 2.8
+URL: https://winfsp.dev
+Libs: "${implib}"
+Cflags: -I"${incdir}"
