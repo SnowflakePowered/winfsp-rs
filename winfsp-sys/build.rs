@@ -19,6 +19,7 @@ fn main() {
         .allowlist_function("Fsp.*")
         .allowlist_type("FSP.*")
         .allowlist_var("FSP_.*")
+        .clang_arg("-DUNICODE")
         .clang_arg("--include-directory=winfsp/inc")
         .clang_arg("--target=x86_64-pc-windows-msvc")
         .parse_callbacks(Box::new(bindgen::CargoCallbacks))

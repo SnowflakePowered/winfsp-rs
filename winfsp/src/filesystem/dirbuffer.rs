@@ -68,7 +68,9 @@ impl DirBufferLock<'_> {
 impl Drop for DirBuffer {
     fn drop(&mut self) {
         unsafe {
-            FspFileSystemDeleteDirectoryBuffer(self.0);
+            if !self.0.is_null() {
+                FspFileSystemDeleteDirectoryBuffer(self.0);
+            }
         }
     }
 }

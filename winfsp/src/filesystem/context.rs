@@ -1,11 +1,10 @@
-use std::path::Path;
+use std::ffi::OsStr;
 
 use windows::core::{Result, PCWSTR, PWSTR};
 use windows::Win32::Foundation::STATUS_INVALID_DEVICE_REQUEST;
 use windows::Win32::Security::PSECURITY_DESCRIPTOR;
 use windows::Win32::Storage::FileSystem::{FILE_ACCESS_FLAGS, FILE_FLAGS_AND_ATTRIBUTES};
 
-use winfsp_sys::PIO_STATUS_BLOCK;
 pub use winfsp_sys::{FSP_FSCTL_FILE_INFO, FSP_FSCTL_VOLUME_INFO, FSP_FSCTL_VOLUME_PARAMS};
 
 pub struct FileSecurity {
@@ -22,14 +21,14 @@ pub struct IoResult {
 #[allow(unused_variables)]
 pub trait FileSystemContext: Sized {
     type FileContext: Sized;
-    fn get_security_by_name<P: AsRef<Path>>(
+    fn get_security_by_name<P: AsRef<OsStr>>(
         &self,
         file_name: P,
         security_descriptor: PSECURITY_DESCRIPTOR,
         descriptor_len: Option<u64>,
     ) -> Result<FileSecurity>;
 
-    fn open<P: AsRef<Path>>(
+    fn open<P: AsRef<OsStr>>(
         &self,
         file_name: P,
         create_options: u32,
@@ -39,7 +38,7 @@ pub trait FileSystemContext: Sized {
 
     fn close(&self, context: Self::FileContext);
 
-    fn cleanup<P: AsRef<Path>>(&self, context: &Self::FileContext, file_name: P, flags: u32) {}
+    fn cleanup<P: AsRef<OsStr>>(&self, context: &Self::FileContext, file_name: P, flags: u32) {}
 
     fn control(
         &self,
@@ -52,7 +51,7 @@ pub trait FileSystemContext: Sized {
     }
 
     #[allow(clippy::too_many_arguments)]
-    fn create<P: AsRef<Path>>(
+    fn create<P: AsRef<OsStr>>(
         &self,
         file_name: P,
         create_options: u32,
@@ -60,14 +59,15 @@ pub trait FileSystemContext: Sized {
         file_attributes: FILE_FLAGS_AND_ATTRIBUTES,
         security_descriptor: PSECURITY_DESCRIPTOR,
         allocation_size: u64,
-        extra_buffer: &[u8],
+        extra_buffer: Option<&[u8]>,
         extra_buffer_is_reparse_point: bool,
         file_info: &mut FSP_FSCTL_FILE_INFO,
     ) -> Result<Self::FileContext> {
+        dbg!("create");
         Err(STATUS_INVALID_DEVICE_REQUEST.into())
     }
 
-    fn delete_reparse_point<P: AsRef<Path>>(
+    fn delete_reparse_point<P: AsRef<OsStr>>(
         &self,
         context: &Self::FileContext,
         file_name: P,
@@ -92,7 +92,7 @@ pub trait FileSystemContext: Sized {
         Err(STATUS_INVALID_DEVICE_REQUEST.into())
     }
 
-    fn get_security<P: AsRef<Path>>(
+    fn get_security<P: AsRef<OsStr>>(
         &self,
         file_name: P,
         security_descriptor: PSECURITY_DESCRIPTOR,
@@ -140,7 +140,7 @@ pub trait FileSystemContext: Sized {
         Err(STATUS_INVALID_DEVICE_REQUEST.into())
     }
 
-    fn rename<P: AsRef<Path>>(
+    fn rename<P: AsRef<OsStr>>(
         &self,
         context: &Self::FileContext,
         file_name: P,
@@ -164,7 +164,7 @@ pub trait FileSystemContext: Sized {
         Err(STATUS_INVALID_DEVICE_REQUEST.into())
     }
 
-    fn set_delete<P: AsRef<Path>>(
+    fn set_delete<P: AsRef<OsStr>>(
         &self,
         context: &Self::FileContext,
         file_name: P,
@@ -213,7 +213,7 @@ pub trait FileSystemContext: Sized {
     }
 
     #[cfg(feature = "get_dir_info_by_name")]
-    fn get_dir_info_by_name<P: AsRef<Path>>(
+    fn get_dir_info_by_name<P: AsRef<OsStr>>(
         &self,
         context: &Self::FileContext,
         file_name: P,
@@ -224,7 +224,7 @@ pub trait FileSystemContext: Sized {
     }
 
     #[cfg(feature = "reparse_points")]
-    fn get_reparse_point<P: AsRef<Path>>(
+    fn get_reparse_point<P: AsRef<OsStr>>(
         &self,
         context: &Self::FileContext,
         file_name: P,
@@ -234,7 +234,7 @@ pub trait FileSystemContext: Sized {
     }
 
     #[cfg(feature = "reparse_points")]
-    fn set_reparse_point<P: AsRef<Path>>(
+    fn set_reparse_point<P: AsRef<OsStr>>(
         &self,
         context: &Self::FileContext,
         file_name: P,
