@@ -11,8 +11,8 @@ use windows::Win32::Security::PSECURITY_DESCRIPTOR;
 use windows::Win32::Storage::FileSystem::{FILE_ACCESS_FLAGS, FILE_FLAGS_AND_ATTRIBUTES};
 
 use winfsp_sys::{
-    FspNtStatusFromWin32, FSP_FILE_SYSTEM, FSP_FILE_SYSTEM_INTERFACE, FSP_FSCTL_FILE_INFO,
-    FSP_FSCTL_VOLUME_INFO,
+    FspFileSystemAddDirInfo, FspNtStatusFromWin32, FSP_FILE_SYSTEM, FSP_FILE_SYSTEM_INTERFACE,
+    FSP_FSCTL_FILE_INFO, FSP_FSCTL_VOLUME_INFO,
 };
 use winfsp_sys::{NTSTATUS as FSP_STATUS, PVOID};
 
@@ -187,7 +187,7 @@ fn require_ref<C: FileSystemContext, F>(
 where
     F: FnOnce(&C, &mut C::FileContext) -> windows::core::Result<()>,
 {
-    let context: &C = unsafe { (*fs).UserContext.cast::<C>().as_ref().unwrap_unchecked() };
+    let context: &C = unsafe { (*fs).UserContext.cast::<C>().as_ref().unwrap() };
     let fctx = fctx.cast::<C::FileContext>();
 
     // todo: can we unwrap_unchecked.. probably to be honest.
@@ -340,6 +340,10 @@ unsafe extern "C" fn read_directory<T: FileSystemContext>(
 ) -> FSP_STATUS {
     catch_panic!({
         require_ref(fs, fctx, |context, fctx| {
+            if !bytes_transferred.is_null() {
+                unsafe { bytes_transferred.write(0) }
+            }
+
             let pattern = if !pattern.is_null() {
                 Some(PCWSTR::from_raw(pattern))
             } else {
@@ -349,7 +353,14 @@ unsafe extern "C" fn read_directory<T: FileSystemContext>(
             let buffer =
                 unsafe { slice::from_raw_parts_mut(buffer as *mut _, buffer_len as usize) };
 
-            let bytes_read = T::read_directory(context, fctx, pattern, marker.cast_const(), buffer)?;
+            let bytes_read = dbg!(T::read_directory(
+                context,
+                fctx,
+                pattern,
+                marker.cast_const(),
+                buffer
+            )?);
+
             if !bytes_transferred.is_null() {
                 unsafe { bytes_transferred.write(bytes_read) }
             }
@@ -484,7 +495,7 @@ impl From<Interface> for FSP_FILE_SYSTEM_INTERFACE {
             Close: interface.close,
             CreateEx: interface.create_ex,
             GetSecurityByName: interface.get_security_by_name,
-            Control: interface.control,
+            // Control: interface.control,
             Overwrite: interface.overwrite,
             ReadDirectory: interface.read_directory,
             GetVolumeInfo: interface.get_volume_info,

@@ -1,4 +1,4 @@
-use windows::core::{Result};
+use windows::core::Result;
 use windows::Win32::Foundation::STATUS_SUCCESS;
 use winfsp_sys::{
     FspFileSystemAcquireDirectoryBufferEx, FspFileSystemDeleteDirectoryBuffer,
@@ -105,6 +105,7 @@ pub struct DirInfo<const BUFFER_SIZE: usize> {
 
 impl<const BUFFER_SIZE: usize> DirInfo<BUFFER_SIZE> {
     pub fn new() -> Self {
+        assert_eq!(104, std::mem::size_of::<DirInfo<0>>());
         Self {
             // begin with initially no file_name
             size: std::mem::size_of::<DirInfo<0>>() as u16,
@@ -129,6 +130,7 @@ impl<const BUFFER_SIZE: usize> DirInfo<BUFFER_SIZE> {
     pub fn reset(&mut self) {
         self.size = 0;
         self.file_info = FSP_FSCTL_FILE_INFO::default();
+        self.padding.next_offset = 0;
         self.padding.padding = [0; 24];
         self.file_name = [0; BUFFER_SIZE]
     }
