@@ -130,11 +130,11 @@ pub trait FileSystemContext: Sized {
         Err(STATUS_INVALID_DEVICE_REQUEST.into())
     }
 
-    fn read_directory<P: Into<PCWSTR>, M: Into<PWSTR>>(
+    fn read_directory<P: Into<PCWSTR>>(
         &self,
         context: &mut Self::FileContext,
         pattern: Option<P>,
-        marker: Option<M>,
+        marker: *const u16,
         buffer: &mut [u8],
     ) -> Result<u32> {
         Err(STATUS_INVALID_DEVICE_REQUEST.into())

@@ -346,16 +346,10 @@ unsafe extern "C" fn read_directory<T: FileSystemContext>(
                 None
             };
 
-            let marker = if !marker.is_null() {
-                Some(PWSTR::from_raw(marker))
-            } else {
-                None
-            };
-
             let buffer =
                 unsafe { slice::from_raw_parts_mut(buffer as *mut _, buffer_len as usize) };
 
-            let bytes_read = T::read_directory(context, fctx, pattern, marker, buffer)?;
+            let bytes_read = T::read_directory(context, fctx, pattern, marker.cast_const(), buffer)?;
             if !bytes_transferred.is_null() {
                 unsafe { bytes_transferred.write(bytes_read) }
             }

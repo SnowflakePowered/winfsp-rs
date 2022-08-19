@@ -1,4 +1,4 @@
-use windows::core::{Result, HSTRING, PCWSTR, PWSTR};
+use windows::core::{Result};
 use windows::Win32::Foundation::STATUS_SUCCESS;
 use winfsp_sys::{
     FspFileSystemAcquireDirectoryBufferEx, FspFileSystemDeleteDirectoryBuffer,
@@ -37,12 +37,12 @@ impl DirBuffer {
         }
     }
 
-    pub fn read<M: Into<PWSTR>>(&mut self, marker: Option<M>, buffer: &mut [u8]) -> u32 {
+    pub fn read(&mut self, marker: *const u16, buffer: &mut [u8]) -> u32 {
         let mut out = 0u32;
         unsafe {
             FspFileSystemReadDirectoryBuffer(
                 &mut self.0,
-                marker.map_or(PWSTR(std::ptr::null_mut()), M::into).0,
+                marker.cast_mut(),
                 buffer.as_mut_ptr() as *mut _,
                 buffer.len() as u32,
                 &mut out,
