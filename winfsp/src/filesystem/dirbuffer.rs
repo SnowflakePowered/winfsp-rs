@@ -74,9 +74,7 @@ impl DirBufferLock<'_> {
 impl Drop for DirBuffer {
     fn drop(&mut self) {
         unsafe {
-            if !self.0.is_null() {
-                FspFileSystemDeleteDirectoryBuffer(&mut self.0);
-            }
+            FspFileSystemDeleteDirectoryBuffer(&mut self.0);
         }
     }
 }
@@ -115,6 +113,9 @@ impl<const BUFFER_SIZE: usize> DirInfo<BUFFER_SIZE> {
         }
     }
 
+    /// Set the file name of the directory info.
+    ///
+    /// The input buffer must not have a null byte at the end.
     pub fn set_file_name<'a, P: Into<&'a [u16]>>(&mut self, file_name: P) {
         let file_name = file_name.into();
         self.file_name[0..std::cmp::min(file_name.len(), BUFFER_SIZE)]
