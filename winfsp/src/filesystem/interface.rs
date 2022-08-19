@@ -31,7 +31,7 @@ unsafe extern "C" fn get_volume_info<T: FileSystemContext>(
     volume_info: *mut FSP_FSCTL_VOLUME_INFO,
 ) -> FSP_STATUS {
     catch_panic!({
-        let context: &T = unsafe { (*fs).UserContext.cast::<T>().as_ref().unwrap_unchecked() };
+        let context: &T = unsafe { &*(*fs).UserContext.cast::<T>() };
         if let Some(volume_info) = unsafe { volume_info.as_mut() } {
             match T::get_volume_info(context, volume_info) {
                 Ok(_) => STATUS_SUCCESS.0,
@@ -51,7 +51,7 @@ unsafe extern "C" fn get_security_by_name<T: FileSystemContext>(
     sz_security_descriptor: *mut winfsp_sys::SIZE_T,
 ) -> FSP_STATUS {
     catch_panic!({
-        let context: &T = unsafe { (*fs).UserContext.cast::<T>().as_ref().unwrap_unchecked() };
+        let context: &T = unsafe { &*(*fs).UserContext.cast::<T>() };
         let file_name = unsafe { U16CStr::from_ptr_str_mut(file_name).to_os_string() };
         match T::get_security_by_name(
             context,
@@ -90,7 +90,7 @@ unsafe extern "C" fn open<T: FileSystemContext>(
     out_file_info: *mut FSP_FSCTL_FILE_INFO,
 ) -> FSP_STATUS {
     catch_panic!({
-        let context: &T = unsafe { (*fs).UserContext.cast::<T>().as_ref().unwrap_unchecked() };
+        let context: &T = unsafe { &*(*fs).UserContext.cast::<T>() };
         let file_name = unsafe { U16CStr::from_ptr_str_mut(file_name).to_os_string() };
 
         match T::open(
@@ -125,7 +125,7 @@ unsafe extern "C" fn create_ex<T: FileSystemContext>(
     out_finfo: *mut FSP_FSCTL_FILE_INFO,
 ) -> FSP_STATUS {
     catch_panic!({
-        let context: &T = unsafe { (*fs).UserContext.cast::<T>().as_ref().unwrap_unchecked() };
+        let context: &T = unsafe { &*(*fs).UserContext.cast::<T>() };
         let file_name = unsafe { U16CStr::from_ptr_str_mut(file_name).to_os_string() };
         let out_finfo = unsafe { out_finfo.as_mut().unwrap_unchecked() };
 
@@ -163,7 +163,7 @@ unsafe extern "C" fn create_ex<T: FileSystemContext>(
 
 unsafe extern "C" fn close<T: FileSystemContext>(fs: *mut FSP_FILE_SYSTEM, fctx: PVOID) {
     catch_panic!({
-        let context: &T = unsafe { (*fs).UserContext.cast::<T>().as_ref().unwrap_unchecked() };
+        let context: &T = unsafe { &*(*fs).UserContext.cast::<T>() };
         let fctx = fctx.cast::<T::FileContext>();
         if !fctx.is_null() {
             // reclaim pointer from FFI
@@ -187,7 +187,7 @@ fn require_ref<C: FileSystemContext, F>(
 where
     F: FnOnce(&C, &mut C::FileContext) -> windows::core::Result<()>,
 {
-    let context: &C = unsafe { (*fs).UserContext.cast::<C>().as_ref().unwrap() };
+    let context: &C = unsafe { &*(*fs).UserContext.cast::<C>() };
     let fctx = fctx.cast::<C::FileContext>();
 
     // todo: can we unwrap_unchecked.. probably to be honest.
@@ -211,7 +211,7 @@ fn require_ref_io<C: FileSystemContext, F>(
 where
     F: FnOnce(&C, &C::FileContext) -> windows::core::Result<IoResult>,
 {
-    let context: &C = unsafe { (*fs).UserContext.cast::<C>().as_ref().unwrap_unchecked() };
+    let context: &C = unsafe { &*(*fs).UserContext.cast::<C>() };
     let fctx = fctx.cast::<C::FileContext>();
 
     // todo: can we unwrap_unchecked.. probably to be honest.

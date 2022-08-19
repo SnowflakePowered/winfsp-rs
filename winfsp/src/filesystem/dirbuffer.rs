@@ -1,5 +1,8 @@
+use widestring::U16CStr;
 use windows::core::Result;
-use windows::Win32::Foundation::STATUS_SUCCESS;
+use windows::Win32::Foundation::{
+    STATUS_INSUFFICIENT_RESOURCES, STATUS_INVALID_PARAMETER, STATUS_SUCCESS,
+};
 use winfsp_sys::{
     FspFileSystemAcquireDirectoryBufferEx, FspFileSystemDeleteDirectoryBuffer,
     FspFileSystemFillDirectoryBuffer, FspFileSystemReadDirectoryBuffer,
@@ -116,12 +119,19 @@ impl<const BUFFER_SIZE: usize> DirInfo<BUFFER_SIZE> {
     /// Set the file name of the directory info.
     ///
     /// The input buffer must not have a null byte at the end.
-    pub fn set_file_name<'a, P: Into<&'a [u16]>>(&mut self, file_name: P) {
+    pub fn set_file_name<'a, P: Into<&'a [u16]>>(&mut self, file_name: P) -> Result<()> {
         let file_name = file_name.into();
+        let file_name =
+            U16CStr::from_slice_truncate(file_name).map_err(|_| STATUS_INVALID_PARAMETER)?;
+        let file_name = file_name.as_slice();
+        if file_name.len() >= BUFFER_SIZE {
+            return Err(STATUS_INSUFFICIENT_RESOURCES.into());
+        }
         self.file_name[0..std::cmp::min(file_name.len(), BUFFER_SIZE)]
             .copy_from_slice(&file_name[0..std::cmp::min(file_name.len(), BUFFER_SIZE)]);
         self.size = (std::mem::size_of::<DirInfo<0>>()
             + std::mem::size_of::<u16>() * file_name.len()) as u16;
+        Ok(())
     }
 
     pub fn file_info_mut(&mut self) -> &mut FSP_FSCTL_FILE_INFO {
