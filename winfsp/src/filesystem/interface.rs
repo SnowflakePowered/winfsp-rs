@@ -353,13 +353,13 @@ unsafe extern "C" fn read_directory<T: FileSystemContext>(
             let buffer =
                 unsafe { slice::from_raw_parts_mut(buffer as *mut _, buffer_len as usize) };
 
-            let bytes_read = dbg!(T::read_directory(
-                context,
-                fctx,
-                pattern,
-                marker.cast_const(),
-                buffer
-            )?);
+            let marker = if !marker.is_null() {
+                Some(unsafe { U16CStr::from_ptr_str_mut(marker).as_slice() })
+            } else {
+                None
+            };
+
+            let bytes_read = T::read_directory(context, fctx, pattern, marker, buffer)?;
 
             if !bytes_transferred.is_null() {
                 unsafe { bytes_transferred.write(bytes_read) }

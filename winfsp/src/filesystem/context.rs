@@ -134,7 +134,7 @@ pub trait FileSystemContext: Sized {
         &self,
         context: &mut Self::FileContext,
         pattern: Option<P>,
-        marker: *const u16,
+        marker: Option<&[u16]>,
         buffer: &mut [u8],
     ) -> Result<u32> {
         Err(STATUS_INVALID_DEVICE_REQUEST.into())

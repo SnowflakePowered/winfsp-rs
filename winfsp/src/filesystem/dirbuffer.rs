@@ -37,12 +37,12 @@ impl DirBuffer {
         }
     }
 
-    pub fn read(&mut self, marker: *const u16, buffer: &mut [u8]) -> u32 {
+    pub fn read(&mut self, marker: Option<&[u16]>, buffer: &mut [u8]) -> u32 {
         let mut out = 0u32;
         unsafe {
             FspFileSystemReadDirectoryBuffer(
                 &mut self.0,
-                marker.cast_mut(),
+                marker.map_or(std::ptr::null_mut(), |v| v.as_ptr().cast_mut()),
                 buffer.as_mut_ptr() as *mut _,
                 buffer.len() as u32,
                 &mut out,
