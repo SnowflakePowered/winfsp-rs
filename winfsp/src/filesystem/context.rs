@@ -92,9 +92,9 @@ pub trait FileSystemContext: Sized {
         Err(STATUS_INVALID_DEVICE_REQUEST.into())
     }
 
-    fn get_security<P: AsRef<OsStr>>(
+    fn get_security(
         &self,
-        file_name: P,
+        context: &Self::FileContext,
         security_descriptor: PSECURITY_DESCRIPTOR,
         descriptor_len: Option<u64>,
     ) -> Result<u64> {
@@ -132,11 +132,11 @@ pub trait FileSystemContext: Sized {
 
     fn read_directory<P: Into<PCWSTR>, M: Into<PWSTR>>(
         &self,
-        context: &Self::FileContext,
+        context: &mut Self::FileContext,
         pattern: Option<P>,
         marker: Option<M>,
         buffer: &mut [u8],
-    ) -> Result<u64> {
+    ) -> Result<u32> {
         Err(STATUS_INVALID_DEVICE_REQUEST.into())
     }
 

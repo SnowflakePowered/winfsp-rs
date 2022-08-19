@@ -1,5 +1,7 @@
+use std::ffi::c_void;
 use std::slice;
 use widestring::U16CStr;
+use windows::core::{PCWSTR, PWSTR};
 
 use windows::Win32::Foundation::{
     EXCEPTION_NONCONTINUABLE_EXCEPTION, STATUS_ACCESS_VIOLATION, STATUS_PENDING, STATUS_REPARSE,
@@ -10,7 +12,7 @@ use windows::Win32::Storage::FileSystem::{FILE_ACCESS_FLAGS, FILE_FLAGS_AND_ATTR
 
 use winfsp_sys::{
     FspNtStatusFromWin32, FSP_FILE_SYSTEM, FSP_FILE_SYSTEM_INTERFACE, FSP_FSCTL_FILE_INFO,
-    FSP_FSCTL_VOLUME_INFO, PWSTR,
+    FSP_FSCTL_VOLUME_INFO,
 };
 use winfsp_sys::{NTSTATUS as FSP_STATUS, PVOID};
 
@@ -24,7 +26,7 @@ macro_rules! catch_panic {
     };
 }
 
-pub unsafe extern "C" fn get_volume_info<T: FileSystemContext>(
+unsafe extern "C" fn get_volume_info<T: FileSystemContext>(
     fs: *mut FSP_FILE_SYSTEM,
     volume_info: *mut FSP_FSCTL_VOLUME_INFO,
 ) -> FSP_STATUS {
@@ -41,10 +43,10 @@ pub unsafe extern "C" fn get_volume_info<T: FileSystemContext>(
     })
 }
 
-pub unsafe extern "C" fn get_security_by_name<T: FileSystemContext>(
+unsafe extern "C" fn get_security_by_name<T: FileSystemContext>(
     fs: *mut FSP_FILE_SYSTEM,
-    file_name: winfsp_sys::PWSTR,
-    file_attributes: winfsp_sys::PUINT32,
+    file_name: *mut u16,
+    file_attributes: *mut u32,
     security_descriptor: winfsp_sys::PSECURITY_DESCRIPTOR,
     sz_security_descriptor: *mut winfsp_sys::SIZE_T,
 ) -> FSP_STATUS {
@@ -79,7 +81,7 @@ pub unsafe extern "C" fn get_security_by_name<T: FileSystemContext>(
     })
 }
 
-pub unsafe extern "C" fn open<T: FileSystemContext>(
+unsafe extern "C" fn open<T: FileSystemContext>(
     fs: *mut FSP_FILE_SYSTEM,
     file_name: winfsp_sys::PWSTR,
     create_options: u32,
@@ -108,9 +110,9 @@ pub unsafe extern "C" fn open<T: FileSystemContext>(
     })
 }
 
-pub unsafe extern "C" fn create_ex<T: FileSystemContext>(
+unsafe extern "C" fn create_ex<T: FileSystemContext>(
     fs: *mut FSP_FILE_SYSTEM,
-    file_name: PWSTR,
+    file_name: *mut u16,
     create_options: u32,
     granted_access: u32,
     file_attributes: u32,
@@ -159,7 +161,7 @@ pub unsafe extern "C" fn create_ex<T: FileSystemContext>(
     })
 }
 
-pub unsafe extern "C" fn close<T: FileSystemContext>(fs: *mut FSP_FILE_SYSTEM, fctx: PVOID) {
+unsafe extern "C" fn close<T: FileSystemContext>(fs: *mut FSP_FILE_SYSTEM, fctx: PVOID) {
     catch_panic!({
         let context: &T = unsafe { (*fs).UserContext.cast::<T>().as_ref().unwrap_unchecked() };
         let fctx = fctx.cast::<T::FileContext>();
@@ -183,13 +185,13 @@ fn require_ref<C: FileSystemContext, F>(
     inner: F,
 ) -> FSP_STATUS
 where
-    F: FnOnce(&C, &C::FileContext) -> windows::core::Result<()>,
+    F: FnOnce(&C, &mut C::FileContext) -> windows::core::Result<()>,
 {
     let context: &C = unsafe { (*fs).UserContext.cast::<C>().as_ref().unwrap_unchecked() };
     let fctx = fctx.cast::<C::FileContext>();
 
     // todo: can we unwrap_unchecked.. probably to be honest.
-    if let Some(fctx) = unsafe { fctx.as_ref() } {
+    if let Some(fctx) = unsafe { fctx.as_mut() } {
         match inner(context, fctx) {
             Ok(_) => STATUS_SUCCESS.0,
             Err(e) => as_ntstatus(e),
@@ -229,7 +231,7 @@ where
     }
 }
 
-pub unsafe extern "C" fn control<T: FileSystemContext>(
+unsafe extern "C" fn control<T: FileSystemContext>(
     fs: *mut FSP_FILE_SYSTEM,
     fctx: PVOID,
     control_code: u32,
@@ -251,19 +253,15 @@ pub unsafe extern "C" fn control<T: FileSystemContext>(
     })
 }
 
-pub unsafe extern "C" fn set_volume_label<T: FileSystemContext>(
+unsafe extern "C" fn set_volume_label<T: FileSystemContext>(
     fs: *mut FSP_FILE_SYSTEM,
-    volume_label: PWSTR,
+    volume_label: *mut u16,
     volume_info: *mut FSP_FSCTL_VOLUME_INFO,
 ) -> FSP_STATUS {
     catch_panic!({
         let context: &T = unsafe { (*fs).UserContext.cast::<T>().as_ref().unwrap_unchecked() };
         if let Some(volume_info) = unsafe { volume_info.as_mut() } {
-            match T::set_volume_label(
-                context,
-                windows::core::PWSTR::from_raw(volume_label),
-                volume_info,
-            ) {
+            match T::set_volume_label(context, PWSTR::from_raw(volume_label), volume_info) {
                 Ok(_) => STATUS_SUCCESS.0,
                 Err(e) => as_ntstatus(e),
             }
@@ -273,7 +271,7 @@ pub unsafe extern "C" fn set_volume_label<T: FileSystemContext>(
     })
 }
 
-pub unsafe extern "C" fn overwrite<T: FileSystemContext>(
+unsafe extern "C" fn overwrite<T: FileSystemContext>(
     fs: *mut FSP_FILE_SYSTEM,
     fctx: PVOID,
     file_attributes: u32,
@@ -296,6 +294,76 @@ pub unsafe extern "C" fn overwrite<T: FileSystemContext>(
     })
 }
 
+unsafe extern "C" fn get_file_info<T: FileSystemContext>(
+    fs: *mut FSP_FILE_SYSTEM,
+    fctx: PVOID,
+    out_file_info: *mut FSP_FSCTL_FILE_INFO,
+) -> FSP_STATUS {
+    catch_panic!({
+        require_ref(fs, fctx, |context, fctx| {
+            let out_file_info = unsafe { out_file_info.as_mut().unwrap_unchecked() };
+            T::get_file_info(context, fctx, out_file_info)
+        })
+    })
+}
+
+unsafe extern "C" fn get_security<T: FileSystemContext>(
+    fs: *mut FSP_FILE_SYSTEM,
+    fctx: PVOID,
+    security_descriptor: *mut c_void,
+    out_descriptor_size: *mut u64,
+) -> FSP_STATUS {
+    catch_panic!({
+        require_ref(fs, fctx, |context, fctx| {
+            let desc_size = T::get_security(
+                context,
+                fctx,
+                PSECURITY_DESCRIPTOR(security_descriptor),
+                unsafe { out_descriptor_size.as_ref().cloned() },
+            )?;
+            if !out_descriptor_size.is_null() {
+                unsafe { out_descriptor_size.write(desc_size) }
+            }
+            Ok(())
+        })
+    })
+}
+
+unsafe extern "C" fn read_directory<T: FileSystemContext>(
+    fs: *mut FSP_FILE_SYSTEM,
+    fctx: PVOID,
+    pattern: *mut u16,
+    marker: *mut u16,
+    buffer: PVOID,
+    buffer_len: u32,
+    bytes_transferred: *mut u32,
+) -> FSP_STATUS {
+    catch_panic!({
+        require_ref(fs, fctx, |context, fctx| {
+            let pattern = if !pattern.is_null() {
+                Some(PCWSTR::from_raw(pattern))
+            } else {
+                None
+            };
+
+            let marker = if !marker.is_null() {
+                Some(PWSTR::from_raw(marker))
+            } else {
+                None
+            };
+
+            let buffer =
+                unsafe { slice::from_raw_parts_mut(buffer as *mut _, buffer_len as usize) };
+
+            let bytes_read = T::read_directory(context, fctx, pattern, marker, buffer)?;
+            if !bytes_transferred.is_null() {
+                unsafe { bytes_transferred.write(bytes_read) }
+            }
+            Ok(())
+        })
+    })
+}
+
 pub struct Interface {
     get_volume_info: Option<
         unsafe extern "C" fn(
@@ -307,7 +375,7 @@ pub struct Interface {
     open: Option<
         unsafe extern "C" fn(
             fs: *mut FSP_FILE_SYSTEM,
-            file_name: winfsp_sys::PWSTR,
+            file_name: *mut u16,
             create_options: u32,
             granted_access: u32,
             file_context: *mut PVOID,
@@ -318,7 +386,7 @@ pub struct Interface {
     create_ex: Option<
         unsafe extern "C" fn(
             fs: *mut FSP_FILE_SYSTEM,
-            file_name: PWSTR,
+            file_name: *mut u16,
             create_options: u32,
             granted_access: u32,
             file_attributes: u32,
@@ -353,6 +421,17 @@ pub struct Interface {
             pbytes_transferred: *mut u32,
         ) -> FSP_STATUS,
     >,
+    read_directory: Option<
+        unsafe extern "C" fn(
+            fs: *mut FSP_FILE_SYSTEM,
+            fctx: PVOID,
+            pattern: *mut u16,
+            marker: *mut u16,
+            buffer: PVOID,
+            buffer_len: u32,
+            bytes_transferred: *mut u32,
+        ) -> FSP_STATUS,
+    >,
     get_security_by_name: Option<
         unsafe extern "C" fn(
             fs: *mut FSP_FILE_SYSTEM,
@@ -362,10 +441,25 @@ pub struct Interface {
             sz_security_descriptor: *mut winfsp_sys::SIZE_T,
         ) -> FSP_STATUS,
     >,
+    get_security: Option<
+        unsafe extern "C" fn(
+            fs: *mut FSP_FILE_SYSTEM,
+            fctx: PVOID,
+            security_descriptor: *mut c_void,
+            out_descriptor_size: *mut u64,
+        ) -> FSP_STATUS,
+    >,
+    get_file_info: Option<
+        unsafe extern "C" fn(
+            fs: *mut FSP_FILE_SYSTEM,
+            fctx: PVOID,
+            out_file_info: *mut FSP_FSCTL_FILE_INFO,
+        ) -> FSP_STATUS,
+    >,
     set_volume_label: Option<
         unsafe extern "C" fn(
             fs: *mut FSP_FILE_SYSTEM,
-            volume_label: PWSTR,
+            volume_label: *mut u16,
             volume_info: *mut FSP_FSCTL_VOLUME_INFO,
         ) -> FSP_STATUS,
     >,
@@ -380,8 +474,11 @@ impl Interface {
             create_ex: Some(create_ex::<T>),
             control: Some(control::<T>),
             overwrite: Some(overwrite::<T>),
+            read_directory: Some(read_directory::<T>),
             get_volume_info: Some(get_volume_info::<T>),
             set_volume_label: Some(set_volume_label::<T>),
+            get_security: Some(get_security::<T>),
+            get_file_info: Some(get_file_info::<T>),
         }
     }
 }
@@ -395,8 +492,11 @@ impl From<Interface> for FSP_FILE_SYSTEM_INTERFACE {
             GetSecurityByName: interface.get_security_by_name,
             Control: interface.control,
             Overwrite: interface.overwrite,
+            ReadDirectory: interface.read_directory,
             GetVolumeInfo: interface.get_volume_info,
             SetVolumeLabelW: interface.set_volume_label,
+            GetSecurity: interface.get_security,
+            GetFileInfo: interface.get_file_info,
             ..Default::default()
         }
     }

@@ -2,6 +2,7 @@ use std::env;
 use std::path::PathBuf;
 
 fn main() {
+    // todo: find from HKLM\SOFTWARE\WOW6432Node\WinFsp;
     let project_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
 
     println!(
@@ -19,6 +20,7 @@ fn main() {
         .allowlist_function("Fsp.*")
         .allowlist_type("FSP.*")
         .allowlist_var("FSP_.*")
+        .allowlist_var("CTL_CODE")
         .clang_arg("-DUNICODE")
         .clang_arg("--include-directory=winfsp/inc")
         .clang_arg("--target=x86_64-pc-windows-msvc")
