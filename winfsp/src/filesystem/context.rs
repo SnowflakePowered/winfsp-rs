@@ -14,7 +14,7 @@ pub struct FileSecurity {
 }
 
 pub struct IoResult {
-    pub bytes_transferred: u64,
+    pub bytes_transferred: u32,
     pub io_pending: bool,
 }
 

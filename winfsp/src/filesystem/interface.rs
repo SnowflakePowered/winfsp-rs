@@ -4,15 +4,15 @@ use widestring::U16CStr;
 use windows::core::{PCWSTR, PWSTR};
 
 use windows::Win32::Foundation::{
-    EXCEPTION_NONCONTINUABLE_EXCEPTION, STATUS_ACCESS_VIOLATION, STATUS_PENDING, STATUS_REPARSE,
-    STATUS_SUCCESS,
+    EXCEPTION_NONCONTINUABLE_EXCEPTION, STATUS_ACCESS_VIOLATION, STATUS_INSUFFICIENT_RESOURCES,
+    STATUS_PENDING, STATUS_REPARSE, STATUS_SUCCESS,
 };
 use windows::Win32::Security::PSECURITY_DESCRIPTOR;
 use windows::Win32::Storage::FileSystem::{FILE_ACCESS_FLAGS, FILE_FLAGS_AND_ATTRIBUTES};
 
 use winfsp_sys::{
-    FspFileSystemAddDirInfo, FspNtStatusFromWin32, FSP_FILE_SYSTEM, FSP_FILE_SYSTEM_INTERFACE,
-    FSP_FSCTL_FILE_INFO, FSP_FSCTL_VOLUME_INFO,
+    FspNtStatusFromWin32, FSP_FILE_SYSTEM, FSP_FILE_SYSTEM_INTERFACE, FSP_FSCTL_FILE_INFO,
+    FSP_FSCTL_VOLUME_INFO,
 };
 use winfsp_sys::{NTSTATUS as FSP_STATUS, PVOID};
 
@@ -369,6 +369,35 @@ unsafe extern "C" fn read_directory<T: FileSystemContext>(
     })
 }
 
+unsafe extern "C" fn read<T: FileSystemContext>(
+    fs: *mut FSP_FILE_SYSTEM,
+    fctx: PVOID,
+    buffer: PVOID,
+    offset: u64,
+    length: u32,
+    bytes_transferred: *mut u32,
+) -> FSP_STATUS {
+    catch_panic!({
+        require_ref_io(fs, fctx, |context, fctx| {
+            if !bytes_transferred.is_null() {
+                unsafe { bytes_transferred.write(0) }
+            }
+
+            if !buffer.is_null() {
+                let buffer =
+                    unsafe { slice::from_raw_parts_mut(buffer as *mut u8, length as usize) };
+                let result = T::read(context, fctx, buffer, offset)?;
+                if !bytes_transferred.is_null() {
+                    unsafe { bytes_transferred.write(result.bytes_transferred) }
+                }
+                Ok(result)
+            } else {
+                Err(STATUS_INSUFFICIENT_RESOURCES.into())
+            }
+        })
+    })
+}
+
 pub struct Interface {
     get_volume_info: Option<
         unsafe extern "C" fn(
@@ -468,6 +497,16 @@ pub struct Interface {
             volume_info: *mut FSP_FSCTL_VOLUME_INFO,
         ) -> FSP_STATUS,
     >,
+    read: Option<
+        unsafe extern "C" fn(
+            fs: *mut FSP_FILE_SYSTEM,
+            fctx: PVOID,
+            buffer: PVOID,
+            offset: u64,
+            length: u32,
+            bytes_transferred: *mut u32,
+        ) -> FSP_STATUS,
+    >,
 }
 
 impl Interface {
@@ -484,6 +523,7 @@ impl Interface {
             set_volume_label: Some(set_volume_label::<T>),
             get_security: Some(get_security::<T>),
             get_file_info: Some(get_file_info::<T>),
+            read: Some(read::<T>),
         }
     }
 }
@@ -495,13 +535,14 @@ impl From<Interface> for FSP_FILE_SYSTEM_INTERFACE {
             Close: interface.close,
             CreateEx: interface.create_ex,
             GetSecurityByName: interface.get_security_by_name,
-            // Control: interface.control,
+            Control: interface.control,
             Overwrite: interface.overwrite,
             ReadDirectory: interface.read_directory,
             GetVolumeInfo: interface.get_volume_info,
             SetVolumeLabelW: interface.set_volume_label,
             GetSecurity: interface.get_security,
             GetFileInfo: interface.get_file_info,
+            Read: interface.read,
             ..Default::default()
         }
     }
