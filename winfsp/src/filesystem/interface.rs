@@ -259,7 +259,7 @@ unsafe extern "C" fn set_volume_label<T: FileSystemContext>(
     volume_info: *mut FSP_FSCTL_VOLUME_INFO,
 ) -> FSP_STATUS {
     catch_panic!({
-        let context: &T = unsafe { (*fs).UserContext.cast::<T>().as_ref().unwrap_unchecked() };
+        let context: &T = unsafe { &*(*fs).UserContext.cast::<T>() };
         if let Some(volume_info) = unsafe { volume_info.as_mut() } {
             match T::set_volume_label(context, PWSTR::from_raw(volume_label), volume_info) {
                 Ok(_) => STATUS_SUCCESS.0,
@@ -281,7 +281,7 @@ unsafe extern "C" fn overwrite<T: FileSystemContext>(
 ) -> FSP_STATUS {
     catch_panic!({
         require_ref(fs, fctx, |context, fctx| {
-            let out_file_info = unsafe { out_file_info.as_mut().unwrap_unchecked() };
+            let out_file_info = unsafe { &mut *out_file_info };
             T::overwrite(
                 context,
                 fctx,
@@ -301,7 +301,7 @@ unsafe extern "C" fn get_file_info<T: FileSystemContext>(
 ) -> FSP_STATUS {
     catch_panic!({
         require_ref(fs, fctx, |context, fctx| {
-            let out_file_info = unsafe { out_file_info.as_mut().unwrap_unchecked() };
+            let out_file_info = unsafe { &mut *out_file_info };
             T::get_file_info(context, fctx, out_file_info)
         })
     })
@@ -398,6 +398,48 @@ unsafe extern "C" fn read<T: FileSystemContext>(
     })
 }
 
+unsafe extern "C" fn write<T: FileSystemContext>(
+    fs: *mut FSP_FILE_SYSTEM,
+    fctx: PVOID,
+    buffer: PVOID,
+    offset: u64,
+    length: u32,
+    write_to_eof: u8,
+    constrained_io: u8,
+    bytes_transferred: *mut u32,
+    out_file_info: *mut FSP_FSCTL_FILE_INFO,
+) -> FSP_STATUS {
+    if out_file_info.is_null() {
+        return STATUS_INSUFFICIENT_RESOURCES.0;
+    }
+    catch_panic!({
+        require_ref_io(fs, fctx, |context, fctx| {
+            if !bytes_transferred.is_null() {
+                unsafe { bytes_transferred.write(0) }
+            }
+
+            if !buffer.is_null() {
+                let buffer =
+                    unsafe { slice::from_raw_parts_mut(buffer as *mut u8, length as usize) };
+                let result = T::write(
+                    context,
+                    fctx,
+                    buffer,
+                    offset,
+                    write_to_eof != 0,
+                    constrained_io != 0,
+                    unsafe { &mut *out_file_info },
+                )?;
+                if !bytes_transferred.is_null() {
+                    unsafe { bytes_transferred.write(result.bytes_transferred) }
+                }
+                Ok(result)
+            } else {
+                Err(STATUS_INSUFFICIENT_RESOURCES.into())
+            }
+        })
+    })
+}
 pub struct Interface {
     get_volume_info: Option<
         unsafe extern "C" fn(
@@ -507,6 +549,19 @@ pub struct Interface {
             bytes_transferred: *mut u32,
         ) -> FSP_STATUS,
     >,
+    write: Option<
+        unsafe extern "C" fn(
+            fs: *mut FSP_FILE_SYSTEM,
+            fctx: PVOID,
+            buffer: PVOID,
+            offset: u64,
+            length: u32,
+            write_to_eof: u8,
+            constrained_to: u8,
+            bytes_transferred: *mut u32,
+            out_file_info: *mut FSP_FSCTL_FILE_INFO,
+        ) -> FSP_STATUS,
+    >,
 }
 
 impl Interface {
@@ -524,6 +579,7 @@ impl Interface {
             get_security: Some(get_security::<T>),
             get_file_info: Some(get_file_info::<T>),
             read: Some(read::<T>),
+            write: Some(write::<T>),
         }
     }
 }
@@ -543,6 +599,7 @@ impl From<Interface> for FSP_FILE_SYSTEM_INTERFACE {
             GetSecurity: interface.get_security,
             GetFileInfo: interface.get_file_info,
             Read: interface.read,
+            Write: interface.write,
             ..Default::default()
         }
     }
