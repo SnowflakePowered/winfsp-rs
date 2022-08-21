@@ -440,6 +440,7 @@ unsafe extern "C" fn write<T: FileSystemContext>(
         })
     })
 }
+
 pub struct Interface {
     get_volume_info: Option<
         unsafe extern "C" fn(
