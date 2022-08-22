@@ -125,6 +125,7 @@ unsafe extern "C" fn create_ex<T: FileSystemContext>(
     out_finfo: *mut FSP_FSCTL_FILE_INFO,
 ) -> FSP_STATUS {
     catch_panic!({
+        dbg!("create_glue");
         let context: &T = unsafe { &*(*fs).UserContext.cast::<T>() };
         let file_name = unsafe { U16CStr::from_ptr_str_mut(file_name).to_os_string() };
         let out_finfo = unsafe { out_finfo.as_mut().unwrap_unchecked() };
