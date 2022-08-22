@@ -442,6 +442,21 @@ unsafe extern "C" fn write<T: FileSystemContext>(
     })
 }
 
+unsafe extern "C" fn cleanup<T: FileSystemContext>(
+    fs: *mut FSP_FILE_SYSTEM,
+    fctx: PVOID,
+    file_name: *mut u16,
+    flags: u32,
+) {
+    catch_panic!({
+        require_ref(fs, fctx, |context, fctx| {
+            let file_name = unsafe { U16CStr::from_ptr_str_mut(file_name).to_os_string() };
+            T::cleanup(context, fctx, file_name, flags);
+            Ok(())
+        })
+    });
+}
+
 pub struct Interface {
     get_volume_info: Option<
         unsafe extern "C" fn(
@@ -564,6 +579,14 @@ pub struct Interface {
             out_file_info: *mut FSP_FSCTL_FILE_INFO,
         ) -> FSP_STATUS,
     >,
+    cleanup: Option<
+        unsafe extern "C" fn(
+            fs: *mut FSP_FILE_SYSTEM,
+            fctx: PVOID,
+            file_name: *mut u16,
+            flags: u32,
+        ),
+    >,
 }
 
 impl Interface {
@@ -582,6 +605,7 @@ impl Interface {
             get_file_info: Some(get_file_info::<T>),
             read: Some(read::<T>),
             write: Some(write::<T>),
+            cleanup: Some(cleanup::<T>),
         }
     }
 }
@@ -602,6 +626,7 @@ impl From<Interface> for FSP_FILE_SYSTEM_INTERFACE {
             GetFileInfo: interface.get_file_info,
             Read: interface.read,
             Write: interface.write,
+            Cleanup: interface.cleanup,
             ..Default::default()
         }
     }
