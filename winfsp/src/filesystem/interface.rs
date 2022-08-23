@@ -457,6 +457,77 @@ unsafe extern "C" fn cleanup<T: FileSystemContext>(
     });
 }
 
+unsafe extern "C" fn set_basic_info<T: FileSystemContext>(
+    fs: *mut FSP_FILE_SYSTEM,
+    fctx: PVOID,
+    file_attributes: u32,
+    creation_time: u64,
+    last_access_time: u64,
+    last_write_time: u64,
+    change_time: u64,
+    out_file_info: *mut FSP_FSCTL_FILE_INFO,
+) -> FSP_STATUS {
+    catch_panic!({
+        require_ref(fs, fctx, |context, fctx| {
+            T::set_basic_info(
+                context,
+                fctx,
+                file_attributes,
+                creation_time,
+                last_access_time,
+                last_write_time,
+                change_time,
+                unsafe { &mut *out_file_info },
+            )
+        })
+    })
+}
+
+unsafe extern "C" fn set_file_size<T: FileSystemContext>(
+    fs: *mut FSP_FILE_SYSTEM,
+    fctx: PVOID,
+    new_size: u64,
+    set_allocation_size: u8,
+    out_file_info: *mut FSP_FSCTL_FILE_INFO,
+) -> FSP_STATUS {
+    catch_panic!({
+        require_ref(fs, fctx, |context, fctx| {
+            T::set_file_size(context, fctx, new_size, set_allocation_size != 0, unsafe {
+                &mut *out_file_info
+            })
+        })
+    })
+}
+
+unsafe extern "C" fn set_security<T: FileSystemContext>(
+    fs: *mut FSP_FILE_SYSTEM,
+    fctx: PVOID,
+    security_information: u32,
+    modification_descriptor: *mut c_void,
+) -> FSP_STATUS {
+    catch_panic!({
+        require_ref(fs, fctx, |context, fctx| {
+            T::set_security(
+                context,
+                fctx,
+                security_information,
+                PSECURITY_DESCRIPTOR(modification_descriptor),
+            )
+        })
+    })
+}
+
+unsafe extern "C" fn flush<T: FileSystemContext>(
+    fs: *mut FSP_FILE_SYSTEM,
+    fctx: PVOID,
+    out_file_info: *mut FSP_FSCTL_FILE_INFO,
+) -> FSP_STATUS {
+    catch_panic!({
+        require_ref(fs, fctx, |context, fctx| {
+            T::flush(context, fctx, unsafe { &mut *out_file_info })
+        })
+    })
+}
 pub struct Interface {
     get_volume_info: Option<
         unsafe extern "C" fn(
@@ -587,6 +658,44 @@ pub struct Interface {
             flags: u32,
         ),
     >,
+    set_basic_info: Option<
+        unsafe extern "C" fn(
+            fs: *mut FSP_FILE_SYSTEM,
+            fctx: PVOID,
+            file_attributes: u32,
+            creation_time: u64,
+            last_access_time: u64,
+            last_write_time: u64,
+            change_time: u64,
+            out_file_info: *mut FSP_FSCTL_FILE_INFO,
+        ) -> FSP_STATUS,
+    >,
+
+    set_security: Option<
+        unsafe extern "C" fn(
+            fs: *mut FSP_FILE_SYSTEM,
+            fctx: PVOID,
+            security_information: u32,
+            modification_descriptor: *mut c_void,
+        ) -> FSP_STATUS,
+    >,
+
+    set_file_size: Option<
+        unsafe extern "C" fn(
+            fs: *mut FSP_FILE_SYSTEM,
+            fctx: PVOID,
+            new_size: u64,
+            set_allocation_size: u8,
+            out_file_info: *mut FSP_FSCTL_FILE_INFO,
+        ) -> FSP_STATUS,
+    >,
+    flush: Option<
+        unsafe extern "C" fn(
+            fs: *mut FSP_FILE_SYSTEM,
+            fctx: PVOID,
+            out_file_info: *mut FSP_FSCTL_FILE_INFO,
+        ) -> FSP_STATUS,
+    >,
 }
 
 impl Interface {
@@ -606,6 +715,10 @@ impl Interface {
             read: Some(read::<T>),
             write: Some(write::<T>),
             cleanup: Some(cleanup::<T>),
+            set_basic_info: Some(set_basic_info::<T>),
+            set_file_size: Some(set_file_size::<T>),
+            set_security: Some(set_security::<T>),
+            flush: Some(flush::<T>),
         }
     }
 }
@@ -627,6 +740,10 @@ impl From<Interface> for FSP_FILE_SYSTEM_INTERFACE {
             Read: interface.read,
             Write: interface.write,
             Cleanup: interface.cleanup,
+            SetBasicInfo: interface.set_basic_info,
+            SetFileSize: interface.set_file_size,
+            SetSecurity: interface.set_security,
+            Flush: interface.flush,
             ..Default::default()
         }
     }
