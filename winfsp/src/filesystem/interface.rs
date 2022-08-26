@@ -517,6 +517,20 @@ unsafe extern "C" fn set_security<T: FileSystemContext>(
     })
 }
 
+unsafe extern "C" fn set_delete<T: FileSystemContext>(
+    fs: *mut FSP_FILE_SYSTEM,
+    fctx: PVOID,
+    file_name: *mut u16,
+    delete_file: u8,
+) -> FSP_STATUS {
+    catch_panic!({
+        require_ref(fs, fctx, |context, fctx| {
+            let file_name = unsafe { U16CStr::from_ptr_str_mut(file_name).to_os_string() };
+            T::set_delete(context, fctx, &file_name, delete_file != 0)
+        })
+    })
+}
+
 unsafe extern "C" fn flush<T: FileSystemContext>(
     fs: *mut FSP_FILE_SYSTEM,
     fctx: PVOID,
@@ -679,7 +693,6 @@ pub struct Interface {
             modification_descriptor: *mut c_void,
         ) -> FSP_STATUS,
     >,
-
     set_file_size: Option<
         unsafe extern "C" fn(
             fs: *mut FSP_FILE_SYSTEM,
@@ -687,6 +700,14 @@ pub struct Interface {
             new_size: u64,
             set_allocation_size: u8,
             out_file_info: *mut FSP_FSCTL_FILE_INFO,
+        ) -> FSP_STATUS,
+    >,
+    set_delete: Option<
+        unsafe extern "C" fn(
+            fs: *mut FSP_FILE_SYSTEM,
+            fctx: PVOID,
+            file_name: *mut u16,
+            delete_file: u8,
         ) -> FSP_STATUS,
     >,
     flush: Option<
@@ -718,6 +739,7 @@ impl Interface {
             set_basic_info: Some(set_basic_info::<T>),
             set_file_size: Some(set_file_size::<T>),
             set_security: Some(set_security::<T>),
+            set_delete: Some(set_delete::<T>),
             flush: Some(flush::<T>),
         }
     }
@@ -743,6 +765,7 @@ impl From<Interface> for FSP_FILE_SYSTEM_INTERFACE {
             SetBasicInfo: interface.set_basic_info,
             SetFileSize: interface.set_file_size,
             SetSecurity: interface.set_security,
+            SetDelete: interface.set_delete,
             Flush: interface.flush,
             ..Default::default()
         }

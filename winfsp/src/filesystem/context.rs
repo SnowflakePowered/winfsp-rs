@@ -63,7 +63,6 @@ pub trait FileSystemContext: Sized {
         extra_buffer_is_reparse_point: bool,
         file_info: &mut FSP_FSCTL_FILE_INFO,
     ) -> Result<Self::FileContext> {
-        dbg!("create");
         Err(STATUS_INVALID_DEVICE_REQUEST.into())
     }
 
