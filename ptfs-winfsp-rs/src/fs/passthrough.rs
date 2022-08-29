@@ -11,7 +11,7 @@ use widestring::{u16cstr, U16CStr, U16CString, U16String};
 use windows::core::{Result, HSTRING, PCWSTR};
 use windows::w;
 use windows::Win32::Foundation::{
-    CloseHandle, GetLastError, BOOLEAN, HANDLE, MAX_PATH, STATUS_OBJECT_NAME_INVALID,
+    GetLastError, BOOLEAN, HANDLE, MAX_PATH, STATUS_OBJECT_NAME_INVALID,
 };
 use windows::Win32::Security::{
     GetKernelObjectSecurity, SetKernelObjectSecurity, DACL_SECURITY_INFORMATION,

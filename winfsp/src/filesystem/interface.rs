@@ -18,7 +18,7 @@ use winfsp_sys::{NTSTATUS as FSP_STATUS, PVOID};
 
 use crate::filesystem::{FileSecurity, FileSystemContext, IoResult};
 
-/// Catch panic and return STATUS_INVALID_DISPOSITION
+/// Catch panic and return EXECPTION_NONCONTINUABLE_EXCEPTION
 macro_rules! catch_panic {
     ($bl:block) => {
         ::std::panic::catch_unwind(|| $bl)
@@ -26,20 +26,97 @@ macro_rules! catch_panic {
     };
 }
 
+#[inline(always)]
+fn as_ntstatus(error: windows::core::Error) -> FSP_STATUS {
+    unsafe { FspNtStatusFromWin32(error.code().0 as u32) }
+}
+
+#[inline(always)]
+fn require_fctx<C: FileSystemContext, F>(
+    fs: *mut FSP_FILE_SYSTEM,
+    fctx: PVOID,
+    inner: F,
+) -> FSP_STATUS
+where
+    F: FnOnce(&C, &mut C::FileContext) -> windows::core::Result<()>,
+{
+    if fs.is_null() || fctx.is_null() {
+        dbg!("require_ref failed");
+        return STATUS_ACCESS_VIOLATION.0;
+    }
+
+    let context: &C = unsafe { &*(*fs).UserContext.cast::<C>() };
+    let fctx = fctx.cast::<C::FileContext>();
+
+    if let Some(fctx) = unsafe { fctx.as_mut() } {
+        match inner(context, fctx) {
+            Ok(_) => STATUS_SUCCESS.0,
+            Err(e) => as_ntstatus(e),
+        }
+    } else {
+        dbg!("require_ref failed");
+        STATUS_ACCESS_VIOLATION.0
+    }
+}
+
+#[inline(always)]
+fn require_ctx<C: FileSystemContext, F>(fs: *mut FSP_FILE_SYSTEM, inner: F) -> FSP_STATUS
+where
+    F: FnOnce(&C) -> windows::core::Result<()>,
+{
+    if fs.is_null() {
+        dbg!("require_ref failed");
+        return STATUS_ACCESS_VIOLATION.0;
+    }
+
+    let context: &C = unsafe { &*(*fs).UserContext.cast::<C>() };
+    match inner(context) {
+        Ok(_) => STATUS_SUCCESS.0,
+        Err(e) => as_ntstatus(e),
+    }
+}
+
+#[inline(always)]
+fn require_fctx_io<C: FileSystemContext, F>(
+    fs: *mut FSP_FILE_SYSTEM,
+    fctx: PVOID,
+    inner: F,
+) -> FSP_STATUS
+where
+    F: FnOnce(&C, &C::FileContext) -> windows::core::Result<IoResult>,
+{
+    let context: &C = unsafe { &*(*fs).UserContext.cast::<C>() };
+    let fctx = fctx.cast::<C::FileContext>();
+
+    // todo: can we unwrap_unchecked.. probably to be honest.
+    if let Some(fctx) = unsafe { fctx.as_ref() } {
+        match inner(context, fctx) {
+            Ok(res) => {
+                if res.io_pending {
+                    STATUS_PENDING.0
+                } else {
+                    STATUS_SUCCESS.0
+                }
+            }
+            Err(e) => as_ntstatus(e),
+        }
+    } else {
+        STATUS_ACCESS_VIOLATION.0
+    }
+}
+
 unsafe extern "C" fn get_volume_info<T: FileSystemContext>(
     fs: *mut FSP_FILE_SYSTEM,
     volume_info: *mut FSP_FSCTL_VOLUME_INFO,
 ) -> FSP_STATUS {
     catch_panic!({
-        let context: &T = unsafe { &*(*fs).UserContext.cast::<T>() };
-        if let Some(volume_info) = unsafe { volume_info.as_mut() } {
-            match T::get_volume_info(context, volume_info) {
-                Ok(_) => STATUS_SUCCESS.0,
-                Err(e) => as_ntstatus(e),
+        require_ctx(fs, |context| {
+            if let Some(volume_info) = unsafe { volume_info.as_mut() } {
+                T::get_volume_info(context, volume_info)
+            } else {
+                Err(EXCEPTION_NONCONTINUABLE_EXCEPTION.into())
             }
-        } else {
-            EXCEPTION_NONCONTINUABLE_EXCEPTION.0
-        }
+        })
     })
 }
 
@@ -90,23 +167,19 @@ unsafe extern "C" fn open<T: FileSystemContext>(
     out_file_info: *mut FSP_FSCTL_FILE_INFO,
 ) -> FSP_STATUS {
     catch_panic!({
-        let context: &T = unsafe { &*(*fs).UserContext.cast::<T>() };
-        let file_name = unsafe { U16CStr::from_ptr_str_mut(file_name).to_os_string() };
-
-        match T::open(
-            context,
-            &file_name,
-            create_options,
-            FILE_ACCESS_FLAGS(granted_access),
-            unsafe { out_file_info.as_mut().unwrap_unchecked() },
-        ) {
-            Ok(fctx) => {
-                // expose pointer to FFI
-                unsafe { *out_file_context = Box::into_raw(Box::new(fctx)) as *mut _ };
-                STATUS_SUCCESS.0
-            }
-            Err(e) => as_ntstatus(e),
-        }
+        require_ctx(fs, |context| {
+            let file_name = unsafe { U16CStr::from_ptr_str_mut(file_name).to_os_string() };
+            let fctx = T::open(
+                context,
+                &file_name,
+                create_options,
+                FILE_ACCESS_FLAGS(granted_access),
+                unsafe { out_file_info.as_mut() }
+                    .expect("FSP_FSCTL_FILE_INFO buffer was not allocated."),
+            )?;
+            unsafe { *out_file_context = Box::into_raw(Box::new(fctx)) as *mut _ };
+            Ok(())
+        })
     })
 }
 
@@ -122,114 +195,51 @@ unsafe extern "C" fn create_ex<T: FileSystemContext>(
     extra_len: u32,
     extra_buffer_is_reparse_point: u8,
     out_fctx: *mut PVOID,
-    out_finfo: *mut FSP_FSCTL_FILE_INFO,
+    out_file_info: *mut FSP_FSCTL_FILE_INFO,
 ) -> FSP_STATUS {
     catch_panic!({
-        dbg!("create_glue");
-        let context: &T = unsafe { &*(*fs).UserContext.cast::<T>() };
-        let file_name = unsafe { U16CStr::from_ptr_str_mut(file_name).to_os_string() };
-        let out_finfo = unsafe { out_finfo.as_mut().unwrap_unchecked() };
+        require_ctx(fs, |context| {
+            let file_name = unsafe { U16CStr::from_ptr_str_mut(file_name).to_os_string() };
+            let extra_buffer = if !extra_buffer.is_null() {
+                unsafe {
+                    Some(slice::from_raw_parts(
+                        extra_buffer as *mut u8,
+                        extra_len as usize,
+                    ))
+                }
+            } else {
+                None
+            };
 
-        let extra_buffer = if !extra_buffer.is_null() {
-            unsafe {
-                Some(slice::from_raw_parts(
-                    extra_buffer as *mut u8,
-                    extra_len as usize,
-                ))
-            }
-        } else {
-            None
-        };
-
-        match T::create(
-            context,
-            file_name,
-            create_options,
-            FILE_ACCESS_FLAGS(granted_access),
-            FILE_FLAGS_AND_ATTRIBUTES(file_attributes),
-            PSECURITY_DESCRIPTOR(security_descriptor),
-            allocation_size,
-            extra_buffer,
-            extra_buffer_is_reparse_point != 0,
-            out_finfo,
-        ) {
-            Ok(context) => {
-                unsafe { *out_fctx = Box::into_raw(Box::new(context)) as *mut _ };
-                STATUS_SUCCESS.0
-            }
-            Err(e) => as_ntstatus(e),
-        }
+            let fctx = T::create(
+                context,
+                file_name,
+                create_options,
+                FILE_ACCESS_FLAGS(granted_access),
+                FILE_FLAGS_AND_ATTRIBUTES(file_attributes),
+                PSECURITY_DESCRIPTOR(security_descriptor),
+                allocation_size,
+                extra_buffer,
+                extra_buffer_is_reparse_point != 0,
+                unsafe { out_file_info.as_mut() }
+                    .expect("FSP_FSCTL_FILE_INFO buffer was not allocated."),
+            )?;
+            unsafe { *out_fctx = Box::into_raw(Box::new(fctx)) as *mut _ };
+            Ok(())
+        })
     })
 }
 
 unsafe extern "C" fn close<T: FileSystemContext>(fs: *mut FSP_FILE_SYSTEM, fctx: PVOID) {
+    if fctx.is_null() {
+        return;
+    }
     catch_panic!({
-        let context: &T = unsafe { &*(*fs).UserContext.cast::<T>() };
-        let fctx = fctx.cast::<T::FileContext>();
-        if !fctx.is_null() {
-            // reclaim pointer from FFI
+        require_fctx(fs, fctx, |context, fctx| {
             T::close(context, unsafe { *Box::from_raw(fctx) });
-        }
-        0
+            Ok(())
+        })
     });
-}
-
-#[inline(always)]
-fn as_ntstatus(error: windows::core::Error) -> FSP_STATUS {
-    unsafe { FspNtStatusFromWin32(error.code().0 as u32) }
-}
-
-#[inline(always)]
-fn require_ref<C: FileSystemContext, F>(
-    fs: *mut FSP_FILE_SYSTEM,
-    fctx: PVOID,
-    inner: F,
-) -> FSP_STATUS
-where
-    F: FnOnce(&C, &mut C::FileContext) -> windows::core::Result<()>,
-{
-    let context: &C = unsafe { &*(*fs).UserContext.cast::<C>() };
-    let fctx = fctx.cast::<C::FileContext>();
-
-    // todo: can we unwrap_unchecked.. probably to be honest.
-    if let Some(fctx) = unsafe { fctx.as_mut() } {
-        match inner(context, fctx) {
-            Ok(_) => STATUS_SUCCESS.0,
-            Err(e) => as_ntstatus(e),
-        }
-    } else {
-        dbg!("require_ref failed");
-        STATUS_ACCESS_VIOLATION.0
-    }
-}
-
-#[inline(always)]
-fn require_ref_io<C: FileSystemContext, F>(
-    fs: *mut FSP_FILE_SYSTEM,
-    fctx: PVOID,
-    inner: F,
-) -> FSP_STATUS
-where
-    F: FnOnce(&C, &C::FileContext) -> windows::core::Result<IoResult>,
-{
-    let context: &C = unsafe { &*(*fs).UserContext.cast::<C>() };
-    let fctx = fctx.cast::<C::FileContext>();
-
-    // todo: can we unwrap_unchecked.. probably to be honest.
-    if let Some(fctx) = unsafe { fctx.as_ref() } {
-        match inner(context, fctx) {
-            Ok(res) => {
-                if res.io_pending {
-                    STATUS_PENDING.0
-                } else {
-                    STATUS_SUCCESS.0
-                }
-            }
-            Err(e) => as_ntstatus(e),
-        }
-    } else {
-        STATUS_ACCESS_VIOLATION.0
-    }
 }
 
 unsafe extern "C" fn control<T: FileSystemContext>(
@@ -243,7 +253,7 @@ unsafe extern "C" fn control<T: FileSystemContext>(
     pbytes_transferred: *mut u32,
 ) -> FSP_STATUS {
     catch_panic!({
-        require_ref(fs, fctx, |context, fctx| unsafe {
+        require_fctx(fs, fctx, |context, fctx| unsafe {
             let input = slice::from_raw_parts(input_buffer as *const u8, input_buffer_len as usize);
             let output =
                 slice::from_raw_parts_mut(output_buffer as *mut u8, output_buffer_len as usize);
@@ -260,12 +270,10 @@ unsafe extern "C" fn set_volume_label<T: FileSystemContext>(
     volume_info: *mut FSP_FSCTL_VOLUME_INFO,
 ) -> FSP_STATUS {
     catch_panic!({
-        let context: &T = unsafe { &*(*fs).UserContext.cast::<T>() };
         if let Some(volume_info) = unsafe { volume_info.as_mut() } {
-            match T::set_volume_label(context, PWSTR::from_raw(volume_label), volume_info) {
-                Ok(_) => STATUS_SUCCESS.0,
-                Err(e) => as_ntstatus(e),
-            }
+            require_ctx(fs, |context| {
+                T::set_volume_label(context, PWSTR::from_raw(volume_label), volume_info)
+            })
         } else {
             EXCEPTION_NONCONTINUABLE_EXCEPTION.0
         }
@@ -281,7 +289,7 @@ unsafe extern "C" fn overwrite<T: FileSystemContext>(
     out_file_info: *mut FSP_FSCTL_FILE_INFO,
 ) -> FSP_STATUS {
     catch_panic!({
-        require_ref(fs, fctx, |context, fctx| {
+        require_fctx(fs, fctx, |context, fctx| {
             let out_file_info = unsafe { &mut *out_file_info };
             T::overwrite(
                 context,
@@ -301,9 +309,12 @@ unsafe extern "C" fn get_file_info<T: FileSystemContext>(
     out_file_info: *mut FSP_FSCTL_FILE_INFO,
 ) -> FSP_STATUS {
     catch_panic!({
-        require_ref(fs, fctx, |context, fctx| {
-            let out_file_info = unsafe { &mut *out_file_info };
-            T::get_file_info(context, fctx, out_file_info)
+        require_fctx(fs, fctx, |context, fctx| {
+            T::get_file_info(context, fctx, unsafe {
+                out_file_info
+                    .as_mut()
+                    .expect("FSP_FSCTL_FILE_INFO buffer was not allocated.")
+            })
         })
     })
 }
@@ -315,7 +326,7 @@ unsafe extern "C" fn get_security<T: FileSystemContext>(
     out_descriptor_size: *mut u64,
 ) -> FSP_STATUS {
     catch_panic!({
-        require_ref(fs, fctx, |context, fctx| {
+        require_fctx(fs, fctx, |context, fctx| {
             let desc_size = T::get_security(
                 context,
                 fctx,
@@ -340,7 +351,7 @@ unsafe extern "C" fn read_directory<T: FileSystemContext>(
     bytes_transferred: *mut u32,
 ) -> FSP_STATUS {
     catch_panic!({
-        require_ref(fs, fctx, |context, fctx| {
+        require_fctx(fs, fctx, |context, fctx| {
             if !bytes_transferred.is_null() {
                 unsafe { bytes_transferred.write(0) }
             }
@@ -379,7 +390,7 @@ unsafe extern "C" fn read<T: FileSystemContext>(
     bytes_transferred: *mut u32,
 ) -> FSP_STATUS {
     catch_panic!({
-        require_ref_io(fs, fctx, |context, fctx| {
+        require_fctx_io(fs, fctx, |context, fctx| {
             if !bytes_transferred.is_null() {
                 unsafe { bytes_transferred.write(0) }
             }
@@ -414,7 +425,7 @@ unsafe extern "C" fn write<T: FileSystemContext>(
         return STATUS_INSUFFICIENT_RESOURCES.0;
     }
     catch_panic!({
-        require_ref_io(fs, fctx, |context, fctx| {
+        require_fctx_io(fs, fctx, |context, fctx| {
             if !bytes_transferred.is_null() {
                 unsafe { bytes_transferred.write(0) }
             }
@@ -429,7 +440,8 @@ unsafe extern "C" fn write<T: FileSystemContext>(
                     offset,
                     write_to_eof != 0,
                     constrained_io != 0,
-                    unsafe { &mut *out_file_info },
+                    unsafe { out_file_info.as_mut() }
+                        .expect("FSP_FSCTL_FILE_INFO buffer was not allocated."),
                 )?;
                 if !bytes_transferred.is_null() {
                     unsafe { bytes_transferred.write(result.bytes_transferred) }
@@ -449,7 +461,7 @@ unsafe extern "C" fn cleanup<T: FileSystemContext>(
     flags: u32,
 ) {
     catch_panic!({
-        require_ref(fs, fctx, |context, fctx| {
+        require_fctx(fs, fctx, |context, fctx| {
             let file_name = unsafe { U16CStr::from_ptr_str_mut(file_name).to_os_string() };
             T::cleanup(context, fctx, file_name, flags);
             Ok(())
@@ -468,7 +480,7 @@ unsafe extern "C" fn set_basic_info<T: FileSystemContext>(
     out_file_info: *mut FSP_FSCTL_FILE_INFO,
 ) -> FSP_STATUS {
     catch_panic!({
-        require_ref(fs, fctx, |context, fctx| {
+        require_fctx(fs, fctx, |context, fctx| {
             T::set_basic_info(
                 context,
                 fctx,
@@ -477,7 +489,8 @@ unsafe extern "C" fn set_basic_info<T: FileSystemContext>(
                 last_access_time,
                 last_write_time,
                 change_time,
-                unsafe { &mut *out_file_info },
+                unsafe { out_file_info.as_mut() }
+                    .expect("FSP_FSCTL_FILE_INFO buffer was not allocated."),
             )
         })
     })
@@ -491,10 +504,15 @@ unsafe extern "C" fn set_file_size<T: FileSystemContext>(
     out_file_info: *mut FSP_FSCTL_FILE_INFO,
 ) -> FSP_STATUS {
     catch_panic!({
-        require_ref(fs, fctx, |context, fctx| {
-            T::set_file_size(context, fctx, new_size, set_allocation_size != 0, unsafe {
-                &mut *out_file_info
-            })
+        require_fctx(fs, fctx, |context, fctx| {
+            T::set_file_size(
+                context,
+                fctx,
+                new_size,
+                set_allocation_size != 0,
+                unsafe { out_file_info.as_mut() }
+                    .expect("FSP_FSCTL_FILE_INFO buffer was not allocated."),
+            )
         })
     })
 }
@@ -506,7 +524,7 @@ unsafe extern "C" fn set_security<T: FileSystemContext>(
     modification_descriptor: *mut c_void,
 ) -> FSP_STATUS {
     catch_panic!({
-        require_ref(fs, fctx, |context, fctx| {
+        require_fctx(fs, fctx, |context, fctx| {
             T::set_security(
                 context,
                 fctx,
@@ -524,7 +542,7 @@ unsafe extern "C" fn set_delete<T: FileSystemContext>(
     delete_file: u8,
 ) -> FSP_STATUS {
     catch_panic!({
-        require_ref(fs, fctx, |context, fctx| {
+        require_fctx(fs, fctx, |context, fctx| {
             let file_name = unsafe { U16CStr::from_ptr_str_mut(file_name).to_os_string() };
             T::set_delete(context, fctx, &file_name, delete_file != 0)
         })
@@ -537,7 +555,7 @@ unsafe extern "C" fn flush<T: FileSystemContext>(
     out_file_info: *mut FSP_FSCTL_FILE_INFO,
 ) -> FSP_STATUS {
     catch_panic!({
-        require_ref(fs, fctx, |context, fctx| {
+        require_fctx(fs, fctx, |context, fctx| {
             T::flush(context, fctx, unsafe { &mut *out_file_info })
         })
     })
@@ -551,7 +569,7 @@ unsafe extern "C" fn rename<T: FileSystemContext>(
     replace_if_exists: u8,
 ) -> FSP_STATUS {
     catch_panic!({
-        require_ref(fs, fctx, |context, fctx| {
+        require_fctx(fs, fctx, |context, fctx| {
             let file_name = unsafe { U16CStr::from_ptr_str_mut(file_name).to_os_string() };
             let new_file_name = unsafe { U16CStr::from_ptr_str_mut(new_file_name).to_os_string() };
             T::rename(
