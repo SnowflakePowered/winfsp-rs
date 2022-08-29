@@ -542,6 +542,29 @@ unsafe extern "C" fn flush<T: FileSystemContext>(
         })
     })
 }
+
+unsafe extern "C" fn rename<T: FileSystemContext>(
+    fs: *mut FSP_FILE_SYSTEM,
+    fctx: PVOID,
+    file_name: *mut u16,
+    new_file_name: *mut u16,
+    replace_if_exists: u8,
+) -> FSP_STATUS {
+    catch_panic!({
+        require_ref(fs, fctx, |context, fctx| {
+            let file_name = unsafe { U16CStr::from_ptr_str_mut(file_name).to_os_string() };
+            let new_file_name = unsafe { U16CStr::from_ptr_str_mut(new_file_name).to_os_string() };
+            T::rename(
+                context,
+                fctx,
+                file_name,
+                new_file_name,
+                replace_if_exists != 0,
+            )
+        })
+    })
+}
+
 pub struct Interface {
     get_volume_info: Option<
         unsafe extern "C" fn(
@@ -717,6 +740,15 @@ pub struct Interface {
             out_file_info: *mut FSP_FSCTL_FILE_INFO,
         ) -> FSP_STATUS,
     >,
+    rename: Option<
+        unsafe extern "C" fn(
+            fs: *mut FSP_FILE_SYSTEM,
+            fctx: PVOID,
+            file_name: *mut u16,
+            new_file_name: *mut u16,
+            replace_if_exists: u8,
+        ) -> FSP_STATUS,
+    >,
 }
 
 impl Interface {
@@ -741,6 +773,7 @@ impl Interface {
             set_security: Some(set_security::<T>),
             set_delete: Some(set_delete::<T>),
             flush: Some(flush::<T>),
+            rename: Some(rename::<T>),
         }
     }
 }
@@ -767,6 +800,7 @@ impl From<Interface> for FSP_FILE_SYSTEM_INTERFACE {
             SetSecurity: interface.set_security,
             SetDelete: interface.set_delete,
             Flush: interface.flush,
+            Rename: interface.rename,
             ..Default::default()
         }
     }
