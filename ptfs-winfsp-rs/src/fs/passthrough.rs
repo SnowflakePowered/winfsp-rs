@@ -556,7 +556,7 @@ impl FileSystemContext for PtfsContext {
         })
     }
 
-    fn cleanup<P: AsRef<OsStr>>(&self, context: &mut Self::FileContext, _file_name: P, flags: u32) {
+    fn cleanup<P: AsRef<OsStr>>(&self, context: &mut Self::FileContext, _file_name: Option<P>, flags: u32) {
         if flags & FspCleanupFlags::FspCleanupDelete as u32 != 0 {
             context.handle.invalidate();
         }
