@@ -1,5 +1,5 @@
 use thiserror::Error;
-use windows::core::{Error, HRESULT};
+use windows::core::HRESULT;
 use windows::Win32::Foundation::{NTSTATUS, WIN32_ERROR};
 use winfsp_sys::FspNtStatusFromWin32;
 
@@ -48,7 +48,7 @@ impl From<NTSTATUS> for FspError {
 }
 
 impl From<windows::core::Error> for FspError {
-    fn from(e: Error) -> Self {
+    fn from(e: windows::core::Error) -> Self {
         match WIN32_ERROR::from_error(&e) {
             None => FspError::HRESULT(e.code()),
             Some(w) => FspError::WIN32(w),

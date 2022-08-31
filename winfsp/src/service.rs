@@ -1,6 +1,5 @@
 use std::marker::PhantomData;
 use std::ptr::NonNull;
-use winfsp_sys::FSP_SERVICE;
 
 pub struct FileSystemService<T>(pub NonNull<FSP_SERVICE>, PhantomData<T>);
 
@@ -22,3 +21,6 @@ impl<T> FileSystemService<T> {
         unsafe { self.0.as_mut().UserContext.cast::<T>().as_mut() }
     }
 }
+
+pub use winfsp_sys::FspServiceRunEx;
+pub use winfsp_sys::FSP_SERVICE;

@@ -1,6 +1,5 @@
 #![feature(io_error_more)]
 #![deny(unsafe_op_in_unsafe_fn)]
-extern crate core;
 
 mod fs;
 mod service;
@@ -9,11 +8,10 @@ use clap::Parser;
 use std::path::PathBuf;
 use windows::w;
 use windows::Win32::Foundation::{
-    ERROR_DELAY_LOAD_FAILED, EXCEPTION_NONCONTINUABLE_EXCEPTION, STATUS_SUCCESS,
+    EXCEPTION_NONCONTINUABLE_EXCEPTION, STATUS_SUCCESS,
 };
-use windows::Win32::System::LibraryLoader::LoadLibraryW;
-use winfsp::service::FileSystemService;
-use winfsp_sys::*;
+use winfsp::service::{FileSystemService, fs_test, FSP_SERVICE, FspServiceRunEx};
+use winfsp::winfsp_init_or_die;
 
 unsafe extern "C" fn _svc_start(
     service: *mut FSP_SERVICE,
@@ -57,17 +55,22 @@ pub struct Args {
 }
 
 fn main() {
-    unsafe {
-        // todo: make this fallible
-        if LoadLibraryW(w!("winfsp-x64.dll")).is_err() {
-            std::process::exit(ERROR_DELAY_LOAD_FAILED.0 as i32)
-        }
-        FspServiceRunEx(
-            w!("ptfs-winfsp-rs").as_ptr().cast_mut(),
-            Some(_svc_start),
-            Some(_svc_stop),
-            None,
-            std::ptr::null_mut(),
-        );
-    }
+    winfsp_init_or_die();
+
+    fs_test(|fss| {
+        let args = Args::parse();
+        service::svc_start(fss, args)?;
+        Ok::<(), anyhow::Error>(())
+    }, |fss| {
+        service::svc_stop(fss).0
+    });
+    // unsafe {
+    //     FspServiceRunEx(
+    //         w!("ptfs-winfsp-rs").as_ptr().cast_mut(),
+    //         Some(_svc_start),
+    //         Some(_svc_stop),
+    //         None,
+    //         std::ptr::null_mut(),
+    //     );
+    // }
 }
