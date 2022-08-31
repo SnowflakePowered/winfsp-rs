@@ -1,6 +1,7 @@
+use crate::error::Result;
 use std::ffi::OsStr;
 
-use windows::core::{Result, PCWSTR, PWSTR};
+use windows::core::{PCWSTR, PWSTR};
 use windows::Win32::Foundation::STATUS_INVALID_DEVICE_REQUEST;
 use windows::Win32::Security::PSECURITY_DESCRIPTOR;
 use windows::Win32::Storage::FileSystem::{FILE_ACCESS_FLAGS, FILE_FLAGS_AND_ATTRIBUTES};

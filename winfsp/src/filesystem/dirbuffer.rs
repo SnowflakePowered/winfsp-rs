@@ -1,5 +1,4 @@
 use widestring::U16CStr;
-use windows::core::Result;
 use windows::Win32::Foundation::{
     STATUS_INSUFFICIENT_RESOURCES, STATUS_INVALID_PARAMETER, STATUS_SUCCESS,
 };
@@ -8,6 +7,8 @@ use winfsp_sys::{
     FspFileSystemFillDirectoryBuffer, FspFileSystemReadDirectoryBuffer,
     FspFileSystemReleaseDirectoryBuffer, FSP_FSCTL_FILE_INFO, PVOID,
 };
+
+use crate::error::Result;
 
 pub struct DirBuffer(PVOID);
 pub struct DirBufferLock<'a>(&'a mut DirBuffer);

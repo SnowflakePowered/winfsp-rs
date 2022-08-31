@@ -10,9 +10,9 @@ use windows::Win32::Foundation::{
 use windows::Win32::Security::PSECURITY_DESCRIPTOR;
 use windows::Win32::Storage::FileSystem::{FILE_ACCESS_FLAGS, FILE_FLAGS_AND_ATTRIBUTES};
 
+use crate::error;
 use winfsp_sys::{
-    FspNtStatusFromWin32, FSP_FILE_SYSTEM, FSP_FILE_SYSTEM_INTERFACE, FSP_FSCTL_FILE_INFO,
-    FSP_FSCTL_VOLUME_INFO,
+    FSP_FILE_SYSTEM, FSP_FILE_SYSTEM_INTERFACE, FSP_FSCTL_FILE_INFO, FSP_FSCTL_VOLUME_INFO,
 };
 use winfsp_sys::{NTSTATUS as FSP_STATUS, PVOID};
 
@@ -27,18 +27,13 @@ macro_rules! catch_panic {
 }
 
 #[inline(always)]
-fn as_ntstatus(error: windows::core::Error) -> FSP_STATUS {
-    unsafe { FspNtStatusFromWin32(error.code().0 as u32) }
-}
-
-#[inline(always)]
 fn require_fctx<C: FileSystemContext, F>(
     fs: *mut FSP_FILE_SYSTEM,
     fctx: PVOID,
     inner: F,
 ) -> FSP_STATUS
 where
-    F: FnOnce(&C, &mut C::FileContext) -> windows::core::Result<()>,
+    F: FnOnce(&C, &mut C::FileContext) -> error::Result<()>,
 {
     if fs.is_null() || fctx.is_null() {
         dbg!("require_ref failed");
@@ -51,7 +46,7 @@ where
     if let Some(fctx) = unsafe { fctx.as_mut() } {
         match inner(context, fctx) {
             Ok(_) => STATUS_SUCCESS.0,
-            Err(e) => as_ntstatus(e),
+            Err(e) => e.as_ntstatus(),
         }
     } else {
         dbg!("require_ref failed");
@@ -62,7 +57,7 @@ where
 #[inline(always)]
 fn require_ctx<C: FileSystemContext, F>(fs: *mut FSP_FILE_SYSTEM, inner: F) -> FSP_STATUS
 where
-    F: FnOnce(&C) -> windows::core::Result<()>,
+    F: FnOnce(&C) -> error::Result<()>,
 {
     if fs.is_null() {
         dbg!("require_ref failed");
@@ -72,7 +67,7 @@ where
     let context: &C = unsafe { &*(*fs).UserContext.cast::<C>() };
     match inner(context) {
         Ok(_) => STATUS_SUCCESS.0,
-        Err(e) => as_ntstatus(e),
+        Err(e) => e.as_ntstatus(),
     }
 }
 
@@ -83,7 +78,7 @@ fn require_fctx_io<C: FileSystemContext, F>(
     inner: F,
 ) -> FSP_STATUS
 where
-    F: FnOnce(&C, &C::FileContext) -> windows::core::Result<IoResult>,
+    F: FnOnce(&C, &C::FileContext) -> error::Result<IoResult>,
 {
     let context: &C = unsafe { &*(*fs).UserContext.cast::<C>() };
     let fctx = fctx.cast::<C::FileContext>();
@@ -98,7 +93,7 @@ where
                     STATUS_SUCCESS.0
                 }
             }
-            Err(e) => as_ntstatus(e),
+            Err(e) => e.as_ntstatus(),
         }
     } else {
         STATUS_ACCESS_VIOLATION.0
@@ -153,7 +148,7 @@ unsafe extern "C" fn get_security_by_name<T: FileSystemContext>(
                     STATUS_SUCCESS.0
                 }
             }
-            Err(e) => as_ntstatus(e),
+            Err(e) => e.as_ntstatus(),
         }
     })
 }

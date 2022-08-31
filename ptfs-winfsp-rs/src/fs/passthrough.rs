@@ -8,7 +8,7 @@ use std::os::windows::fs::MetadataExt;
 use std::path::Path;
 use widestring::{u16cstr, U16CStr, U16CString, U16String};
 
-use windows::core::{Result, HSTRING, PCWSTR};
+use windows::core::{HSTRING, PCWSTR};
 use windows::w;
 use windows::Win32::Foundation::{
     GetLastError, BOOLEAN, HANDLE, MAX_PATH, STATUS_OBJECT_NAME_INVALID,
@@ -27,13 +27,14 @@ use windows::Win32::Storage::FileSystem::{
     FILE_ACCESS_FLAGS, FILE_ALLOCATION_INFO, FILE_ATTRIBUTE_DIRECTORY, FILE_ATTRIBUTE_NORMAL,
     FILE_ATTRIBUTE_TAG_INFO, FILE_BASIC_INFO, FILE_DISPOSITION_INFO, FILE_END_OF_FILE_INFO,
     FILE_FLAGS_AND_ATTRIBUTES, FILE_FLAG_BACKUP_SEMANTICS, FILE_FLAG_DELETE_ON_CLOSE,
-    FILE_FLAG_POSIX_SEMANTICS, FILE_NAME, FILE_READ_ATTRIBUTES, FILE_SHARE_DELETE, FILE_SHARE_READ,
-    FILE_SHARE_WRITE, INVALID_FILE_ATTRIBUTES, MOVEFILE_REPLACE_EXISTING, MOVE_FILE_FLAGS,
-    OPEN_EXISTING, READ_CONTROL, WIN32_FIND_DATAW,
+    FILE_FLAG_POSIX_SEMANTICS, FILE_NAME, FILE_READ_ATTRIBUTES, FILE_SHARE_DELETE, FILE_SHARE_MODE,
+    FILE_SHARE_READ, FILE_SHARE_WRITE, INVALID_FILE_ATTRIBUTES, MOVEFILE_REPLACE_EXISTING,
+    MOVE_FILE_FLAGS, OPEN_EXISTING, READ_CONTROL, WIN32_FIND_DATAW,
 };
 use windows::Win32::System::WindowsProgramming::{FILE_DELETE_ON_CLOSE, FILE_DIRECTORY_FILE};
 use windows::Win32::System::IO::{OVERLAPPED, OVERLAPPED_0, OVERLAPPED_0_0};
 
+use winfsp::error::{FspError, Result};
 use winfsp::filesystem::constants::FspCleanupFlags;
 use winfsp::filesystem::{
     DirBuffer, DirInfo, FileSecurity, FileSystemContext, FileSystemHost, IoResult,
@@ -71,7 +72,7 @@ const fn quadpart(hi: u32, lo: u32) -> u64 {
 macro_rules! win32_try {
     (unsafe $e:expr) => {
         if unsafe { !($e).as_bool() } {
-            return Err(unsafe { GetLastError() }.into());
+            return Err(::winfsp::error::FspError::from(unsafe { GetLastError() }));
         }
     };
 }
@@ -123,17 +124,22 @@ impl FileSystemContext for PtfsContext {
         security_descriptor_len: Option<u64>,
     ) -> Result<FileSecurity> {
         let full_path = [self.path.as_os_str(), file_name.as_ref()].join(OsStr::new(""));
+
         let handle = unsafe {
-            CreateFileW(
+            let handle = CreateFileW(
                 &HSTRING::from(full_path.as_os_str()),
                 FILE_READ_ATTRIBUTES | READ_CONTROL,
-                Default::default(),
+                FILE_SHARE_MODE(0),
                 std::ptr::null(),
                 OPEN_EXISTING,
                 FILE_FLAG_BACKUP_SEMANTICS,
                 None,
-            )
-        }?;
+            )?;
+            if handle.is_invalid() {
+                return Err(FspError::from(GetLastError()));
+            }
+            handle
+        };
 
         let mut attribute_tag_info: MaybeUninit<FILE_ATTRIBUTE_TAG_INFO> = MaybeUninit::uninit();
         let mut len_needed: u32 = 0;
@@ -174,9 +180,6 @@ impl FileSystemContext for PtfsContext {
         granted_access: FILE_ACCESS_FLAGS,
         file_info: &mut FSP_FSCTL_FILE_INFO,
     ) -> Result<Self::FileContext> {
-        dbg!("open");
-        dbg!(file_name.as_ref());
-
         let full_path = [self.path.as_os_str(), file_name.as_ref()].join(OsStr::new(""));
         if full_path.len() > FULLPATH_SIZE {
             return Err(STATUS_OBJECT_NAME_INVALID.into());
@@ -189,7 +192,7 @@ impl FileSystemContext for PtfsContext {
         }
 
         let handle = unsafe {
-            CreateFileW(
+            let handle = CreateFileW(
                 PCWSTR(full_path.as_ptr()),
                 granted_access,
                 FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
@@ -197,8 +200,16 @@ impl FileSystemContext for PtfsContext {
                 OPEN_EXISTING,
                 create_flags,
                 None,
-            )
-        }?;
+            )?;
+            if handle.is_invalid() {
+                return Err(FspError::from(GetLastError()));
+            }
+            handle
+        };
+
+        if handle.is_invalid() {
+            return Err(unsafe { GetLastError().into() });
+        }
 
         self.get_file_info_internal(handle, file_info)?;
         Ok(Self::FileContext {
@@ -212,7 +223,6 @@ impl FileSystemContext for PtfsContext {
     }
 
     fn get_volume_info(&self, out_volume_info: &mut FSP_FSCTL_VOLUME_INFO) -> Result<()> {
-        dbg!("get_volume_info");
         let mut root = [0u16; MAX_PATH as usize];
         let mut total_size = 0u64;
         let mut free_size = 0u64;
@@ -248,6 +258,7 @@ impl FileSystemContext for PtfsContext {
         descriptor_len: Option<u64>,
     ) -> Result<u64> {
         let mut descriptor_size_needed = 0;
+
         win32_try!(unsafe GetKernelObjectSecurity(
             *context.handle,
             (OWNER_SECURITY_INFORMATION
@@ -269,7 +280,6 @@ impl FileSystemContext for PtfsContext {
         marker: Option<&[u16]>,
         buffer: &mut [u8],
     ) -> Result<u32> {
-        dbg!("read_dir");
         if let Ok(mut lock) = context.dir_buffer.acquire(marker.is_none(), None) {
             let mut dirinfo = DirInfo::<{ MAX_PATH as usize }>::new();
             let mut full_path = [0; FULLPATH_SIZE];
@@ -495,7 +505,6 @@ impl FileSystemContext for PtfsContext {
         _extra_buffer_is_reparse_point: bool,
         file_info: &mut FSP_FSCTL_FILE_INFO,
     ) -> Result<Self::FileContext> {
-        dbg!("create");
         let full_path = [self.path.as_os_str(), file_name.as_ref()].join(OsStr::new(""));
         if full_path.len() > FULLPATH_SIZE {
             return Err(STATUS_OBJECT_NAME_INVALID.into());
@@ -524,7 +533,7 @@ impl FileSystemContext for PtfsContext {
         }
 
         let handle = unsafe {
-            CreateFileW(
+            let handle = CreateFileW(
                 PCWSTR(full_path.as_ptr()),
                 granted_access,
                 FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
@@ -532,12 +541,13 @@ impl FileSystemContext for PtfsContext {
                 CREATE_NEW,
                 create_flags | file_attributes,
                 None,
-            )
-        }?;
+            )?;
+            if handle.is_invalid() {
+                return Err(FspError::from(GetLastError()));
+            }
+            handle
+        };
 
-        if handle.is_invalid() {
-            return Err(unsafe { GetLastError().into() });
-        }
         self.get_file_info_internal(handle, file_info)?;
 
         Ok(Self::FileContext {
@@ -574,7 +584,6 @@ impl FileSystemContext for PtfsContext {
             LastAccessTime: last_access_time as i64,
             LastWriteTime: last_write_time as i64,
             ChangeTime: last_change_time as i64,
-            ..Default::default()
         };
         win32_try!(unsafe SetFileInformationByHandle(
             *context.handle,
@@ -638,8 +647,9 @@ impl FileSystemContext for PtfsContext {
         _file_name: P,
         delete_file: bool,
     ) -> Result<()> {
-        let mut disposition_info = FILE_DISPOSITION_INFO::default();
-        disposition_info.DeleteFileA = BOOLEAN(if delete_file { 1 } else { 0 });
+        let disposition_info = FILE_DISPOSITION_INFO {
+            DeleteFileA: BOOLEAN(if delete_file { 1 } else { 0 }),
+        };
 
         win32_try!(unsafe SetFileInformationByHandle(*context.handle,
             FileDispositionInfo, (&disposition_info as *const FILE_DISPOSITION_INFO).cast(),

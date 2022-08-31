@@ -9,3 +9,4 @@ edition = "2021"
 winfsp-sys = { path = "../winfsp-sys" }
 windows = { version = "0.39.0", features = ["Win32_Foundation", "Win32_System_LibraryLoader", "Win32_Security", "Win32_Storage_FileSystem", "Win32_System_WindowsProgramming", "Win32_System_Console"] }
 widestring = "1"
+thiserror = "1.0.32"
