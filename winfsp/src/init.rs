@@ -5,6 +5,7 @@ use windows::Win32::System::LibraryLoader::LoadLibraryW;
 use crate::Result;
 
 #[non_exhaustive]
+#[derive(Copy, Clone)]
 pub struct FspInit;
 
 /// Initialize WinFSP.

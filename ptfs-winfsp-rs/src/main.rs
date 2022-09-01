@@ -8,8 +8,9 @@ use clap::Parser;
 use std::path::PathBuf;
 use windows::w;
 use windows::Win32::Foundation::{EXCEPTION_NONCONTINUABLE_EXCEPTION, STATUS_SUCCESS};
-use winfsp::service::{FileSystemService, FspServiceRunEx, FSP_SERVICE};
+use winfsp::service::{FileSystemService, FSP_SERVICE, FileSystemServiceBuilder};
 use winfsp::winfsp_init_or_die;
+use crate::fs::Ptfs;
 
 unsafe extern "C" fn _svc_start(
     service: *mut FSP_SERVICE,
@@ -53,14 +54,13 @@ pub struct Args {
 }
 
 fn main() {
-    winfsp_init_or_die();
-    unsafe {
-        FspServiceRunEx(
-            w!("ptfs-winfsp-rs").as_ptr().cast_mut(),
-            Some(_svc_start),
-            Some(_svc_stop),
-            None,
-            std::ptr::null_mut(),
-        );
+    let init = winfsp_init_or_die();
+    let fsp: FileSystemService<Ptfs> = FileSystemServiceBuilder::new()
+        .with_start(Some(_svc_start))
+        .with_stop(Some(_svc_stop))
+        .build( w!("ptfs-winfsp-rs"), init).expect("failed to build fsp");
+
+    fsp.start();
+    loop {
     }
 }
