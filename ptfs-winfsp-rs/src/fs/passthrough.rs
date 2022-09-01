@@ -715,7 +715,7 @@ impl FileSystemContext for PtfsContext {
 }
 
 impl Ptfs {
-    pub fn create<P: AsRef<Path>>(path: P, volume_prefix: &str) -> anyhow::Result<Box<Ptfs>> {
+    pub fn create<P: AsRef<Path>>(path: P, volume_prefix: &str) -> anyhow::Result<Ptfs> {
         let metadata = fs::metadata(&path)?;
         if !metadata.is_dir() {
             return Err(std::io::Error::new(ErrorKind::NotADirectory, "not a directory").into());
@@ -756,9 +756,9 @@ impl Ptfs {
         };
 
         unsafe {
-            Ok(Box::new(Ptfs {
+            Ok(Ptfs {
                 fs: FileSystemHost::new(volume_params, context)?,
-            }))
+            })
         }
     }
 }

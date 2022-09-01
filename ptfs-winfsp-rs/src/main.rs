@@ -6,30 +6,11 @@ mod service;
 
 use clap::Parser;
 use std::path::PathBuf;
+use std::time::Duration;
 use windows::w;
-use windows::Win32::Foundation::{EXCEPTION_NONCONTINUABLE_EXCEPTION, STATUS_SUCCESS};
-use winfsp::service::{FileSystemService, FSP_SERVICE, FileSystemServiceBuilder};
+use windows::Win32::Foundation::STATUS_NONCONTINUABLE_EXCEPTION;
+use winfsp::service::FileSystemServiceBuilder;
 use winfsp::winfsp_init_or_die;
-use crate::fs::Ptfs;
-
-unsafe extern "C" fn _svc_start(
-    service: *mut FSP_SERVICE,
-    _argc: u32,
-    _argv: *mut *mut u16,
-) -> i32 {
-    let args = Args::parse();
-
-    unsafe {
-        match service::svc_start(FileSystemService::from_raw_unchecked(service), args) {
-            Err(_e) => EXCEPTION_NONCONTINUABLE_EXCEPTION.0,
-            Ok(_) => STATUS_SUCCESS.0,
-        }
-    }
-}
-
-unsafe extern "C" fn _svc_stop(service: *mut FSP_SERVICE) -> i32 {
-    unsafe { service::svc_stop(FileSystemService::from_raw_unchecked(service)).0 }
-}
 
 /// MainArgs
 #[derive(Parser, Debug)]
@@ -55,12 +36,18 @@ pub struct Args {
 
 fn main() {
     let init = winfsp_init_or_die();
-    let fsp: FileSystemService<Ptfs> = FileSystemServiceBuilder::new()
-        .with_start(Some(_svc_start))
-        .with_stop(Some(_svc_stop))
-        .build( w!("ptfs-winfsp-rs"), init).expect("failed to build fsp");
+    let fsp = FileSystemServiceBuilder::new()
+        .with_start(|| {
+            let args = Args::parse();
+            service::svc_start(args).map_err(|_e| STATUS_NONCONTINUABLE_EXCEPTION)
+        })
+        .with_stop(|f| {
+            service::svc_stop(f);
+            Ok(())
+        })
+        .build(w!("ptfs-winfsp-rs"), init)
+        .expect("failed to build fsp");
 
     fsp.start();
-    loop {
-    }
+    std::thread::sleep(Duration::MAX);
 }
