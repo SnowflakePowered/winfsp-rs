@@ -8,7 +8,7 @@ use crate::Result;
 pub struct FspInit;
 
 /// Initialize WinFSP.
-pub fn winfsp_init() -> Result<FspInit>{
+pub fn winfsp_init() -> Result<FspInit> {
     unsafe {
         if LoadLibraryW(w!("winfsp-x64.dll")).is_err() {
             Err(ERROR_DELAY_LOAD_FAILED.into())

@@ -7,10 +7,8 @@ mod service;
 use clap::Parser;
 use std::path::PathBuf;
 use windows::w;
-use windows::Win32::Foundation::{
-    EXCEPTION_NONCONTINUABLE_EXCEPTION, STATUS_SUCCESS,
-};
-use winfsp::service::{FileSystemService, fs_test, FSP_SERVICE, FspServiceRunEx};
+use windows::Win32::Foundation::{EXCEPTION_NONCONTINUABLE_EXCEPTION, STATUS_SUCCESS};
+use winfsp::service::{FileSystemService, FspServiceRunEx, FSP_SERVICE};
 use winfsp::winfsp_init_or_die;
 
 unsafe extern "C" fn _svc_start(
@@ -56,21 +54,13 @@ pub struct Args {
 
 fn main() {
     winfsp_init_or_die();
-
-    fs_test(|fss| {
-        let args = Args::parse();
-        service::svc_start(fss, args)?;
-        Ok::<(), anyhow::Error>(())
-    }, |fss| {
-        service::svc_stop(fss).0
-    });
-    // unsafe {
-    //     FspServiceRunEx(
-    //         w!("ptfs-winfsp-rs").as_ptr().cast_mut(),
-    //         Some(_svc_start),
-    //         Some(_svc_stop),
-    //         None,
-    //         std::ptr::null_mut(),
-    //     );
-    // }
+    unsafe {
+        FspServiceRunEx(
+            w!("ptfs-winfsp-rs").as_ptr().cast_mut(),
+            Some(_svc_start),
+            Some(_svc_stop),
+            None,
+            std::ptr::null_mut(),
+        );
+    }
 }

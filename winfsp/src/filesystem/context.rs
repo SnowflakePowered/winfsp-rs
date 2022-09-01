@@ -39,7 +39,13 @@ pub trait FileSystemContext: Sized {
 
     fn close(&self, context: Self::FileContext);
 
-    fn cleanup<P: AsRef<OsStr>>(&self, context: &mut Self::FileContext, file_name: Option<P>, flags: u32) {}
+    fn cleanup<P: AsRef<OsStr>>(
+        &self,
+        context: &mut Self::FileContext,
+        file_name: Option<P>,
+        flags: u32,
+    ) {
+    }
 
     fn control(
         &self,
