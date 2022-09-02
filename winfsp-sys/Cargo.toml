@@ -7,3 +7,7 @@ edition = "2021"
 
 [build-dependencies]
 bindgen = "0.60.1"
+registry = "1.2.2"
+
+[features]
+system = []
