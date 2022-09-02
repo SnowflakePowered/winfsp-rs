@@ -1,7 +1,4 @@
 #![feature(cfg_target_compact)]
-
-extern crate core;
-
 use registry::{Data, Hive, Security};
 use std::env;
 use std::path::PathBuf;
@@ -34,8 +31,6 @@ fn system() -> String {
 }
 
 fn main() {
-    // todo: find from HKLM\SOFTWARE\WOW6432Node\WinFsp;
-
     let link_include = if cfg!(feature = "system") {
         system()
     } else {
@@ -46,9 +41,11 @@ fn main() {
 
     if cfg!(target(os = "windows", arch = "x86_64", env = "msvc")) {
         println!("cargo:rustc-link-lib=dylib=winfsp-x64");
+        println!("cargo:rustc-link-lib=dylib=delayimp");
         println!("cargo:rustc-link-arg=/DELAYLOAD:winfsp-x64.dll");
     } else if cfg!(target(os = "windows", arch = "i686", env = "msvc")) {
         println!("cargo:rustc-link-lib=dylib=winfsp-x86");
+        println!("cargo:rustc-link-lib=dylib=delayimp");
         println!("cargo:rustc-link-arg=/DELAYLOAD:winfsp-x86.dll");
     } else {
         panic!("unsupported triple")

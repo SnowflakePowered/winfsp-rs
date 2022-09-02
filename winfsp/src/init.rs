@@ -66,7 +66,7 @@ fn load_system_winfsp() -> Result<()> {
 
 /// Initialize WinFSP.
 pub fn winfsp_init() -> Result<FspInit> {
-    if  load_system_winfsp().is_err() {
+    if load_local_winfsp().is_err() && load_system_winfsp().is_err() {
         Err(ERROR_DELAY_LOAD_FAILED.into())
     } else {
         Ok(FspInit)
@@ -79,4 +79,16 @@ pub fn winfsp_init_or_die() -> FspInit {
         std::process::exit(ERROR_DELAY_LOAD_FAILED.0 as i32)
     }
     FspInit
+}
+
+pub fn winfsp_link_delayload() {
+    if cfg!(target(os = "windows", arch = "x86_64", env = "msvc")) {
+        println!("cargo:rustc-link-lib=dylib=delayimp");
+        println!("cargo:rustc-link-arg=/DELAYLOAD:winfsp-x64.dll");
+    } else if cfg!(target(os = "windows", arch = "i686", env = "msvc")) {
+        println!("cargo:rustc-link-lib=dylib=delayimp");
+        println!("cargo:rustc-link-arg=/DELAYLOAD:winfsp-x86.dll");
+    } else {
+        panic!("unsupported triple")
+    }
 }
