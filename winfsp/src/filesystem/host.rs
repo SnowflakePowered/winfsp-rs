@@ -42,17 +42,15 @@ impl FileSystemHost {
         let result = NTSTATUS(result);
         result.ok()?;
 
-        dbg!("init ok");
-
-        // #[cfg(debug_assertions)]
-        // unsafe {
-        //     use windows::Win32::System::Console::{GetStdHandle, STD_ERROR_HANDLE};
-        //     // pointer crimes
-        //     winfsp_sys::FspDebugLogSetHandle(
-        //         GetStdHandle(STD_ERROR_HANDLE).unwrap().0 as *mut std::ffi::c_void,
-        //     );
-        //     winfsp_sys::FspFileSystemSetDebugLogF(fsp_struct, u32::MAX);
-        // }
+        #[cfg(feature = "debug")]
+        unsafe {
+            use windows::Win32::System::Console::{GetStdHandle, STD_ERROR_HANDLE};
+            // pointer crimes
+            winfsp_sys::FspDebugLogSetHandle(
+                GetStdHandle(STD_ERROR_HANDLE).unwrap().0 as *mut std::ffi::c_void,
+            );
+            winfsp_sys::FspFileSystemSetDebugLogF(fsp_struct, u32::MAX);
+        }
 
         unsafe {
             (*fsp_struct).UserContext = Box::into_raw(Box::new(context)) as *mut _;

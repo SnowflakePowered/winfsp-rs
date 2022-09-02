@@ -6,7 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-clap = { version = "3.2.17", features = ["derive"] }
+clap = { version = "3.2", features = ["derive"] }
 windows = { version = "0.39.0", features = ["Win32_Foundation", "Win32_System_LibraryLoader", "Win32_Security", "Win32_Storage_FileSystem", "Win32_System_WindowsProgramming", "Win32_System_Console", "Win32_System_IO"] }
 widestring = "1"
 winfsp = { path = "../winfsp" }

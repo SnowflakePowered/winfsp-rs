@@ -11,7 +11,8 @@ use widestring::{u16cstr, U16CStr, U16CString, U16String};
 use windows::core::{HSTRING, PCWSTR};
 use windows::w;
 use windows::Win32::Foundation::{
-    GetLastError, BOOLEAN, HANDLE, MAX_PATH, STATUS_OBJECT_NAME_INVALID,
+    GetLastError, BOOLEAN, HANDLE, MAX_PATH, STATUS_INVALID_DEVICE_REQUEST,
+    STATUS_OBJECT_NAME_INVALID,
 };
 use windows::Win32::Security::{
     GetKernelObjectSecurity, SetKernelObjectSecurity, DACL_SECURITY_INFORMATION,
@@ -123,6 +124,7 @@ impl FileSystemContext for PtfsContext {
         security_descriptor: PSECURITY_DESCRIPTOR,
         security_descriptor_len: Option<u64>,
     ) -> Result<FileSecurity> {
+        // return Err(STATUS_INVALID_DEVICE_REQUEST.into());
         let full_path = [self.path.as_os_str(), file_name.as_ref()].join(OsStr::new(""));
 
         let handle = unsafe {
@@ -449,13 +451,15 @@ impl FileSystemContext for PtfsContext {
         let mut attribute_tag_info = FILE_ATTRIBUTE_TAG_INFO::default();
 
         if replace_file_attributes {
-            let mut basic_info = FILE_BASIC_INFO::default();
-            basic_info.FileAttributes = if file_attributes == FILE_FLAGS_AND_ATTRIBUTES(0) {
-                FILE_ATTRIBUTE_NORMAL
-            } else {
-                file_attributes
-            }
-            .0;
+            let basic_info = FILE_BASIC_INFO {
+                FileAttributes: if file_attributes == FILE_FLAGS_AND_ATTRIBUTES(0) {
+                    FILE_ATTRIBUTE_NORMAL
+                } else {
+                    file_attributes
+                }
+                .0,
+                ..Default::default()
+            };
 
             win32_try!(unsafe SetFileInformationByHandle(
                 *context.handle,
