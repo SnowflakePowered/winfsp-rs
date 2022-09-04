@@ -37,10 +37,7 @@ use windows::Win32::System::IO::{OVERLAPPED, OVERLAPPED_0, OVERLAPPED_0_0};
 
 use winfsp::error::{FspError, Result};
 use winfsp::filesystem::constants::FspCleanupFlags;
-use winfsp::filesystem::{
-    DirBuffer, DirInfo, FileSecurity, FileSystemContext, FileSystemHost, IoResult,
-    FSP_FSCTL_FILE_INFO, FSP_FSCTL_VOLUME_INFO, FSP_FSCTL_VOLUME_PARAMS,
-};
+use winfsp::filesystem::{DirBuffer, DirInfo, FileSecurity, FileSystemContext, FileSystemHost, IoResult, FSP_FSCTL_FILE_INFO, FSP_FSCTL_VOLUME_INFO, FSP_FSCTL_VOLUME_PARAMS, DirMarker};
 
 use winfsp::util::SafeDropHandle;
 
@@ -279,7 +276,7 @@ impl FileSystemContext for PtfsContext {
         &self,
         context: &mut Self::FileContext,
         pattern: Option<P>,
-        marker: Option<&[u16]>,
+        marker: DirMarker,
         buffer: &mut [u8],
     ) -> Result<u32> {
         if let Ok(mut lock) = context.dir_buffer.acquire(marker.is_none(), None) {
@@ -333,8 +330,8 @@ impl FileSystemContext for PtfsContext {
                     finfo.HardLinks = 0;
                     finfo.IndexNumber = 0;
 
-                    dirinfo.set_file_name(&find_data.cFileName[..])?;
-                    if let Err(e) = lock.fill(&mut dirinfo) {
+                    dirinfo.set_file_name_raw(&find_data.cFileName[..])?;
+                    if let Err(e) = lock.write(&mut dirinfo) {
                         unsafe {
                             FindClose(find_handle);
                         }

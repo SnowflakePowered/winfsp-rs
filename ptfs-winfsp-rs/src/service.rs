@@ -5,7 +5,7 @@ use crate::Args;
 pub fn svc_start(args: Args) -> anyhow::Result<Ptfs> {
     let mut ptfs = Ptfs::create(
         &args.directory,
-        &args.volume_prefix.unwrap_or(String::from("")),
+        &args.volume_prefix.unwrap_or_else(|| String::from("")),
     )?;
 
     ptfs.fs.mount(args.mountpoint.as_os_str())?;
