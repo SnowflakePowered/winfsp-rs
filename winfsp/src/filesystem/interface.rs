@@ -16,7 +16,7 @@ use winfsp_sys::{
 };
 use winfsp_sys::{NTSTATUS as FSP_STATUS, PVOID};
 
-use crate::filesystem::{FileSecurity, FileSystemContext, IoResult};
+use crate::filesystem::{DirMarker, FileSecurity, FileSystemContext, IoResult};
 
 /// Catch panic and return EXECPTION_NONCONTINUABLE_EXCEPTION
 macro_rules! catch_panic {
@@ -366,7 +366,7 @@ unsafe extern "C" fn read_directory<T: FileSystemContext>(
                 None
             };
 
-            let bytes_read = T::read_directory(context, fctx, pattern, marker, buffer)?;
+            let bytes_read = T::read_directory(context, fctx, pattern, DirMarker(marker), buffer)?;
 
             if !bytes_transferred.is_null() {
                 unsafe { bytes_transferred.write(bytes_read) }

@@ -1,4 +1,5 @@
 use crate::error::Result;
+use crate::filesystem::DirMarker;
 use std::ffi::OsStr;
 
 use windows::core::{PCWSTR, PWSTR};
@@ -140,7 +141,7 @@ pub trait FileSystemContext: Sized {
         &self,
         context: &mut Self::FileContext,
         pattern: Option<P>,
-        marker: Option<&[u16]>,
+        marker: DirMarker,
         buffer: &mut [u8],
     ) -> Result<u32> {
         Err(STATUS_INVALID_DEVICE_REQUEST.into())

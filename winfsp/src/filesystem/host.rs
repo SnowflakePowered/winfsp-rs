@@ -13,6 +13,11 @@ pub use winfsp_sys::{FSP_FSCTL_FILE_INFO, FSP_FSCTL_VOLUME_INFO, FSP_FSCTL_VOLUM
 use crate::filesystem::interface::Interface;
 use crate::filesystem::FileSystemContext;
 
+/// The user-mode filesystem host that manages the lifetime of the mounted filesystem.
+///
+/// This is separate from the lifetime of the service which is managed by
+/// [`FileSystemService`](crate::service::FileSystemService). A `FileSystemHost`
+/// should start within the context of a service.
 pub struct FileSystemHost(pub *mut FSP_FILE_SYSTEM);
 impl FileSystemHost {
     /// # Safety

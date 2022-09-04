@@ -5,20 +5,30 @@ use std::ptr::NonNull;
 use std::thread::JoinHandle;
 use windows::core::HSTRING;
 use windows::Win32::Foundation::{NTSTATUS, STATUS_INVALID_PARAMETER, STATUS_SUCCESS};
+use winfsp_sys::{
+    FspServiceAllowConsoleMode, FspServiceCreate, FspServiceLoop, FspServiceStop, FSP_SERVICE,
+};
+use crate::error::FspError;
+use crate::FspInit;
 
+// internal aliases for callback types
 type FileSystemStartCallback<T> = Option<Box<dyn Fn() -> std::result::Result<T, NTSTATUS>>>;
 type FileSystemStopCallback<T> =
     Option<Box<dyn Fn(Option<&mut T>) -> std::result::Result<(), NTSTATUS>>>;
 type FileSystemControlCallback<T> =
     Option<Box<dyn Fn(Option<&mut T>, u32, u32, *mut c_void) -> i32>>;
-
-pub struct FileSystemService<T>(NonNull<FSP_SERVICE>, PhantomData<T>);
 struct FileSystemServiceContext<T> {
     start: FileSystemStartCallback<T>,
     stop: FileSystemStopCallback<T>,
     control: FileSystemControlCallback<T>,
     context: Option<Box<T>>,
 }
+
+struct AssertThreadSafe<T>(*mut T);
+unsafe impl<T> Send for AssertThreadSafe<T> {}
+unsafe impl<T> Sync for AssertThreadSafe<T> {}
+
+pub struct FileSystemService<T>(NonNull<FSP_SERVICE>, PhantomData<T>);
 impl<T> FileSystemService<T> {
     /// # Safety
     /// `raw` is valid and not null.
@@ -26,6 +36,7 @@ impl<T> FileSystemService<T> {
         unsafe { FileSystemService(NonNull::new_unchecked(raw), Default::default()) }
     }
 
+    /// Set the context.
     fn set_context(&mut self, context: T) {
         unsafe {
             let ptr: *mut FileSystemServiceContext<T> = self.0.as_mut().UserContext.cast();
@@ -53,14 +64,15 @@ impl<T> FileSystemService<T> {
 }
 
 impl<T> FileSystemService<T> {
+
+    /// Stops the file system host service.
     pub fn stop(&self) {
         unsafe {
             FspServiceStop(self.0.as_ptr());
         };
     }
-}
 
-impl<T> FileSystemService<T> {
+    /// Spawns a thread and starts the file host system service.
     pub fn start(&self) -> JoinHandle<Result<()>> {
         let ptr = AssertThreadSafe(self.0.as_ptr());
         std::thread::spawn(|| {
@@ -78,10 +90,6 @@ impl<T> FileSystemService<T> {
         })
     }
 }
-
-struct AssertThreadSafe<T>(*mut T);
-unsafe impl<T> Send for AssertThreadSafe<T> {}
-unsafe impl<T> Sync for AssertThreadSafe<T> {}
 
 pub struct FileSystemServiceBuilder<T> {
     stop: FileSystemStopCallback<T>,
@@ -105,7 +113,7 @@ impl<T> FileSystemServiceBuilder<T> {
     }
 
     /// The start callback provides the file system context and mounts the file system.
-    /// The returned file system must be mounted.
+    /// The returned file system context must be mounted before returning.
     pub fn with_start<F>(mut self, start: F) -> Self
     where
         F: Fn() -> std::result::Result<T, NTSTATUS> + 'static,
@@ -224,9 +232,3 @@ unsafe extern "C" fn on_control<T>(
     }
     STATUS_INVALID_PARAMETER.0
 }
-
-use crate::error::FspError;
-use crate::FspInit;
-use winfsp_sys::{
-    FspServiceAllowConsoleMode, FspServiceCreate, FspServiceLoop, FspServiceStop, FSP_SERVICE,
-};

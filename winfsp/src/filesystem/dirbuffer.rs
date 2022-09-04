@@ -1,4 +1,7 @@
-use widestring::U16CStr;
+use std::ffi::OsStr;
+use std::iter;
+use std::os::windows::ffi::OsStrExt;
+use widestring::{U16CStr, u16cstr};
 use windows::Win32::Foundation::{
     STATUS_INSUFFICIENT_RESOURCES, STATUS_INVALID_PARAMETER, STATUS_SUCCESS,
 };
@@ -12,6 +15,35 @@ use crate::error::Result;
 
 pub struct DirBuffer(PVOID);
 pub struct DirBufferLock<'a>(&'a mut DirBuffer);
+pub struct DirMarker<'a>(pub(crate) Option<&'a [u16]>);
+
+impl DirMarker<'_> {
+    /// If this marker exists.
+    pub fn is_none(&self) -> bool {
+        self.0.is_none()
+    }
+
+    // If this marker is the parent directory '..'.
+    pub fn is_parent(&self) -> bool {
+        if let Some(marker) = self.0 {
+            return marker == u16cstr!("..").as_slice();
+        }
+        false
+    }
+
+    // If this marker is the current directory '.'.
+    pub fn is_current(&self) -> bool {
+        if let Some(marker) = self.0 {
+            return marker == u16cstr!(".").as_slice();
+        }
+        false
+    }
+
+    // Returns the inner contents of the marker.
+    pub fn inner(&self) -> Option<&[u16]> {
+        self.0
+    }
+}
 
 impl Default for DirBuffer {
     fn default() -> Self {
@@ -41,12 +73,12 @@ impl DirBuffer {
         }
     }
 
-    pub fn read(&mut self, marker: Option<&[u16]>, buffer: &mut [u8]) -> u32 {
+    pub fn read(&mut self, marker: DirMarker, buffer: &mut [u8]) -> u32 {
         let mut out = 0u32;
         unsafe {
             FspFileSystemReadDirectoryBuffer(
                 &mut self.0,
-                marker.map_or(std::ptr::null_mut(), |v| v.as_ptr().cast_mut()),
+                marker.0.map_or(std::ptr::null_mut(), |v| v.as_ptr().cast_mut()),
                 buffer.as_mut_ptr() as *mut _,
                 buffer.len() as u32,
                 &mut out,
@@ -57,7 +89,10 @@ impl DirBuffer {
 }
 
 impl DirBufferLock<'_> {
-    pub fn fill<const D: usize>(&mut self, dir_info: &mut DirInfo<D>) -> Result<()> {
+    /// Write a DirInfo entry into the directory buffer.
+    ///
+    /// A buffer can accept multiple DirInfos of varying sizes.
+    pub fn write<const D: usize>(&mut self, dir_info: &mut DirInfo<D>) -> Result<()> {
         let mut status = STATUS_SUCCESS;
         unsafe {
             let buffer = &mut self.0;
@@ -119,8 +154,8 @@ impl<const BUFFER_SIZE: usize> DirInfo<BUFFER_SIZE> {
 
     /// Set the file name of the directory info.
     ///
-    /// The input buffer must not have a null byte at the end.
-    pub fn set_file_name<'a, P: Into<&'a [u16]>>(&mut self, file_name: P) -> Result<()> {
+    /// The input buffer must be null-terminated.
+    pub fn set_file_name_raw<'a, P: Into<&'a [u16]>>(&mut self, file_name: P) -> Result<()> {
         let file_name = file_name.into();
         let file_name =
             U16CStr::from_slice_truncate(file_name).map_err(|_| STATUS_INVALID_PARAMETER)?;
@@ -135,10 +170,19 @@ impl<const BUFFER_SIZE: usize> DirInfo<BUFFER_SIZE> {
         Ok(())
     }
 
+    /// Set the file name of the directory info.
+    pub fn set_file_name<P: AsRef<OsStr>>(&mut self, file_name: P) -> Result<()> {
+        let file_name = file_name.as_ref();
+        let file_name = file_name.encode_wide().chain(iter::once(0)).collect::<Vec<_>>();
+        self.set_file_name_raw(file_name.as_slice())
+    }
+
+    /// Get a mutable reference to the file information of this directory entry.
     pub fn file_info_mut(&mut self) -> &mut FSP_FSCTL_FILE_INFO {
         &mut self.file_info
     }
 
+    /// Reset the directory entry.
     pub fn reset(&mut self) {
         self.size = 0;
         self.file_info = FSP_FSCTL_FILE_INFO::default();
