@@ -1,7 +1,7 @@
 use std::ffi::OsStr;
 use std::iter;
 use std::os::windows::ffi::OsStrExt;
-use widestring::{U16CStr, u16cstr};
+use widestring::{u16cstr, U16CStr};
 use windows::Win32::Foundation::{
     STATUS_INSUFFICIENT_RESOURCES, STATUS_INVALID_PARAMETER, STATUS_SUCCESS,
 };
@@ -78,7 +78,9 @@ impl DirBuffer {
         unsafe {
             FspFileSystemReadDirectoryBuffer(
                 &mut self.0,
-                marker.0.map_or(std::ptr::null_mut(), |v| v.as_ptr().cast_mut()),
+                marker
+                    .0
+                    .map_or(std::ptr::null_mut(), |v| v.as_ptr().cast_mut()),
                 buffer.as_mut_ptr() as *mut _,
                 buffer.len() as u32,
                 &mut out,
@@ -173,7 +175,10 @@ impl<const BUFFER_SIZE: usize> DirInfo<BUFFER_SIZE> {
     /// Set the file name of the directory info.
     pub fn set_file_name<P: AsRef<OsStr>>(&mut self, file_name: P) -> Result<()> {
         let file_name = file_name.as_ref();
-        let file_name = file_name.encode_wide().chain(iter::once(0)).collect::<Vec<_>>();
+        let file_name = file_name
+            .encode_wide()
+            .chain(iter::once(0))
+            .collect::<Vec<_>>();
         self.set_file_name_raw(file_name.as_slice())
     }
 

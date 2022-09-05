@@ -1,3 +1,5 @@
+use crate::error::FspError;
+use crate::FspInit;
 use crate::Result;
 use std::ffi::c_void;
 use std::marker::PhantomData;
@@ -8,8 +10,6 @@ use windows::Win32::Foundation::{NTSTATUS, STATUS_INVALID_PARAMETER, STATUS_SUCC
 use winfsp_sys::{
     FspServiceAllowConsoleMode, FspServiceCreate, FspServiceLoop, FspServiceStop, FSP_SERVICE,
 };
-use crate::error::FspError;
-use crate::FspInit;
 
 // internal aliases for callback types
 type FileSystemStartCallback<T> = Option<Box<dyn Fn() -> std::result::Result<T, NTSTATUS>>>;
@@ -64,7 +64,6 @@ impl<T> FileSystemService<T> {
 }
 
 impl<T> FileSystemService<T> {
-
     /// Stops the file system host service.
     pub fn stop(&self) {
         unsafe {
