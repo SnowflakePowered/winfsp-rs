@@ -1,4 +1,5 @@
 #![feature(cfg_target_compact)]
+#![feature(io_error_more)]
 #![deny(unsafe_op_in_unsafe_fn)]
 
 pub mod error;

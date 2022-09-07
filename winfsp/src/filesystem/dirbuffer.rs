@@ -1,6 +1,7 @@
 use std::ffi::OsStr;
 use std::iter;
 use std::os::windows::ffi::OsStrExt;
+use std::ptr::drop_in_place;
 use widestring::{u16cstr, U16CStr};
 use windows::Win32::Foundation::{
     STATUS_INSUFFICIENT_RESOURCES, STATUS_INVALID_PARAMETER, STATUS_SUCCESS,
@@ -15,9 +16,14 @@ use crate::error::Result;
 
 pub struct DirBuffer(PVOID);
 pub struct DirBufferLock<'a>(&'a mut DirBuffer);
-pub struct DirMarker<'a>(pub(crate) Option<&'a [u16]>);
+pub struct DirMarker<'a>(pub(crate) Option<&'a U16CStr>);
 
 impl DirMarker<'_> {
+    // reset the marker.
+    pub fn reset(&mut self) {
+        self.0.take();
+    }
+
     /// If this marker exists.
     pub fn is_none(&self) -> bool {
         self.0.is_none()
@@ -26,7 +32,7 @@ impl DirMarker<'_> {
     // If this marker is the parent directory '..'.
     pub fn is_parent(&self) -> bool {
         if let Some(marker) = self.0 {
-            return marker == u16cstr!("..").as_slice();
+            return marker == u16cstr!("..");
         }
         false
     }
@@ -34,13 +40,19 @@ impl DirMarker<'_> {
     // If this marker is the current directory '.'.
     pub fn is_current(&self) -> bool {
         if let Some(marker) = self.0 {
-            return marker == u16cstr!(".").as_slice();
+            return marker == u16cstr!(".");
         }
         false
     }
 
     // Returns the inner contents of the marker.
     pub fn inner(&self) -> Option<&[u16]> {
+        self.0.map(U16CStr::as_slice)
+    }
+
+    // Returns the inner contents of the marker.
+    // If the inner contents are not validly null-terminated, returns None.
+    pub fn inner_as_cstr(&self) -> Option<&U16CStr> {
         self.0
     }
 }

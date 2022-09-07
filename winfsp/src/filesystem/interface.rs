@@ -361,7 +361,7 @@ unsafe extern "C" fn read_directory<T: FileSystemContext>(
                 unsafe { slice::from_raw_parts_mut(buffer as *mut _, buffer_len as usize) };
 
             let marker = if !marker.is_null() {
-                Some(unsafe { U16CStr::from_ptr_str_mut(marker).as_slice() })
+                Some(unsafe { U16CStr::from_ptr_str(marker) })
             } else {
                 None
             };
