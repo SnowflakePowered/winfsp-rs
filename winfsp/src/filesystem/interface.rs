@@ -818,6 +818,7 @@ impl From<Interface> for FSP_FILE_SYSTEM_INTERFACE {
             SetDelete: interface.set_delete,
             Flush: interface.flush,
             Rename: interface.rename,
+            // todo: GetDirInfoByName
             ..Default::default()
         }
     }

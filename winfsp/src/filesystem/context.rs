@@ -1,5 +1,5 @@
 use crate::error::Result;
-use crate::filesystem::DirMarker;
+use crate::filesystem::{DirInfo, DirMarker};
 use std::ffi::OsStr;
 
 use windows::core::{PCWSTR, PWSTR};
@@ -20,8 +20,10 @@ pub struct IoResult {
     pub io_pending: bool,
 }
 
+pub const MAX_PATH: usize = 260;
+
 #[allow(unused_variables)]
-pub trait FileSystemContext: Sized {
+pub trait FileSystemContext<const DIR_INFO_SIZE: usize = MAX_PATH>: Sized {
     type FileContext: Sized;
     fn get_security_by_name<P: AsRef<OsStr>>(
         &self,
@@ -219,12 +221,11 @@ pub trait FileSystemContext: Sized {
         Err(STATUS_INVALID_DEVICE_REQUEST.into())
     }
 
-    #[cfg(feature = "get_dir_info_by_name")]
     fn get_dir_info_by_name<P: AsRef<OsStr>>(
         &self,
         context: &Self::FileContext,
         file_name: P,
-        dir_info: &mut FSP_FSCTL_DIR_INFO,
+        dir_info: DirInfo<DIR_INFO_SIZE>,
     ) -> Result<()> {
         // todo: wrap FSP_FSCTL_DIR_INFO
         Err(STATUS_INVALID_DEVICE_REQUEST.into())
