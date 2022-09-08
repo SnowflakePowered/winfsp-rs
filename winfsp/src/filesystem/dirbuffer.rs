@@ -1,7 +1,7 @@
 use std::ffi::OsStr;
 use std::iter;
 use std::os::windows::ffi::OsStrExt;
-use std::ptr::drop_in_place;
+
 use widestring::{u16cstr, U16CStr};
 use windows::Win32::Foundation::{
     STATUS_INSUFFICIENT_RESOURCES, STATUS_INVALID_PARAMETER, STATUS_SUCCESS,

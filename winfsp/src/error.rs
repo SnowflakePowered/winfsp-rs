@@ -1,7 +1,11 @@
 use std::io::{Error, ErrorKind};
 use thiserror::Error;
 use windows::core::HRESULT;
-use windows::Win32::Foundation::{ERROR_ACCESS_DENIED, ERROR_ALREADY_EXISTS, ERROR_DIRECTORY, ERROR_DIRECTORY_NOT_SUPPORTED, ERROR_FILE_NOT_FOUND, ERROR_FILENAME_EXCED_RANGE, ERROR_INVALID_PARAMETER, NTSTATUS, WIN32_ERROR};
+use windows::Win32::Foundation::{
+    ERROR_ACCESS_DENIED, ERROR_ALREADY_EXISTS, ERROR_DIRECTORY, ERROR_DIRECTORY_NOT_SUPPORTED,
+    ERROR_FILENAME_EXCED_RANGE, ERROR_FILE_NOT_FOUND, ERROR_INVALID_PARAMETER, NTSTATUS,
+    WIN32_ERROR,
+};
 use winfsp_sys::FspNtStatusFromWin32;
 
 #[derive(Error, Debug)]
@@ -13,7 +17,7 @@ pub enum FspError {
     #[error("NTRESULT")]
     NTSTATUS(NTSTATUS),
     #[error("IO")]
-    IO(ErrorKind)
+    IO(ErrorKind),
 }
 
 impl FspError {
@@ -26,7 +30,6 @@ impl FspError {
                 // e.0 as i32
             }
             FspError::IO(e) => {
-
                 let win32_equiv = match e {
                     ErrorKind::NotFound => ERROR_FILE_NOT_FOUND,
                     ErrorKind::PermissionDenied => ERROR_ACCESS_DENIED,
@@ -36,7 +39,7 @@ impl FspError {
                     ErrorKind::IsADirectory => ERROR_DIRECTORY_NOT_SUPPORTED,
                     ErrorKind::NotADirectory => ERROR_DIRECTORY,
                     // todo: return something sensible.
-                    _ => panic!("Unsupported IO error")
+                    _ => panic!("Unsupported IO error"),
                 };
                 unsafe { FspNtStatusFromWin32(win32_equiv.0 as u32) }
             }
