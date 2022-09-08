@@ -223,25 +223,92 @@ impl FileSystemContext for PtfsContext {
         drop(context)
     }
 
-    fn get_volume_info(&self, out_volume_info: &mut FSP_FSCTL_VOLUME_INFO) -> Result<()> {
-        let mut root = [0u16; MAX_PATH as usize];
-        let mut total_size = 0u64;
-        let mut free_size = 0u64;
-        let fname = U16CString::from_os_str_truncate(self.path.as_os_str());
-        win32_try!(unsafe GetVolumePathNameW(PCWSTR(fname.as_ptr()), &mut root[..]));
-        win32_try!(unsafe GetDiskFreeSpaceExW(
-            PCWSTR(U16CStr::from_slice_truncate(&root).unwrap().as_ptr()),
-            std::ptr::null_mut(),
-            &mut total_size,
-            &mut free_size,
-        ));
+    fn cleanup<P: AsRef<OsStr>>(
+        &self,
+        context: &mut Self::FileContext,
+        _file_name: Option<P>,
+        flags: u32,
+    ) {
+        if flags & FspCleanupFlags::FspCleanupDelete as u32 != 0 {
+            context.handle.invalidate();
+        }
+    }
 
-        out_volume_info.TotalSize = total_size;
-        out_volume_info.FreeSize = free_size;
-        out_volume_info.VolumeLabel[0..VOLUME_LABEL.len()].copy_from_slice(VOLUME_LABEL.as_wide());
-        out_volume_info.VolumeLabelLength =
-            (VOLUME_LABEL.len() * std::mem::size_of::<u16>()) as u16;
-        Ok(())
+    fn create<P: AsRef<OsStr>>(
+        &self,
+        file_name: P,
+        create_options: u32,
+        granted_access: FILE_ACCESS_FLAGS,
+        mut file_attributes: FILE_FLAGS_AND_ATTRIBUTES,
+        security_descriptor: PSECURITY_DESCRIPTOR,
+        _allocation_size: u64,
+        _extra_buffer: Option<&[u8]>,
+        _extra_buffer_is_reparse_point: bool,
+        file_info: &mut FSP_FSCTL_FILE_INFO,
+    ) -> Result<Self::FileContext> {
+        let full_path = [self.path.as_os_str(), file_name.as_ref()].join(OsStr::new(""));
+        if full_path.len() > FULLPATH_SIZE {
+            return Err(STATUS_OBJECT_NAME_INVALID.into());
+        }
+        let security_attributes = SECURITY_ATTRIBUTES {
+            nLength: std::mem::size_of::<SECURITY_ATTRIBUTES>() as u32,
+            lpSecurityDescriptor: security_descriptor.0,
+            bInheritHandle: false.into(),
+        };
+
+        let full_path = U16CString::from_os_str_truncate(full_path);
+        let mut create_flags = FILE_FLAG_BACKUP_SEMANTICS;
+        if (create_options & FILE_DELETE_ON_CLOSE) != 0 {
+            create_flags |= FILE_FLAG_DELETE_ON_CLOSE;
+        }
+
+        if (create_options & FILE_DIRECTORY_FILE) != 0 {
+            create_flags |= FILE_FLAG_POSIX_SEMANTICS;
+            file_attributes |= FILE_ATTRIBUTE_DIRECTORY
+        } else {
+            file_attributes &= !FILE_ATTRIBUTE_DIRECTORY
+        }
+
+        if file_attributes == FILE_FLAGS_AND_ATTRIBUTES(0) {
+            file_attributes = FILE_ATTRIBUTE_NORMAL
+        }
+
+        let handle = unsafe {
+            let handle = CreateFileW(
+                PCWSTR(full_path.as_ptr()),
+                granted_access,
+                FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                &security_attributes,
+                CREATE_NEW,
+                create_flags | file_attributes,
+                None,
+            )?;
+            if handle.is_invalid() {
+                return Err(FspError::from(GetLastError()));
+            }
+            handle
+        };
+
+        self.get_file_info_internal(handle, file_info)?;
+
+        Ok(Self::FileContext {
+            handle: SafeDropHandle::from(handle),
+            dir_buffer: Default::default(),
+        })
+    }
+
+    fn flush(
+        &self,
+        context: &Self::FileContext,
+        file_info: &mut FSP_FSCTL_FILE_INFO,
+    ) -> Result<()> {
+        if *context.handle == HANDLE(0) {
+            // we do not flush the whole volume, so just return ok
+            return Ok(());
+        }
+
+        win32_try!(unsafe FlushFileBuffers(*context.handle));
+        self.get_file_info_internal(*context.handle, file_info)
     }
 
     fn get_file_info(
@@ -272,6 +339,116 @@ impl FileSystemContext for PtfsContext {
         ));
 
         Ok(descriptor_size_needed as u64)
+    }
+
+    fn get_volume_info(&self, out_volume_info: &mut FSP_FSCTL_VOLUME_INFO) -> Result<()> {
+        let mut root = [0u16; MAX_PATH as usize];
+        let mut total_size = 0u64;
+        let mut free_size = 0u64;
+        let fname = U16CString::from_os_str_truncate(self.path.as_os_str());
+        win32_try!(unsafe GetVolumePathNameW(PCWSTR(fname.as_ptr()), &mut root[..]));
+        win32_try!(unsafe GetDiskFreeSpaceExW(
+            PCWSTR(U16CStr::from_slice_truncate(&root).unwrap().as_ptr()),
+            std::ptr::null_mut(),
+            &mut total_size,
+            &mut free_size,
+        ));
+
+        out_volume_info.TotalSize = total_size;
+        out_volume_info.FreeSize = free_size;
+        out_volume_info.VolumeLabel[0..VOLUME_LABEL.len()].copy_from_slice(VOLUME_LABEL.as_wide());
+        out_volume_info.VolumeLabelLength =
+            (VOLUME_LABEL.len() * std::mem::size_of::<u16>()) as u16;
+        Ok(())
+    }
+
+    fn overwrite(
+        &self,
+        context: &Self::FileContext,
+        file_attributes: FILE_FLAGS_AND_ATTRIBUTES,
+        replace_file_attributes: bool,
+        _allocation_size: u64,
+        file_info: &mut FSP_FSCTL_FILE_INFO,
+    ) -> Result<()> {
+        // todo: preserve allocation size
+        let mut attribute_tag_info = FILE_ATTRIBUTE_TAG_INFO::default();
+
+        if replace_file_attributes {
+            let basic_info = FILE_BASIC_INFO {
+                FileAttributes: if file_attributes == FILE_FLAGS_AND_ATTRIBUTES(0) {
+                    FILE_ATTRIBUTE_NORMAL
+                } else {
+                    file_attributes
+                }
+                .0,
+                ..Default::default()
+            };
+
+            win32_try!(unsafe SetFileInformationByHandle(
+                *context.handle,
+                FileBasicInfo,
+                (&basic_info as *const FILE_BASIC_INFO).cast(),
+                std::mem::size_of::<FILE_BASIC_INFO>() as u32,
+            ));
+        } else if file_attributes != FILE_FLAGS_AND_ATTRIBUTES(0) {
+            let mut basic_info = FILE_BASIC_INFO::default();
+            win32_try!(unsafe GetFileInformationByHandleEx(
+                *context.handle,
+                FileAttributeTagInfo,
+                (&mut attribute_tag_info as *mut FILE_ATTRIBUTE_TAG_INFO).cast(),
+                std::mem::size_of::<FILE_ATTRIBUTE_TAG_INFO>() as u32,
+            ));
+
+            basic_info.FileAttributes = file_attributes.0 | attribute_tag_info.FileAttributes;
+            if basic_info.FileAttributes.bitxor(file_attributes.0) != 0 {
+                win32_try!(unsafe SetFileInformationByHandle(
+                    *context.handle,
+                    FileBasicInfo,
+                    (&basic_info as *const FILE_BASIC_INFO).cast(),
+                    std::mem::size_of::<FILE_BASIC_INFO>() as u32,
+                ));
+            }
+        }
+
+        let alloc_info = FILE_ALLOCATION_INFO::default();
+        win32_try!(unsafe SetFileInformationByHandle(
+            *context.handle,
+            FileAllocationInfo,
+            (&alloc_info as *const FILE_ALLOCATION_INFO).cast(),
+            std::mem::size_of::<FILE_ALLOCATION_INFO>() as u32,
+        ));
+        self.get_file_info_internal(*context.handle, file_info)
+    }
+
+    fn read(
+        &self,
+        context: &Self::FileContext,
+        buffer: &mut [u8],
+        offset: u64,
+    ) -> Result<IoResult> {
+        let mut overlapped = OVERLAPPED {
+            Anonymous: OVERLAPPED_0 {
+                Anonymous: OVERLAPPED_0_0 {
+                    Offset: offset as u32,
+                    OffsetHigh: (offset >> 32) as u32,
+                },
+            },
+            ..Default::default()
+        };
+
+        let mut bytes_read = 0;
+        win32_try!(unsafe ReadFile(
+            *context.handle,
+            buffer.as_mut_ptr() as *mut _,
+            buffer.len() as u32,
+            &mut bytes_read,
+            &mut overlapped,
+        ));
+
+        Ok(IoResult {
+            bytes_transferred: bytes_read,
+            io_pending: false,
+        })
     }
 
     fn read_directory<P: Into<PCWSTR>>(
@@ -356,35 +533,136 @@ impl FileSystemContext for PtfsContext {
         Ok(context.dir_buffer.read(marker, buffer))
     }
 
-    fn read(
+    fn rename<P: AsRef<OsStr>>(
         &self,
-        context: &Self::FileContext,
-        buffer: &mut [u8],
-        offset: u64,
-    ) -> Result<IoResult> {
-        let mut overlapped = OVERLAPPED {
-            Anonymous: OVERLAPPED_0 {
-                Anonymous: OVERLAPPED_0_0 {
-                    Offset: offset as u32,
-                    OffsetHigh: (offset >> 32) as u32,
-                },
-            },
-            ..Default::default()
+        _context: &Self::FileContext,
+        file_name: P,
+        new_file_name: P,
+        replace_if_exists: bool,
+    ) -> Result<()> {
+        let full_path = {
+            let full_path = [self.path.as_os_str(), file_name.as_ref()].join(OsStr::new(""));
+            if full_path.len() > FULLPATH_SIZE {
+                return Err(STATUS_OBJECT_NAME_INVALID.into());
+            }
+            U16CString::from_os_str_truncate(full_path)
         };
 
-        let mut bytes_read = 0;
-        win32_try!(unsafe ReadFile(
-            *context.handle,
-            buffer.as_mut_ptr() as *mut _,
-            buffer.len() as u32,
-            &mut bytes_read,
-            &mut overlapped,
+        let new_full_path = {
+            let new_full_path =
+                [self.path.as_os_str(), new_file_name.as_ref()].join(OsStr::new(""));
+            if new_full_path.len() > FULLPATH_SIZE {
+                return Err(STATUS_OBJECT_NAME_INVALID.into());
+            }
+            U16CString::from_os_str_truncate(new_full_path)
+        };
+
+        win32_try!(unsafe MoveFileExW(
+            PCWSTR::from_raw(full_path.as_ptr()),
+            PCWSTR::from_raw(new_full_path.as_ptr()),
+            if replace_if_exists {
+                MOVEFILE_REPLACE_EXISTING
+            } else {
+                MOVE_FILE_FLAGS::default()
+            }
         ));
 
-        Ok(IoResult {
-            bytes_transferred: bytes_read,
-            io_pending: false,
-        })
+        Ok(())
+    }
+
+    fn set_basic_info(
+        &self,
+        context: &Self::FileContext,
+        file_attributes: u32,
+        creation_time: u64,
+        last_access_time: u64,
+        last_write_time: u64,
+        last_change_time: u64,
+        file_info: &mut FSP_FSCTL_FILE_INFO,
+    ) -> Result<()> {
+        let basic_info = FILE_BASIC_INFO {
+            FileAttributes: if file_attributes == INVALID_FILE_ATTRIBUTES {
+                0
+            } else if file_attributes == 0 {
+                FILE_ATTRIBUTE_NORMAL.0
+            } else {
+                file_attributes
+            },
+            CreationTime: creation_time as i64,
+            LastAccessTime: last_access_time as i64,
+            LastWriteTime: last_write_time as i64,
+            ChangeTime: last_change_time as i64,
+        };
+        win32_try!(unsafe SetFileInformationByHandle(
+            *context.handle,
+            FileBasicInfo,
+            (&basic_info as *const FILE_BASIC_INFO).cast(),
+            std::mem::size_of::<FILE_BASIC_INFO>() as u32,
+        ));
+
+        self.get_file_info_internal(*context.handle, file_info)
+    }
+
+    fn set_delete<P: AsRef<OsStr>>(
+        &self,
+        context: &Self::FileContext,
+        _file_name: P,
+        delete_file: bool,
+    ) -> Result<()> {
+        let disposition_info = FILE_DISPOSITION_INFO {
+            DeleteFileA: BOOLEAN(if delete_file { 1 } else { 0 }),
+        };
+
+        win32_try!(unsafe SetFileInformationByHandle(*context.handle,
+            FileDispositionInfo, (&disposition_info as *const FILE_DISPOSITION_INFO).cast(),
+            std::mem::size_of::<FILE_DISPOSITION_INFO>() as u32));
+        Ok(())
+    }
+    fn set_file_size(
+        &self,
+        context: &Self::FileContext,
+        new_size: u64,
+        set_allocation_size: bool,
+        file_info: &mut FSP_FSCTL_FILE_INFO,
+    ) -> Result<()> {
+        if set_allocation_size {
+            let allocation_info = FILE_ALLOCATION_INFO {
+                AllocationSize: new_size as i64,
+            };
+
+            win32_try!(unsafe SetFileInformationByHandle(
+                *context.handle,
+                FileAllocationInfo,
+                (&allocation_info as *const FILE_ALLOCATION_INFO).cast(),
+                std::mem::size_of::<FILE_ALLOCATION_INFO>() as u32
+            ))
+        } else {
+            let eof_info = FILE_END_OF_FILE_INFO {
+                EndOfFile: new_size as i64,
+            };
+
+            win32_try!(unsafe SetFileInformationByHandle(
+                *context.handle,
+                FileEndOfFileInfo,
+                (&eof_info as *const FILE_END_OF_FILE_INFO).cast(),
+                std::mem::size_of::<FILE_END_OF_FILE_INFO>() as u32
+            ))
+        }
+        self.get_file_info_internal(*context.handle, file_info)
+    }
+
+    fn set_security(
+        &self,
+        context: &Self::FileContext,
+        security_information: u32,
+        modification_descriptor: PSECURITY_DESCRIPTOR,
+    ) -> Result<()> {
+        win32_try!(unsafe SetKernelObjectSecurity(
+            *context.handle,
+            security_information,
+            modification_descriptor
+        ));
+        Ok(())
     }
 
     fn write(
@@ -436,284 +714,6 @@ impl FileSystemContext for PtfsContext {
             bytes_transferred,
             io_pending: false,
         })
-    }
-
-    fn overwrite(
-        &self,
-        context: &Self::FileContext,
-        file_attributes: FILE_FLAGS_AND_ATTRIBUTES,
-        replace_file_attributes: bool,
-        _allocation_size: u64,
-        file_info: &mut FSP_FSCTL_FILE_INFO,
-    ) -> Result<()> {
-        // todo: preserve allocation size
-        let mut attribute_tag_info = FILE_ATTRIBUTE_TAG_INFO::default();
-
-        if replace_file_attributes {
-            let basic_info = FILE_BASIC_INFO {
-                FileAttributes: if file_attributes == FILE_FLAGS_AND_ATTRIBUTES(0) {
-                    FILE_ATTRIBUTE_NORMAL
-                } else {
-                    file_attributes
-                }
-                .0,
-                ..Default::default()
-            };
-
-            win32_try!(unsafe SetFileInformationByHandle(
-                *context.handle,
-                FileBasicInfo,
-                (&basic_info as *const FILE_BASIC_INFO).cast(),
-                std::mem::size_of::<FILE_BASIC_INFO>() as u32,
-            ));
-        } else if file_attributes != FILE_FLAGS_AND_ATTRIBUTES(0) {
-            let mut basic_info = FILE_BASIC_INFO::default();
-            win32_try!(unsafe GetFileInformationByHandleEx(
-                *context.handle,
-                FileAttributeTagInfo,
-                (&mut attribute_tag_info as *mut FILE_ATTRIBUTE_TAG_INFO).cast(),
-                std::mem::size_of::<FILE_ATTRIBUTE_TAG_INFO>() as u32,
-            ));
-
-            basic_info.FileAttributes = file_attributes.0 | attribute_tag_info.FileAttributes;
-            if basic_info.FileAttributes.bitxor(file_attributes.0) != 0 {
-                win32_try!(unsafe SetFileInformationByHandle(
-                    *context.handle,
-                    FileBasicInfo,
-                    (&basic_info as *const FILE_BASIC_INFO).cast(),
-                    std::mem::size_of::<FILE_BASIC_INFO>() as u32,
-                ));
-            }
-        }
-
-        let alloc_info = FILE_ALLOCATION_INFO::default();
-        win32_try!(unsafe SetFileInformationByHandle(
-            *context.handle,
-            FileAllocationInfo,
-            (&alloc_info as *const FILE_ALLOCATION_INFO).cast(),
-            std::mem::size_of::<FILE_ALLOCATION_INFO>() as u32,
-        ));
-        self.get_file_info_internal(*context.handle, file_info)
-    }
-
-    fn create<P: AsRef<OsStr>>(
-        &self,
-        file_name: P,
-        create_options: u32,
-        granted_access: FILE_ACCESS_FLAGS,
-        mut file_attributes: FILE_FLAGS_AND_ATTRIBUTES,
-        security_descriptor: PSECURITY_DESCRIPTOR,
-        _allocation_size: u64,
-        _extra_buffer: Option<&[u8]>,
-        _extra_buffer_is_reparse_point: bool,
-        file_info: &mut FSP_FSCTL_FILE_INFO,
-    ) -> Result<Self::FileContext> {
-        let full_path = [self.path.as_os_str(), file_name.as_ref()].join(OsStr::new(""));
-        if full_path.len() > FULLPATH_SIZE {
-            return Err(STATUS_OBJECT_NAME_INVALID.into());
-        }
-        let security_attributes = SECURITY_ATTRIBUTES {
-            nLength: std::mem::size_of::<SECURITY_ATTRIBUTES>() as u32,
-            lpSecurityDescriptor: security_descriptor.0,
-            bInheritHandle: false.into(),
-        };
-
-        let full_path = U16CString::from_os_str_truncate(full_path);
-        let mut create_flags = FILE_FLAG_BACKUP_SEMANTICS;
-        if (create_options & FILE_DELETE_ON_CLOSE) != 0 {
-            create_flags |= FILE_FLAG_DELETE_ON_CLOSE;
-        }
-
-        if (create_options & FILE_DIRECTORY_FILE) != 0 {
-            create_flags |= FILE_FLAG_POSIX_SEMANTICS;
-            file_attributes |= FILE_ATTRIBUTE_DIRECTORY
-        } else {
-            file_attributes &= !FILE_ATTRIBUTE_DIRECTORY
-        }
-
-        if file_attributes == FILE_FLAGS_AND_ATTRIBUTES(0) {
-            file_attributes = FILE_ATTRIBUTE_NORMAL
-        }
-
-        let handle = unsafe {
-            let handle = CreateFileW(
-                PCWSTR(full_path.as_ptr()),
-                granted_access,
-                FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
-                &security_attributes,
-                CREATE_NEW,
-                create_flags | file_attributes,
-                None,
-            )?;
-            if handle.is_invalid() {
-                return Err(FspError::from(GetLastError()));
-            }
-            handle
-        };
-
-        self.get_file_info_internal(handle, file_info)?;
-
-        Ok(Self::FileContext {
-            handle: SafeDropHandle::from(handle),
-            dir_buffer: Default::default(),
-        })
-    }
-
-    fn cleanup<P: AsRef<OsStr>>(
-        &self,
-        context: &mut Self::FileContext,
-        _file_name: Option<P>,
-        flags: u32,
-    ) {
-        if flags & FspCleanupFlags::FspCleanupDelete as u32 != 0 {
-            context.handle.invalidate();
-        }
-    }
-
-    fn set_basic_info(
-        &self,
-        context: &Self::FileContext,
-        file_attributes: u32,
-        creation_time: u64,
-        last_access_time: u64,
-        last_write_time: u64,
-        last_change_time: u64,
-        file_info: &mut FSP_FSCTL_FILE_INFO,
-    ) -> Result<()> {
-        let basic_info = FILE_BASIC_INFO {
-            FileAttributes: if file_attributes == INVALID_FILE_ATTRIBUTES {
-                0
-            } else if file_attributes == 0 {
-                FILE_ATTRIBUTE_NORMAL.0
-            } else {
-                file_attributes
-            },
-            CreationTime: creation_time as i64,
-            LastAccessTime: last_access_time as i64,
-            LastWriteTime: last_write_time as i64,
-            ChangeTime: last_change_time as i64,
-        };
-        win32_try!(unsafe SetFileInformationByHandle(
-            *context.handle,
-            FileBasicInfo,
-            (&basic_info as *const FILE_BASIC_INFO).cast(),
-            std::mem::size_of::<FILE_BASIC_INFO>() as u32,
-        ));
-
-        self.get_file_info_internal(*context.handle, file_info)
-    }
-
-    fn set_file_size(
-        &self,
-        context: &Self::FileContext,
-        new_size: u64,
-        set_allocation_size: bool,
-        file_info: &mut FSP_FSCTL_FILE_INFO,
-    ) -> Result<()> {
-        if set_allocation_size {
-            let allocation_info = FILE_ALLOCATION_INFO {
-                AllocationSize: new_size as i64,
-            };
-
-            win32_try!(unsafe SetFileInformationByHandle(
-                *context.handle,
-                FileAllocationInfo,
-                (&allocation_info as *const FILE_ALLOCATION_INFO).cast(),
-                std::mem::size_of::<FILE_ALLOCATION_INFO>() as u32
-            ))
-        } else {
-            let eof_info = FILE_END_OF_FILE_INFO {
-                EndOfFile: new_size as i64,
-            };
-
-            win32_try!(unsafe SetFileInformationByHandle(
-                *context.handle,
-                FileEndOfFileInfo,
-                (&eof_info as *const FILE_END_OF_FILE_INFO).cast(),
-                std::mem::size_of::<FILE_END_OF_FILE_INFO>() as u32
-            ))
-        }
-        self.get_file_info_internal(*context.handle, file_info)
-    }
-
-    fn set_security(
-        &self,
-        context: &Self::FileContext,
-        security_information: u32,
-        modification_descriptor: PSECURITY_DESCRIPTOR,
-    ) -> Result<()> {
-        win32_try!(unsafe SetKernelObjectSecurity(
-            *context.handle,
-            security_information,
-            modification_descriptor
-        ));
-        Ok(())
-    }
-    fn set_delete<P: AsRef<OsStr>>(
-        &self,
-        context: &Self::FileContext,
-        _file_name: P,
-        delete_file: bool,
-    ) -> Result<()> {
-        let disposition_info = FILE_DISPOSITION_INFO {
-            DeleteFileA: BOOLEAN(if delete_file { 1 } else { 0 }),
-        };
-
-        win32_try!(unsafe SetFileInformationByHandle(*context.handle,
-            FileDispositionInfo, (&disposition_info as *const FILE_DISPOSITION_INFO).cast(),
-            std::mem::size_of::<FILE_DISPOSITION_INFO>() as u32));
-        Ok(())
-    }
-
-    fn flush(
-        &self,
-        context: &Self::FileContext,
-        file_info: &mut FSP_FSCTL_FILE_INFO,
-    ) -> Result<()> {
-        if *context.handle == HANDLE(0) {
-            // we do not flush the whole volume, so just return ok
-            return Ok(());
-        }
-
-        win32_try!(unsafe FlushFileBuffers(*context.handle));
-        self.get_file_info_internal(*context.handle, file_info)
-    }
-
-    fn rename<P: AsRef<OsStr>>(
-        &self,
-        _context: &Self::FileContext,
-        file_name: P,
-        new_file_name: P,
-        replace_if_exists: bool,
-    ) -> Result<()> {
-        let full_path = {
-            let full_path = [self.path.as_os_str(), file_name.as_ref()].join(OsStr::new(""));
-            if full_path.len() > FULLPATH_SIZE {
-                return Err(STATUS_OBJECT_NAME_INVALID.into());
-            }
-            U16CString::from_os_str_truncate(full_path)
-        };
-
-        let new_full_path = {
-            let new_full_path =
-                [self.path.as_os_str(), new_file_name.as_ref()].join(OsStr::new(""));
-            if new_full_path.len() > FULLPATH_SIZE {
-                return Err(STATUS_OBJECT_NAME_INVALID.into());
-            }
-            U16CString::from_os_str_truncate(new_full_path)
-        };
-
-        win32_try!(unsafe MoveFileExW(
-            PCWSTR::from_raw(full_path.as_ptr()),
-            PCWSTR::from_raw(new_full_path.as_ptr()),
-            if replace_if_exists {
-                MOVEFILE_REPLACE_EXISTING
-            } else {
-                MOVE_FILE_FLAGS::default()
-            }
-        ));
-
-        Ok(())
     }
 }
 
