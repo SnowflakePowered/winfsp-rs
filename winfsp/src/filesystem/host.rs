@@ -22,13 +22,13 @@ pub struct FileSystemHost(pub *mut FSP_FILE_SYSTEM);
 impl FileSystemHost {
     /// # Safety
     /// `volume_params` must be valid.
-    pub unsafe fn new<T: FileSystemContext>(
+    pub unsafe fn new<T: FileSystemContext<DIR_BUFFER_SIZE>, const DIR_BUFFER_SIZE: usize>(
         volume_params: FSP_FSCTL_VOLUME_PARAMS,
         context: T,
     ) -> Result<Self> {
         let mut fsp_struct = std::ptr::null_mut();
 
-        let interface = Interface::create::<T>();
+        let interface = Interface::create::<T, DIR_BUFFER_SIZE>();
         let interface: FSP_FILE_SYSTEM_INTERFACE = interface.into();
         let interface = Box::into_raw(Box::new(interface));
         let result = unsafe {

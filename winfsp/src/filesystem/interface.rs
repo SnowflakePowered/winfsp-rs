@@ -27,7 +27,7 @@ macro_rules! catch_panic {
 }
 
 #[inline(always)]
-fn require_fctx<C: FileSystemContext, F>(
+fn require_fctx<C: FileSystemContext<DIR_BUF_SIZE>, F, const DIR_BUF_SIZE: usize>(
     fs: *mut FSP_FILE_SYSTEM,
     fctx: PVOID,
     inner: F,
@@ -55,7 +55,7 @@ where
 }
 
 #[inline(always)]
-fn require_ctx<C: FileSystemContext, F>(fs: *mut FSP_FILE_SYSTEM, inner: F) -> FSP_STATUS
+fn require_ctx<C: FileSystemContext<DIR_BUF_SIZE>, F, const DIR_BUF_SIZE: usize>(fs: *mut FSP_FILE_SYSTEM, inner: F) -> FSP_STATUS
 where
     F: FnOnce(&C) -> error::Result<()>,
 {
@@ -72,7 +72,7 @@ where
 }
 
 #[inline(always)]
-fn require_fctx_io<C: FileSystemContext, F>(
+fn require_fctx_io<C: FileSystemContext<DIR_BUF_SIZE>, F, const DIR_BUF_SIZE: usize>(
     fs: *mut FSP_FILE_SYSTEM,
     fctx: PVOID,
     inner: F,
@@ -100,7 +100,7 @@ where
     }
 }
 
-unsafe extern "C" fn get_volume_info<T: FileSystemContext>(
+unsafe extern "C" fn get_volume_info<T: FileSystemContext<DIR_BUF_SIZE>, const DIR_BUF_SIZE: usize>(
     fs: *mut FSP_FILE_SYSTEM,
     volume_info: *mut FSP_FSCTL_VOLUME_INFO,
 ) -> FSP_STATUS {
@@ -115,7 +115,7 @@ unsafe extern "C" fn get_volume_info<T: FileSystemContext>(
     })
 }
 
-unsafe extern "C" fn get_security_by_name<T: FileSystemContext>(
+unsafe extern "C" fn get_security_by_name<T: FileSystemContext<DIR_BUF_SIZE>, const DIR_BUF_SIZE: usize>(
     fs: *mut FSP_FILE_SYSTEM,
     file_name: *mut u16,
     file_attributes: *mut u32,
@@ -153,7 +153,7 @@ unsafe extern "C" fn get_security_by_name<T: FileSystemContext>(
     })
 }
 
-unsafe extern "C" fn open<T: FileSystemContext>(
+unsafe extern "C" fn open<T: FileSystemContext<DIR_BUF_SIZE>, const DIR_BUF_SIZE: usize>(
     fs: *mut FSP_FILE_SYSTEM,
     file_name: winfsp_sys::PWSTR,
     create_options: u32,
@@ -178,7 +178,7 @@ unsafe extern "C" fn open<T: FileSystemContext>(
     })
 }
 
-unsafe extern "C" fn create_ex<T: FileSystemContext>(
+unsafe extern "C" fn create_ex<T: FileSystemContext<DIR_BUF_SIZE>, const DIR_BUF_SIZE: usize>(
     fs: *mut FSP_FILE_SYSTEM,
     file_name: *mut u16,
     create_options: u32,
@@ -225,7 +225,7 @@ unsafe extern "C" fn create_ex<T: FileSystemContext>(
     })
 }
 
-unsafe extern "C" fn close<T: FileSystemContext>(fs: *mut FSP_FILE_SYSTEM, fctx: PVOID) {
+unsafe extern "C" fn close<T: FileSystemContext<DIR_BUF_SIZE>, const DIR_BUF_SIZE: usize>(fs: *mut FSP_FILE_SYSTEM, fctx: PVOID) {
     if fctx.is_null() {
         return;
     }
@@ -237,7 +237,7 @@ unsafe extern "C" fn close<T: FileSystemContext>(fs: *mut FSP_FILE_SYSTEM, fctx:
     });
 }
 
-unsafe extern "C" fn control<T: FileSystemContext>(
+unsafe extern "C" fn control<T: FileSystemContext<DIR_BUF_SIZE>, const DIR_BUF_SIZE: usize>(
     fs: *mut FSP_FILE_SYSTEM,
     fctx: PVOID,
     control_code: u32,
@@ -259,7 +259,7 @@ unsafe extern "C" fn control<T: FileSystemContext>(
     })
 }
 
-unsafe extern "C" fn set_volume_label<T: FileSystemContext>(
+unsafe extern "C" fn set_volume_label<T: FileSystemContext<DIR_BUF_SIZE>, const DIR_BUF_SIZE: usize>(
     fs: *mut FSP_FILE_SYSTEM,
     volume_label: *mut u16,
     volume_info: *mut FSP_FSCTL_VOLUME_INFO,
@@ -275,7 +275,7 @@ unsafe extern "C" fn set_volume_label<T: FileSystemContext>(
     })
 }
 
-unsafe extern "C" fn overwrite<T: FileSystemContext>(
+unsafe extern "C" fn overwrite<T: FileSystemContext<DIR_BUF_SIZE>, const DIR_BUF_SIZE: usize>(
     fs: *mut FSP_FILE_SYSTEM,
     fctx: PVOID,
     file_attributes: u32,
@@ -298,7 +298,7 @@ unsafe extern "C" fn overwrite<T: FileSystemContext>(
     })
 }
 
-unsafe extern "C" fn get_file_info<T: FileSystemContext>(
+unsafe extern "C" fn get_file_info<T: FileSystemContext<DIR_BUF_SIZE>, const DIR_BUF_SIZE: usize>(
     fs: *mut FSP_FILE_SYSTEM,
     fctx: PVOID,
     out_file_info: *mut FSP_FSCTL_FILE_INFO,
@@ -314,7 +314,7 @@ unsafe extern "C" fn get_file_info<T: FileSystemContext>(
     })
 }
 
-unsafe extern "C" fn get_security<T: FileSystemContext>(
+unsafe extern "C" fn get_security<T: FileSystemContext<DIR_BUF_SIZE>, const DIR_BUF_SIZE: usize>(
     fs: *mut FSP_FILE_SYSTEM,
     fctx: PVOID,
     security_descriptor: *mut c_void,
@@ -336,7 +336,7 @@ unsafe extern "C" fn get_security<T: FileSystemContext>(
     })
 }
 
-unsafe extern "C" fn read_directory<T: FileSystemContext>(
+unsafe extern "C" fn read_directory<T: FileSystemContext<DIR_BUF_SIZE>, const DIR_BUF_SIZE: usize>(
     fs: *mut FSP_FILE_SYSTEM,
     fctx: PVOID,
     pattern: *mut u16,
@@ -376,7 +376,7 @@ unsafe extern "C" fn read_directory<T: FileSystemContext>(
     })
 }
 
-unsafe extern "C" fn read<T: FileSystemContext>(
+unsafe extern "C" fn read<T: FileSystemContext<DIR_BUF_SIZE>, const DIR_BUF_SIZE: usize>(
     fs: *mut FSP_FILE_SYSTEM,
     fctx: PVOID,
     buffer: PVOID,
@@ -405,7 +405,7 @@ unsafe extern "C" fn read<T: FileSystemContext>(
     })
 }
 
-unsafe extern "C" fn write<T: FileSystemContext>(
+unsafe extern "C" fn write<T: FileSystemContext<DIR_BUF_SIZE>, const DIR_BUF_SIZE: usize>(
     fs: *mut FSP_FILE_SYSTEM,
     fctx: PVOID,
     buffer: PVOID,
@@ -449,7 +449,7 @@ unsafe extern "C" fn write<T: FileSystemContext>(
     })
 }
 
-unsafe extern "C" fn cleanup<T: FileSystemContext>(
+unsafe extern "C" fn cleanup<T: FileSystemContext<DIR_BUF_SIZE>, const DIR_BUF_SIZE: usize>(
     fs: *mut FSP_FILE_SYSTEM,
     fctx: PVOID,
     file_name: *mut u16,
@@ -468,7 +468,7 @@ unsafe extern "C" fn cleanup<T: FileSystemContext>(
     });
 }
 
-unsafe extern "C" fn set_basic_info<T: FileSystemContext>(
+unsafe extern "C" fn set_basic_info<T: FileSystemContext<DIR_BUF_SIZE>, const DIR_BUF_SIZE: usize>(
     fs: *mut FSP_FILE_SYSTEM,
     fctx: PVOID,
     file_attributes: u32,
@@ -495,7 +495,7 @@ unsafe extern "C" fn set_basic_info<T: FileSystemContext>(
     })
 }
 
-unsafe extern "C" fn set_file_size<T: FileSystemContext>(
+unsafe extern "C" fn set_file_size<T: FileSystemContext<DIR_BUF_SIZE>, const DIR_BUF_SIZE: usize>(
     fs: *mut FSP_FILE_SYSTEM,
     fctx: PVOID,
     new_size: u64,
@@ -516,7 +516,7 @@ unsafe extern "C" fn set_file_size<T: FileSystemContext>(
     })
 }
 
-unsafe extern "C" fn set_security<T: FileSystemContext>(
+unsafe extern "C" fn set_security<T: FileSystemContext<DIR_BUF_SIZE>, const DIR_BUF_SIZE: usize>(
     fs: *mut FSP_FILE_SYSTEM,
     fctx: PVOID,
     security_information: u32,
@@ -534,7 +534,7 @@ unsafe extern "C" fn set_security<T: FileSystemContext>(
     })
 }
 
-unsafe extern "C" fn set_delete<T: FileSystemContext>(
+unsafe extern "C" fn set_delete<T: FileSystemContext<DIR_BUF_SIZE>, const DIR_BUF_SIZE: usize>(
     fs: *mut FSP_FILE_SYSTEM,
     fctx: PVOID,
     file_name: *mut u16,
@@ -548,7 +548,7 @@ unsafe extern "C" fn set_delete<T: FileSystemContext>(
     })
 }
 
-unsafe extern "C" fn flush<T: FileSystemContext>(
+unsafe extern "C" fn flush<T: FileSystemContext<DIR_BUF_SIZE>, const DIR_BUF_SIZE: usize>(
     fs: *mut FSP_FILE_SYSTEM,
     fctx: PVOID,
     out_file_info: *mut FSP_FSCTL_FILE_INFO,
@@ -560,7 +560,7 @@ unsafe extern "C" fn flush<T: FileSystemContext>(
     })
 }
 
-unsafe extern "C" fn rename<T: FileSystemContext>(
+unsafe extern "C" fn rename<T: FileSystemContext<DIR_BUF_SIZE>, const DIR_BUF_SIZE: usize>(
     fs: *mut FSP_FILE_SYSTEM,
     fctx: PVOID,
     file_name: *mut u16,
@@ -769,28 +769,28 @@ pub struct Interface {
 }
 
 impl Interface {
-    pub fn create<T: FileSystemContext>() -> Self {
+    pub fn create<T: FileSystemContext<DIR_BUF_SIZE>, const DIR_BUF_SIZE: usize>() -> Self {
         Interface {
-            open: Some(open::<T>),
-            get_security_by_name: Some(get_security_by_name::<T>),
-            close: Some(close::<T>),
-            create_ex: Some(create_ex::<T>),
-            control: Some(control::<T>),
-            overwrite: Some(overwrite::<T>),
-            read_directory: Some(read_directory::<T>),
-            get_volume_info: Some(get_volume_info::<T>),
-            set_volume_label: Some(set_volume_label::<T>),
-            get_security: Some(get_security::<T>),
-            get_file_info: Some(get_file_info::<T>),
-            read: Some(read::<T>),
-            write: Some(write::<T>),
-            cleanup: Some(cleanup::<T>),
-            set_basic_info: Some(set_basic_info::<T>),
-            set_file_size: Some(set_file_size::<T>),
-            set_security: Some(set_security::<T>),
-            set_delete: Some(set_delete::<T>),
-            flush: Some(flush::<T>),
-            rename: Some(rename::<T>),
+            open: Some(open::<T, DIR_BUF_SIZE>),
+            get_security_by_name: Some(get_security_by_name::<T, DIR_BUF_SIZE>),
+            close: Some(close::<T, DIR_BUF_SIZE>),
+            create_ex: Some(create_ex::<T, DIR_BUF_SIZE>),
+            control: Some(control::<T, DIR_BUF_SIZE>),
+            overwrite: Some(overwrite::<T, DIR_BUF_SIZE>),
+            read_directory: Some(read_directory::<T, DIR_BUF_SIZE>),
+            get_volume_info: Some(get_volume_info::<T, DIR_BUF_SIZE>),
+            set_volume_label: Some(set_volume_label::<T, DIR_BUF_SIZE>),
+            get_security: Some(get_security::<T, DIR_BUF_SIZE>),
+            get_file_info: Some(get_file_info::<T, DIR_BUF_SIZE>),
+            read: Some(read::<T, DIR_BUF_SIZE>),
+            write: Some(write::<T, DIR_BUF_SIZE>),
+            cleanup: Some(cleanup::<T, DIR_BUF_SIZE>),
+            set_basic_info: Some(set_basic_info::<T, DIR_BUF_SIZE>),
+            set_file_size: Some(set_file_size::<T, DIR_BUF_SIZE>),
+            set_security: Some(set_security::<T, DIR_BUF_SIZE>),
+            set_delete: Some(set_delete::<T, DIR_BUF_SIZE>),
+            flush: Some(flush::<T, DIR_BUF_SIZE>),
+            rename: Some(rename::<T, DIR_BUF_SIZE>),
         }
     }
 }
