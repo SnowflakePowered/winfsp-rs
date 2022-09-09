@@ -12,7 +12,6 @@ pub fn winfsp_link_delayload() {
     }
 }
 
-
 fn main() {
     winfsp_link_delayload();
 }

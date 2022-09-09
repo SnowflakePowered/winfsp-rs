@@ -1,18 +1,29 @@
+use crate::error::FspError;
+use crate::filesystem::MAX_PATH;
+use crate::vsb::VariableSizedBox;
 use std::ffi::{c_void, OsStr};
 use std::ops::Deref;
 use std::ptr::addr_of;
 use widestring::U16CStr;
 use windows::core::PCWSTR;
-use windows::Win32::Foundation::{CloseHandle, ERROR_INSUFFICIENT_BUFFER, GetLastError, HANDLE, INVALID_HANDLE_VALUE, NTSTATUS, PSID, STATUS_INVALID_PARAMETER, WIN32_ERROR};
-use windows::Win32::Security::{DACL_SECURITY_INFORMATION, GetKernelObjectSecurity, GetSecurityDescriptorLength, GetTokenInformation, GROUP_SECURITY_INFORMATION, OWNER_SECURITY_INFORMATION, PSECURITY_DESCRIPTOR, TOKEN_GROUPS, TOKEN_INFORMATION_CLASS, TOKEN_OWNER, TOKEN_PRIMARY_GROUP, TOKEN_QUERY, TOKEN_USER, TokenOwner, TokenPrimaryGroup, TokenUser};
-use windows::Win32::Storage::FileSystem::{CreateFileW, FILE_FLAG_BACKUP_SEMANTICS, FILE_READ_ATTRIBUTES, FILE_SHARE_DELETE, FILE_SHARE_READ, FILE_SHARE_WRITE, OPEN_EXISTING, READ_CONTROL};
+use windows::Win32::Foundation::{
+    CloseHandle, GetLastError, ERROR_INSUFFICIENT_BUFFER, HANDLE, INVALID_HANDLE_VALUE, NTSTATUS,
+    PSID, STATUS_INVALID_PARAMETER, WIN32_ERROR,
+};
+use windows::Win32::Security::{
+    GetKernelObjectSecurity, GetSecurityDescriptorLength, GetTokenInformation, TokenOwner,
+    TokenPrimaryGroup, TokenUser, DACL_SECURITY_INFORMATION, GROUP_SECURITY_INFORMATION,
+    OWNER_SECURITY_INFORMATION, PSECURITY_DESCRIPTOR, TOKEN_GROUPS, TOKEN_INFORMATION_CLASS,
+    TOKEN_OWNER, TOKEN_PRIMARY_GROUP, TOKEN_QUERY, TOKEN_USER,
+};
+use windows::Win32::Storage::FileSystem::{
+    CreateFileW, FILE_FLAG_BACKUP_SEMANTICS, FILE_READ_ATTRIBUTES, FILE_SHARE_DELETE,
+    FILE_SHARE_READ, FILE_SHARE_WRITE, OPEN_EXISTING, READ_CONTROL,
+};
 use windows::Win32::System::LibraryLoader::GetModuleFileNameW;
 use windows::Win32::System::ProcessStatus::K32GetProcessImageFileNameW;
 use windows::Win32::System::Threading::{GetCurrentProcess, OpenProcessToken};
 use winfsp_sys::{FspPosixMapPermissionsToSecurityDescriptor, FspPosixMapSidToUid};
-use crate::error::FspError;
-use crate::filesystem::MAX_PATH;
-use crate::vsb::VariableSizedBox;
 
 /// An owned handle that will always be dropped
 /// when it goes out of scope.
@@ -65,7 +76,9 @@ impl From<HANDLE> for SafeDropHandle {
 macro_rules! win32_try {
     (unsafe $e:expr) => {
         if unsafe { !($e).as_bool() } {
-            return Err($crate::error::FspError::from(unsafe { ::windows::Win32::Foundation::GetLastError() }));
+            return Err($crate::error::FspError::from(unsafe {
+                ::windows::Win32::Foundation::GetLastError()
+            }));
         }
     };
 }
@@ -103,15 +116,17 @@ macro_rules! win32_try {
 //     Ok(uid)
 // }
 
-
 /// Get the security descriptor of the current process.
 ///
 /// This is often used to have virtualized directories 'inherit' the security of the filesystem host
 /// process.
-pub fn get_process_security(security_descriptor: PSECURITY_DESCRIPTOR, len: Option<u32>) -> crate::Result<u32> {
+pub fn get_process_security(
+    security_descriptor: PSECURITY_DESCRIPTOR,
+    len: Option<u32>,
+) -> crate::Result<u32> {
     let mut path = [0u16; MAX_PATH];
     unsafe {
-       GetModuleFileNameW(None, &mut path);
+        GetModuleFileNameW(None, &mut path);
     };
 
     let handle = unsafe {
@@ -132,15 +147,15 @@ pub fn get_process_security(security_descriptor: PSECURITY_DESCRIPTOR, len: Opti
 
     let mut descriptor_len_needed = 0;
     win32_try!(unsafe GetKernelObjectSecurity(
-                    handle,
-                    (OWNER_SECURITY_INFORMATION
-                        | GROUP_SECURITY_INFORMATION
-                        | DACL_SECURITY_INFORMATION)
-                        .0,
-                    security_descriptor,
-                    len.unwrap_or(0),
-                    &mut descriptor_len_needed,
-                ));
+        handle,
+        (OWNER_SECURITY_INFORMATION
+            | GROUP_SECURITY_INFORMATION
+            | DACL_SECURITY_INFORMATION)
+            .0,
+        security_descriptor,
+        len.unwrap_or(0),
+        &mut descriptor_len_needed,
+    ));
 
     Ok(descriptor_len_needed)
 }

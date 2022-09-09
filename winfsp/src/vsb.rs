@@ -48,9 +48,7 @@ impl<T> VariableSizedBox<T> {
     /// The current data must be valid for an instance of `T`.
     pub unsafe fn as_ref(&self) -> &T {
         assert!(self.size >= size_of::<T>());
-        unsafe {
-            self.data.as_ref()
-        }
+        unsafe { self.data.as_ref() }
     }
 }
 impl<T> Drop for VariableSizedBox<T> {
