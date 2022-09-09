@@ -7,6 +7,7 @@ pub mod filesystem;
 mod init;
 pub mod service;
 pub mod util;
+mod vsb;
 
 pub use error::Result;
 pub use init::{winfsp_init, winfsp_init_or_die, FspInit};
