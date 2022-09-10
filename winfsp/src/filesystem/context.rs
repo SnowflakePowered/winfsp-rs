@@ -225,7 +225,7 @@ pub trait FileSystemContext<const DIR_INFO_SIZE: usize = MAX_PATH>: Sized {
         &self,
         context: &Self::FileContext,
         file_name: P,
-        dir_info: DirInfo<DIR_INFO_SIZE>,
+        out_dir_info: &mut DirInfo<DIR_INFO_SIZE>,
     ) -> Result<()> {
         // todo: wrap FSP_FSCTL_DIR_INFO
         Err(STATUS_INVALID_DEVICE_REQUEST.into())

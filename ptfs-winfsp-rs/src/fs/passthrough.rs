@@ -618,6 +618,7 @@ impl FileSystemContext for PtfsContext {
             std::mem::size_of::<FILE_DISPOSITION_INFO>() as u32));
         Ok(())
     }
+
     fn set_file_size(
         &self,
         context: &Self::FileContext,
