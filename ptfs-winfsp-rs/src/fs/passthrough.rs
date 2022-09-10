@@ -460,11 +460,11 @@ impl FileSystemContext for PtfsContext {
     ) -> Result<u32> {
         if let Ok(mut lock) = context.dir_buffer.acquire(marker.is_none(), None) {
             let mut dirinfo = DirInfo::<{ MAX_PATH as usize }>::new();
-            let mut full_path = [0; FULLPATH_SIZE];
 
             let pattern = pattern.map_or(PCWSTR::from(w!("*")), P::into);
             let pattern = unsafe { U16CStr::from_ptr_str(pattern.0) };
 
+            let mut full_path = [0; FULLPATH_SIZE];
             let mut length = unsafe {
                 GetFinalPathNameByHandleW(
                     *context.handle,

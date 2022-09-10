@@ -55,7 +55,10 @@ where
 }
 
 #[inline(always)]
-fn require_ctx<C: FileSystemContext<DIR_BUF_SIZE>, F, const DIR_BUF_SIZE: usize>(fs: *mut FSP_FILE_SYSTEM, inner: F) -> FSP_STATUS
+fn require_ctx<C: FileSystemContext<DIR_BUF_SIZE>, F, const DIR_BUF_SIZE: usize>(
+    fs: *mut FSP_FILE_SYSTEM,
+    inner: F,
+) -> FSP_STATUS
 where
     F: FnOnce(&C) -> error::Result<()>,
 {
@@ -100,7 +103,10 @@ where
     }
 }
 
-unsafe extern "C" fn get_volume_info<T: FileSystemContext<DIR_BUF_SIZE>, const DIR_BUF_SIZE: usize>(
+unsafe extern "C" fn get_volume_info<
+    T: FileSystemContext<DIR_BUF_SIZE>,
+    const DIR_BUF_SIZE: usize,
+>(
     fs: *mut FSP_FILE_SYSTEM,
     volume_info: *mut FSP_FSCTL_VOLUME_INFO,
 ) -> FSP_STATUS {
@@ -115,7 +121,10 @@ unsafe extern "C" fn get_volume_info<T: FileSystemContext<DIR_BUF_SIZE>, const D
     })
 }
 
-unsafe extern "C" fn get_security_by_name<T: FileSystemContext<DIR_BUF_SIZE>, const DIR_BUF_SIZE: usize>(
+unsafe extern "C" fn get_security_by_name<
+    T: FileSystemContext<DIR_BUF_SIZE>,
+    const DIR_BUF_SIZE: usize,
+>(
     fs: *mut FSP_FILE_SYSTEM,
     file_name: *mut u16,
     file_attributes: *mut u32,
@@ -225,7 +234,10 @@ unsafe extern "C" fn create_ex<T: FileSystemContext<DIR_BUF_SIZE>, const DIR_BUF
     })
 }
 
-unsafe extern "C" fn close<T: FileSystemContext<DIR_BUF_SIZE>, const DIR_BUF_SIZE: usize>(fs: *mut FSP_FILE_SYSTEM, fctx: PVOID) {
+unsafe extern "C" fn close<T: FileSystemContext<DIR_BUF_SIZE>, const DIR_BUF_SIZE: usize>(
+    fs: *mut FSP_FILE_SYSTEM,
+    fctx: PVOID,
+) {
     if fctx.is_null() {
         return;
     }
@@ -259,7 +271,10 @@ unsafe extern "C" fn control<T: FileSystemContext<DIR_BUF_SIZE>, const DIR_BUF_S
     })
 }
 
-unsafe extern "C" fn set_volume_label<T: FileSystemContext<DIR_BUF_SIZE>, const DIR_BUF_SIZE: usize>(
+unsafe extern "C" fn set_volume_label<
+    T: FileSystemContext<DIR_BUF_SIZE>,
+    const DIR_BUF_SIZE: usize,
+>(
     fs: *mut FSP_FILE_SYSTEM,
     volume_label: *mut u16,
     volume_info: *mut FSP_FSCTL_VOLUME_INFO,
@@ -298,7 +313,10 @@ unsafe extern "C" fn overwrite<T: FileSystemContext<DIR_BUF_SIZE>, const DIR_BUF
     })
 }
 
-unsafe extern "C" fn get_file_info<T: FileSystemContext<DIR_BUF_SIZE>, const DIR_BUF_SIZE: usize>(
+unsafe extern "C" fn get_file_info<
+    T: FileSystemContext<DIR_BUF_SIZE>,
+    const DIR_BUF_SIZE: usize,
+>(
     fs: *mut FSP_FILE_SYSTEM,
     fctx: PVOID,
     out_file_info: *mut FSP_FSCTL_FILE_INFO,
@@ -336,7 +354,10 @@ unsafe extern "C" fn get_security<T: FileSystemContext<DIR_BUF_SIZE>, const DIR_
     })
 }
 
-unsafe extern "C" fn read_directory<T: FileSystemContext<DIR_BUF_SIZE>, const DIR_BUF_SIZE: usize>(
+unsafe extern "C" fn read_directory<
+    T: FileSystemContext<DIR_BUF_SIZE>,
+    const DIR_BUF_SIZE: usize,
+>(
     fs: *mut FSP_FILE_SYSTEM,
     fctx: PVOID,
     pattern: *mut u16,
@@ -468,7 +489,10 @@ unsafe extern "C" fn cleanup<T: FileSystemContext<DIR_BUF_SIZE>, const DIR_BUF_S
     });
 }
 
-unsafe extern "C" fn set_basic_info<T: FileSystemContext<DIR_BUF_SIZE>, const DIR_BUF_SIZE: usize>(
+unsafe extern "C" fn set_basic_info<
+    T: FileSystemContext<DIR_BUF_SIZE>,
+    const DIR_BUF_SIZE: usize,
+>(
     fs: *mut FSP_FILE_SYSTEM,
     fctx: PVOID,
     file_attributes: u32,
@@ -495,7 +519,10 @@ unsafe extern "C" fn set_basic_info<T: FileSystemContext<DIR_BUF_SIZE>, const DI
     })
 }
 
-unsafe extern "C" fn set_file_size<T: FileSystemContext<DIR_BUF_SIZE>, const DIR_BUF_SIZE: usize>(
+unsafe extern "C" fn set_file_size<
+    T: FileSystemContext<DIR_BUF_SIZE>,
+    const DIR_BUF_SIZE: usize,
+>(
     fs: *mut FSP_FILE_SYSTEM,
     fctx: PVOID,
     new_size: u64,
