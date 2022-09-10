@@ -1,29 +1,19 @@
 use crate::error::FspError;
 use crate::filesystem::MAX_PATH;
-use crate::vsb::VariableSizedBox;
-use std::ffi::{c_void, OsStr};
+
 use std::ops::Deref;
-use std::ptr::addr_of;
-use widestring::U16CStr;
+
 use windows::core::PCWSTR;
-use windows::Win32::Foundation::{
-    CloseHandle, GetLastError, ERROR_INSUFFICIENT_BUFFER, HANDLE, INVALID_HANDLE_VALUE, NTSTATUS,
-    PSID, STATUS_INVALID_PARAMETER, WIN32_ERROR,
-};
+use windows::Win32::Foundation::{CloseHandle, GetLastError, HANDLE, INVALID_HANDLE_VALUE};
 use windows::Win32::Security::{
-    GetKernelObjectSecurity, GetSecurityDescriptorLength, GetTokenInformation, TokenOwner,
-    TokenPrimaryGroup, TokenUser, DACL_SECURITY_INFORMATION, GROUP_SECURITY_INFORMATION,
-    OWNER_SECURITY_INFORMATION, PSECURITY_DESCRIPTOR, TOKEN_GROUPS, TOKEN_INFORMATION_CLASS,
-    TOKEN_OWNER, TOKEN_PRIMARY_GROUP, TOKEN_QUERY, TOKEN_USER,
+    GetKernelObjectSecurity, DACL_SECURITY_INFORMATION, GROUP_SECURITY_INFORMATION,
+    OWNER_SECURITY_INFORMATION, PSECURITY_DESCRIPTOR,
 };
 use windows::Win32::Storage::FileSystem::{
     CreateFileW, FILE_FLAG_BACKUP_SEMANTICS, FILE_READ_ATTRIBUTES, FILE_SHARE_DELETE,
     FILE_SHARE_READ, FILE_SHARE_WRITE, OPEN_EXISTING, READ_CONTROL,
 };
 use windows::Win32::System::LibraryLoader::GetModuleFileNameW;
-use windows::Win32::System::ProcessStatus::K32GetProcessImageFileNameW;
-use windows::Win32::System::Threading::{GetCurrentProcess, OpenProcessToken};
-use winfsp_sys::{FspPosixMapPermissionsToSecurityDescriptor, FspPosixMapSidToUid};
 
 /// An owned handle that will always be dropped
 /// when it goes out of scope.
@@ -163,12 +153,13 @@ pub fn get_process_security(
 #[cfg(all(test, target_os = "windows"))]
 mod test {
     use crate::util::get_process_security;
+    use windows::Win32::Security::PSECURITY_DESCRIPTOR;
 
     #[test]
     fn test_get_user_security() {
         crate::winfsp_init_or_die();
         eprintln!("hello");
 
-        dbg!(get_process_security(0o777));
+        get_process_security(PSECURITY_DESCRIPTOR::default(), None);
     }
 }

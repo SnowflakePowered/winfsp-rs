@@ -4,11 +4,10 @@
 // All files in the project carrying such notice may not be copied, modified, or distributed
 // except according to those terms.
 use std::{
-    alloc::{alloc_zeroed, dealloc, handle_alloc_error, realloc, Layout},
+    alloc::{alloc_zeroed, dealloc, handle_alloc_error, Layout},
     marker::PhantomData,
     mem::{align_of, size_of},
     ptr::{self, NonNull},
-    slice::{from_raw_parts, from_raw_parts_mut},
 };
 /// This is a smart pointer type for holding FFI types whose size varies.
 /// Most commonly this is with an array member as the last field whose size is specified
