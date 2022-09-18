@@ -41,7 +41,7 @@ use winfsp::filesystem::{
     FSP_FSCTL_FILE_INFO, FSP_FSCTL_VOLUME_INFO, FSP_FSCTL_VOLUME_PARAMS,
 };
 
-use winfsp::util::SafeDropHandle;
+use winfsp::util::Win32SafeHandle;
 
 const ALLOCATION_UNIT: u16 = 4096;
 const VOLUME_LABEL: &HSTRING = w!("Snowflake");
@@ -60,7 +60,7 @@ pub struct PtfsContext {
 
 #[repr(C)]
 pub struct PtfsFileContext {
-    handle: SafeDropHandle,
+    handle: Win32SafeHandle,
     dir_buffer: DirBuffer,
 }
 
@@ -145,7 +145,7 @@ impl FileSystemContext for PtfsContext {
         let mut attribute_tag_info: MaybeUninit<FILE_ATTRIBUTE_TAG_INFO> = MaybeUninit::uninit();
         let mut len_needed: u32 = 0;
 
-        let handle = SafeDropHandle::from(handle);
+        let handle = Win32SafeHandle::from(handle);
 
         win32_try!(unsafe GetFileInformationByHandleEx(
             *handle,
@@ -214,7 +214,7 @@ impl FileSystemContext for PtfsContext {
 
         self.get_file_info_internal(handle, file_info)?;
         Ok(Self::FileContext {
-            handle: SafeDropHandle::from(handle),
+            handle: Win32SafeHandle::from(handle),
             dir_buffer: DirBuffer::new(),
         })
     }
@@ -292,16 +292,21 @@ impl FileSystemContext for PtfsContext {
         self.get_file_info_internal(handle, file_info)?;
 
         Ok(Self::FileContext {
-            handle: SafeDropHandle::from(handle),
+            handle: Win32SafeHandle::from(handle),
             dir_buffer: Default::default(),
         })
     }
 
     fn flush(
         &self,
-        context: &Self::FileContext,
+        context: Option<&Self::FileContext>,
         file_info: &mut FSP_FSCTL_FILE_INFO,
     ) -> Result<()> {
+        if context.is_none() {
+            return Ok(());
+        }
+
+        let context = context.unwrap();
         if *context.handle == HANDLE(0) {
             // we do not flush the whole volume, so just return ok
             return Ok(());

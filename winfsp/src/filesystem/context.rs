@@ -7,6 +7,9 @@ use windows::Win32::Foundation::STATUS_INVALID_DEVICE_REQUEST;
 use windows::Win32::Security::PSECURITY_DESCRIPTOR;
 use windows::Win32::Storage::FileSystem::{FILE_ACCESS_FLAGS, FILE_FLAGS_AND_ATTRIBUTES};
 
+use winfsp_sys::{
+    FSP_FILE_SYSTEM_OPERATION_CONTEXT, FSP_FSCTL_TRANSACT_REQ, FSP_FSCTL_TRANSACT_RSP,
+};
 pub use winfsp_sys::{FSP_FSCTL_FILE_INFO, FSP_FSCTL_VOLUME_INFO, FSP_FSCTL_VOLUME_PARAMS};
 
 pub struct FileSecurity {
@@ -87,7 +90,7 @@ pub trait FileSystemContext<const DIR_INFO_SIZE: usize = MAX_PATH>: Sized {
 
     fn flush(
         &self,
-        context: &Self::FileContext,
+        context: Option<&Self::FileContext>,
         file_info: &mut FSP_FSCTL_FILE_INFO,
     ) -> Result<()> {
         Err(STATUS_INVALID_DEVICE_REQUEST.into())
@@ -251,4 +254,42 @@ pub trait FileSystemContext<const DIR_INFO_SIZE: usize = MAX_PATH>: Sized {
         Err(STATUS_INVALID_DEVICE_REQUEST.into())
     }
     // todo: figure out extended attributes safely
+
+    /// Get the context response of the current FSP interface operation.
+    ///
+    /// ## Safety
+    /// This function may be used only when servicing one of the FSP_FILE_SYSTEM_INTERFACE operations.
+    /// The current operation context is stored in thread local storage.
+    unsafe fn with_operation_response<T, F>(&self, f: F) -> Option<T>
+    where
+        F: FnOnce(&mut FSP_FSCTL_TRANSACT_RSP) -> T,
+    {
+        unsafe {
+            if let Some(context) = winfsp_sys::FspFileSystemGetOperationContext().as_ref() {
+                if let Some(response) = context.Response.as_mut() {
+                    return Some(f(response));
+                }
+            }
+        }
+        None
+    }
+
+    /// Get the context request of the current FSP interface operation.
+    ///
+    /// ## Safety
+    /// This function may be used only when servicing one of the FSP_FILE_SYSTEM_INTERFACE operations.
+    /// The current operation context is stored in thread local storage.
+    unsafe fn with_operation_request<T, F>(&self, f: F) -> Option<T>
+    where
+        F: FnOnce(&FSP_FSCTL_TRANSACT_REQ) -> T,
+    {
+        unsafe {
+            if let Some(context) = winfsp_sys::FspFileSystemGetOperationContext().as_ref() {
+                if let Some(request) = context.Request.as_ref() {
+                    return Some(f(request));
+                }
+            }
+        }
+        None
+    }
 }
