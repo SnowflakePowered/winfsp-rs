@@ -90,13 +90,13 @@ impl NtPassthroughContext {
         let root_prefix = lfs::lfs_query_file_name(*root_handle)?;
         let root_prefix_len = (root_prefix.len() * size_of::<u16>()) as u32;
 
-        dbg!(Ok(Self {
+        Ok(Self {
             root_handle,
             root_prefix_len,
             root_osstring: root.as_ref().to_path_buf().into_os_string(),
             root_prefix: U16CString::from_vec(root_prefix).expect("invalid root path"),
             set_alloc_size_on_cleanup: false,
-        }))
+        })
     }
 
     pub fn new_with_volume_params(
@@ -180,58 +180,6 @@ impl NtPassthroughContext {
     }
 }
 
-macro_rules! win32_try {
-    (unsafe $e:expr) => {
-        if unsafe { !($e).as_bool() } {
-            return Err(::winfsp::error::FspError::from(unsafe { GetLastError() }));
-        }
-    };
-}
-
-const FULLPATH_SIZE: usize = MAX_PATH as usize
-    + (winfsp::filesystem::constants::FSP_FSCTL_TRANSACT_PATH_SIZEMAX as usize
-        / std::mem::size_of::<u16>());
-
-#[inline(always)]
-const fn quadpart(hi: u32, lo: u32) -> u64 {
-    (hi as u64) << 32 | lo as u64
-}
-
-impl NtPassthroughContext {
-    fn get_file_info_internal(
-        &self,
-        file_handle: HANDLE,
-        file_info: &mut FSP_FSCTL_FILE_INFO,
-    ) -> winfsp::Result<()> {
-        let mut os_file_info: BY_HANDLE_FILE_INFORMATION = Default::default();
-        win32_try!(unsafe GetFileInformationByHandle(file_handle, &mut os_file_info));
-
-        file_info.FileAttributes = os_file_info.dwFileAttributes;
-
-        // todo: reparse
-        file_info.ReparseTag = 0;
-        file_info.IndexNumber = 0;
-        file_info.HardLinks = 0;
-
-        file_info.FileSize = quadpart(os_file_info.nFileSizeHigh, os_file_info.nFileSizeLow);
-        file_info.AllocationSize = (file_info.FileSize + 4096_u64 - 1) / 4096_u64 * 4096_u64;
-        file_info.CreationTime = quadpart(
-            os_file_info.ftCreationTime.dwHighDateTime,
-            os_file_info.ftCreationTime.dwLowDateTime,
-        );
-        file_info.LastAccessTime = quadpart(
-            os_file_info.ftLastAccessTime.dwHighDateTime,
-            os_file_info.ftLastAccessTime.dwLowDateTime,
-        );
-        file_info.LastWriteTime = quadpart(
-            os_file_info.ftLastWriteTime.dwHighDateTime,
-            os_file_info.ftLastWriteTime.dwLowDateTime,
-        );
-        file_info.ChangeTime = file_info.LastWriteTime;
-        Ok(())
-    }
-}
-
 impl FileSystemContext for NtPassthroughContext {
     type FileContext = NtPassthroughFile;
 
@@ -243,7 +191,6 @@ impl FileSystemContext for NtPassthroughContext {
     ) -> winfsp::Result<FileSecurity> {
         // todo: reparse
         let file_name = HSTRING::from(file_name.as_ref());
-        eprintln!("{:?}", file_name);
         let handle = lfs::lfs_open_file(
             *self.root_handle,
             PCWSTR(file_name.as_ptr()),
@@ -275,12 +222,11 @@ impl FileSystemContext for NtPassthroughContext {
             0
         };
 
-        eprintln!("gsbn ok");
-        dbg!(Ok(FileSecurity {
+        Ok(FileSecurity {
             reparse: false,
             sz_security_descriptor: needed_size as u64,
             attributes,
-        }))
+        })
     }
 
     fn open<P: AsRef<OsStr>>(
@@ -290,6 +236,7 @@ impl FileSystemContext for NtPassthroughContext {
         granted_access: FILE_ACCESS_FLAGS,
         file_info: &mut FSP_FSCTL_FILE_INFO,
     ) -> winfsp::Result<Self::FileContext> {
+        eprintln!("open: {:?}", file_name.as_ref());
         let backup_access = granted_access.0;
 
         let is_directory = unsafe {
@@ -352,13 +299,11 @@ impl FileSystemContext for NtPassthroughContext {
 
         lfs::lfs_get_file_info(*handle, Some(self.root_prefix_len), file_info)?;
 
-        eprintln!("opn ok");
-        eprintln!("{:?} {:?}", file_info, handle);
-        dbg!(Ok(Self::FileContext::new(
+        Ok(Self::FileContext::new(
             handle,
             file_info.FileSize,
             is_directory,
-        )))
+        ))
     }
 
     fn create<P: AsRef<OsStr>>(
@@ -452,7 +397,6 @@ impl FileSystemContext for NtPassthroughContext {
 
         lfs::lfs_get_file_info(*handle, Some(self.root_prefix_len), file_info)?;
 
-        eprintln!("cr ok");
         Ok(Self::FileContext::new(
             handle,
             file_info.FileSize,
@@ -461,7 +405,6 @@ impl FileSystemContext for NtPassthroughContext {
     }
 
     fn close(&self, context: Self::FileContext) {
-        eprintln!("cl ok");
         context.close()
     }
 
@@ -708,7 +651,6 @@ impl FileSystemContext for NtPassthroughContext {
         const _: () = assert!(
             size_of::<FILE_ID_BOTH_DIR_INFORMATION>() == size_of::<FILE_ID_BOTH_DIR_INFO>()
         );
-        eprintln!("readdir entry");
         let dir_size = context.dir_size();
         let handle = context.handle();
         let pattern = pattern.map(|p| p.into());
@@ -730,8 +672,6 @@ impl FileSystemContext for NtPassthroughContext {
                     restart_scan,
                 )?;
 
-                eprintln!("bfs: {:?}", bytes_transferred);
-                eprintln!("expected: {:?}", size_of::<FILE_ID_BOTH_DIR_INFO>());
                 let query_buffer = &query_buffer[..bytes_transferred];
                 let mut query_buffer_cursor = query_buffer.as_ptr() as *const FILE_ID_BOTH_DIR_INFO;
                 loop {
@@ -762,7 +702,12 @@ impl FileSystemContext for NtPassthroughContext {
         Ok(context.dir_buffer().read(marker, buffer))
     }
 
-    fn get_volume_info(&self, _out_volume_info: &mut FSP_FSCTL_VOLUME_INFO) -> winfsp::Result<()> {
+    fn get_volume_info(&self, out_volume_info: &mut FSP_FSCTL_VOLUME_INFO) -> winfsp::Result<()> {
+        let total_size = 1073741824u64;
+        let free_size = 1073741824u64;
+
+        out_volume_info.TotalSize = total_size;
+        out_volume_info.FreeSize = free_size;
         Ok(())
     }
 

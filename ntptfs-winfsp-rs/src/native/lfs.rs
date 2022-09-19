@@ -14,7 +14,7 @@ use std::mem::{size_of, MaybeUninit};
 use std::ops::DerefMut;
 use std::ptr::addr_of_mut;
 use std::slice;
-use windows::core::PCWSTR;
+use windows::core::{PCWSTR, PWSTR};
 use windows::Win32::Foundation::{
     HANDLE, INVALID_HANDLE_VALUE, NTSTATUS, STATUS_ACCESS_DENIED, STATUS_BUFFER_OVERFLOW,
     STATUS_CANNOT_DELETE, STATUS_DATATYPE_MISALIGNMENT, STATUS_DIRECTORY_NOT_EMPTY,
@@ -421,26 +421,35 @@ pub fn lfs_get_file_info(
     file_info.HardLinks = 0;
     file_info.EaSize = lfs_get_ea_size(file_all_info.EaInformation.EaSize);
 
-    if let Some(root_prefix_length) = root_prefix_length && root_prefix_length != u32::MAX && result != STATUS_BUFFER_OVERFLOW {
-        // SAFETY: if root_prefix_length is not a 1-bit pattern, then FILE_INFO is really an OPEN_FILE_INFO.
+    if let Some(root_prefix_length_bytes) = root_prefix_length && result != STATUS_BUFFER_OVERFLOW && root_prefix_length_bytes != u32::MAX {
+        // SAFETY: if root_prefix_length_bytes is not a 1-bit pattern, then FILE_INFO is really an OPEN_FILE_INFO.
         // type pun takes ownership of mut reference so it is still exclusive.
         let open_file = unsafe { &mut *(file_info as *mut FSP_FSCTL_FILE_INFO as *mut FSP_FSCTL_OPEN_FILE_INFO) };
 
-        let first_letter = file_all_info.NameInformation.FileName[0];
+        if open_file.NormalizedNameSize > (size_of::<u16>() as u32 + file_all_info.NameInformation.FileNameLength as u32) as u16
+            && root_prefix_length_bytes <= file_all_info.NameInformation.FileNameLength {
+            let first_letter = file_all_info.NameInformation.FileName[0];
 
-        // get the file_name without root prefix
-        let file_name = file_all_info.NameInformation.FileName.as_ptr().wrapping_add(root_prefix_length as usize);
-        let file_name_length = file_all_info.NameInformation.FileNameLength.wrapping_sub(root_prefix_length) / size_of::<u16>() as u32;
+            // get the file_name without root prefix
+            let file_name = unsafe {
+                slice::from_raw_parts(file_all_info.NameInformation.FileName.as_ptr().cast::<u8>(),
+                                      file_all_info.NameInformation.FileNameLength as usize)
+            };
 
-        if first_letter == b'\\' as u16 {
-            unsafe {
-                open_file.NormalizedName.copy_from_nonoverlapping(file_name, file_name_length as usize);
-                open_file.NormalizedNameSize = file_name_length as u16;
-            }
-        } else {
-            unsafe {
-                open_file.NormalizedName.wrapping_add(1).copy_from_nonoverlapping(file_name, file_name_length as usize);
-                open_file.NormalizedNameSize = file_name_length as u16 + size_of::<u16>() as u16;
+            let file_name = &file_name[(root_prefix_length_bytes as usize)..];
+
+            if first_letter == b'\\' as u16 {
+                unsafe {
+                    open_file.NormalizedName.cast::<u8>().copy_from_nonoverlapping(file_name.as_ptr(), file_name.len());
+                    open_file.NormalizedNameSize = file_name.len() as u16;
+                }
+            } else {
+                unsafe {
+                    open_file.NormalizedName.write(b'\\' as u16);
+                    open_file.NormalizedName.wrapping_add(1).cast::<u8>().
+                        copy_from_nonoverlapping(file_name.as_ptr(), file_name.len());
+                    open_file.NormalizedNameSize = file_name.len() as u16 + size_of::<u16>() as u16;
+                }
             }
         }
     }
