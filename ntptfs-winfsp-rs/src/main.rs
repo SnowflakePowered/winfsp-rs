@@ -2,7 +2,7 @@
 #![feature(let_chains)]
 #![deny(unsafe_op_in_unsafe_fn)]
 
-mod fs;
+pub mod fs;
 mod native;
 mod service;
 
@@ -38,18 +38,18 @@ pub struct Args {
 
 fn main() {
     let init = winfsp_init_or_die();
-    // let fsp = FileSystemServiceBuilder::new()
-    //     .with_start(|| {
-    //         let args = Args::parse();
-    //         service::svc_start(args).map_err(|_e| STATUS_NONCONTINUABLE_EXCEPTION)
-    //     })
-    //     .with_stop(|f| {
-    //         service::svc_stop(f);
-    //         Ok(())
-    //     })
-    //     .build(w!("ptfs-winfsp-rs"), init)
-    //     .expect("failed to build fsp");
-    //
-    // fsp.start();
-    // std::thread::sleep(Duration::MAX);
+    let fsp = FileSystemServiceBuilder::new()
+        .with_start(|| {
+            let args = Args::parse();
+            service::svc_start(args).map_err(|_e| STATUS_NONCONTINUABLE_EXCEPTION)
+        })
+        .with_stop(|f| {
+            service::svc_stop(f);
+            Ok(())
+        })
+        .build(w!("ntptfs-winfsp-rs"), init)
+        .expect("failed to build fsp");
+
+    fsp.start();
+    std::thread::sleep(Duration::MAX);
 }

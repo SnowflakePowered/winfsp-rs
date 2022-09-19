@@ -13,7 +13,7 @@ windows-sys = { version = "0.36.1", features = ["Win32_Foundation", "Win32_Syste
 ntapi = "0.3.7"
 
 widestring = "1"
-winfsp = { path = "../winfsp", features = ["system"] }
+winfsp = { path = "../winfsp", features = ["debug"] }
 anyhow = "1"
 
 [build-dependencies]

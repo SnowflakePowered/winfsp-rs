@@ -4,7 +4,7 @@ use std::os::windows::ffi::OsStrExt;
 
 use widestring::{u16cstr, U16CStr};
 use windows::Win32::Foundation::{
-    STATUS_INSUFFICIENT_RESOURCES, STATUS_INVALID_PARAMETER, STATUS_SUCCESS,
+    STATUS_INSUFFICIENT_RESOURCES, STATUS_SUCCESS,
 };
 use winfsp_sys::{
     FspFileSystemAcquireDirectoryBufferEx, FspFileSystemDeleteDirectoryBuffer,
@@ -168,12 +168,12 @@ impl<const BUFFER_SIZE: usize> DirInfo<BUFFER_SIZE> {
 
     /// Set the file name of the directory info.
     ///
-    /// The input buffer must be null-terminated.
-    pub fn set_file_name_raw<'a, P: Into<&'a [u16]>>(&mut self, file_name: P) -> Result<()> {
+    /// If the input buffer is not null terminated, potentially bad things could happen.
+    ///
+    /// # Safety
+    /// The input buffer should either be null terminated or less than the size of the buffer.
+    pub unsafe fn set_file_name_raw<'a, P: Into<&'a [u16]>>(&mut self, file_name: P) -> Result<()> {
         let file_name = file_name.into();
-        let file_name =
-            U16CStr::from_slice_truncate(file_name).map_err(|_| STATUS_INVALID_PARAMETER)?;
-        let file_name = file_name.as_slice();
         if file_name.len() >= BUFFER_SIZE {
             return Err(STATUS_INSUFFICIENT_RESOURCES.into());
         }
@@ -191,7 +191,7 @@ impl<const BUFFER_SIZE: usize> DirInfo<BUFFER_SIZE> {
             .encode_wide()
             .chain(iter::once(0))
             .collect::<Vec<_>>();
-        self.set_file_name_raw(file_name.as_slice())
+        unsafe { self.set_file_name_raw(file_name.as_slice()) }
     }
 
     /// Get a mutable reference to the file information of this directory entry.

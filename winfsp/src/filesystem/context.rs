@@ -8,16 +8,17 @@ use windows::Win32::Security::PSECURITY_DESCRIPTOR;
 use windows::Win32::Storage::FileSystem::{FILE_ACCESS_FLAGS, FILE_FLAGS_AND_ATTRIBUTES};
 
 use winfsp_sys::{
-    FSP_FILE_SYSTEM_OPERATION_CONTEXT, FSP_FSCTL_TRANSACT_REQ, FSP_FSCTL_TRANSACT_RSP,
+    FSP_FSCTL_FILE_INFO, FSP_FSCTL_TRANSACT_REQ, FSP_FSCTL_TRANSACT_RSP, FSP_FSCTL_VOLUME_INFO,
 };
-pub use winfsp_sys::{FSP_FSCTL_FILE_INFO, FSP_FSCTL_VOLUME_INFO, FSP_FSCTL_VOLUME_PARAMS};
 
+#[derive(Debug)]
 pub struct FileSecurity {
     pub reparse: bool,
     pub sz_security_descriptor: u64,
     pub attributes: u32,
 }
 
+#[derive(Debug)]
 pub struct IoResult {
     pub bytes_transferred: u32,
     pub io_pending: bool,
