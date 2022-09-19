@@ -133,7 +133,10 @@ unsafe extern "C" fn get_security_by_name<
 ) -> FSP_STATUS {
     catch_panic!({
         let context: &T = unsafe { &*(*fs).UserContext.cast::<T>() };
-        let file_name = unsafe { U16CStr::from_ptr_str_mut(file_name).to_os_string() };
+        if file_name.is_null() {
+            panic!("gsbn: filename is null")
+        }
+        let file_name = unsafe { U16CStr::from_ptr_str_mut(file_name) };
         match T::get_security_by_name(
             context,
             file_name,
@@ -172,10 +175,13 @@ unsafe extern "C" fn open<T: FileSystemContext<DIR_BUF_SIZE>, const DIR_BUF_SIZE
 ) -> FSP_STATUS {
     catch_panic!({
         require_ctx(fs, |context| {
-            let file_name = unsafe { U16CStr::from_ptr_str_mut(file_name).to_os_string() };
+            if file_name.is_null() {
+                panic!("open: filename is null")
+            }
+            let file_name = unsafe { U16CStr::from_ptr_str_mut(file_name) };
             let fctx = T::open(
                 context,
-                &file_name,
+                file_name,
                 create_options,
                 FILE_ACCESS_FLAGS(granted_access),
                 unsafe { out_file_info.as_mut() }
@@ -203,7 +209,10 @@ unsafe extern "C" fn create_ex<T: FileSystemContext<DIR_BUF_SIZE>, const DIR_BUF
 ) -> FSP_STATUS {
     catch_panic!({
         require_ctx(fs, |context| {
-            let file_name = unsafe { U16CStr::from_ptr_str_mut(file_name).to_os_string() };
+            if file_name.is_null() {
+                panic!("create: filename is null")
+            }
+            let file_name = unsafe { U16CStr::from_ptr_str_mut(file_name) };
             let extra_buffer = if !extra_buffer.is_null() {
                 unsafe {
                     Some(slice::from_raw_parts(
@@ -373,7 +382,7 @@ unsafe extern "C" fn read_directory<
             }
 
             let pattern = if !pattern.is_null() {
-                Some(PCWSTR::from_raw(pattern))
+                Some(unsafe { U16CStr::from_ptr_str(pattern) })
             } else {
                 None
             };
@@ -479,7 +488,7 @@ unsafe extern "C" fn cleanup<T: FileSystemContext<DIR_BUF_SIZE>, const DIR_BUF_S
     catch_panic!({
         require_fctx(fs, fctx, |context, fctx| {
             let file_name = if !file_name.is_null() {
-                Some(unsafe { U16CStr::from_ptr_str_mut(file_name).to_os_string() })
+                Some(unsafe { U16CStr::from_ptr_str_mut(file_name) })
             } else {
                 None
             };
@@ -569,7 +578,7 @@ unsafe extern "C" fn set_delete<T: FileSystemContext<DIR_BUF_SIZE>, const DIR_BU
 ) -> FSP_STATUS {
     catch_panic!({
         require_fctx(fs, fctx, |context, fctx| {
-            let file_name = unsafe { U16CStr::from_ptr_str_mut(file_name).to_os_string() };
+            let file_name = unsafe { U16CStr::from_ptr_str_mut(file_name) };
             T::set_delete(context, fctx, &file_name, delete_file != 0)
         })
     })
@@ -596,8 +605,8 @@ unsafe extern "C" fn rename<T: FileSystemContext<DIR_BUF_SIZE>, const DIR_BUF_SI
 ) -> FSP_STATUS {
     catch_panic!({
         require_fctx(fs, fctx, |context, fctx| {
-            let file_name = unsafe { U16CStr::from_ptr_str_mut(file_name).to_os_string() };
-            let new_file_name = unsafe { U16CStr::from_ptr_str_mut(new_file_name).to_os_string() };
+            let file_name = unsafe { U16CStr::from_ptr_str_mut(file_name) };
+            let new_file_name = unsafe { U16CStr::from_ptr_str_mut(new_file_name) };
             T::rename(
                 context,
                 fctx,

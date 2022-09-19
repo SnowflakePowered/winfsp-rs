@@ -3,12 +3,12 @@ use std::fs;
 use std::io::ErrorKind;
 use std::mem::MaybeUninit;
 use std::ops::BitXor;
+use std::os::windows::ffi::OsStringExt;
 
 use std::os::windows::fs::MetadataExt;
 use std::path::Path;
 use widestring::{u16cstr, U16CStr, U16CString, U16String};
 
-use ntptfs_winfsp_rs::fs::context::NtPassthroughContext;
 use windows::core::{HSTRING, PCWSTR};
 use windows::w;
 use windows::Win32::Foundation::{
@@ -44,6 +44,7 @@ use winfsp::filesystem::{
 };
 
 use winfsp::util::Win32SafeHandle;
+use winfsp::WCStr;
 
 const ALLOCATION_UNIT: u16 = 4096;
 const VOLUME_LABEL: &HSTRING = w!("Snowflake");
@@ -119,13 +120,13 @@ impl PtfsContext {
 impl FileSystemContext for PtfsContext {
     type FileContext = PtfsFileContext;
 
-    fn get_security_by_name<P: AsRef<OsStr>>(
+    fn get_security_by_name<P: AsRef<WCStr>>(
         &self,
         file_name: P,
         security_descriptor: PSECURITY_DESCRIPTOR,
         security_descriptor_len: Option<u64>,
     ) -> Result<FileSecurity> {
-        // return Err(STATUS_INVALID_DEVICE_REQUEST.into());
+        let file_name = OsString::from_wide(file_name.as_ref().as_slice());
         let full_path = [self.path.as_os_str(), file_name.as_ref()].join(OsStr::new(""));
 
         let handle = unsafe {
@@ -176,13 +177,14 @@ impl FileSystemContext for PtfsContext {
         })
     }
 
-    fn open<P: AsRef<OsStr>>(
+    fn open<P: AsRef<WCStr>>(
         &self,
         file_name: P,
         create_options: u32,
         granted_access: FILE_ACCESS_FLAGS,
         file_info: &mut FSP_FSCTL_FILE_INFO,
     ) -> Result<Self::FileContext> {
+        let file_name = OsString::from_wide(file_name.as_ref().as_slice());
         let full_path = [self.path.as_os_str(), file_name.as_ref()].join(OsStr::new(""));
         if full_path.len() > FULLPATH_SIZE {
             return Err(STATUS_OBJECT_NAME_INVALID.into());
@@ -225,19 +227,18 @@ impl FileSystemContext for PtfsContext {
         drop(context)
     }
 
-    fn cleanup<P: AsRef<OsStr>>(
+    fn cleanup<P: AsRef<WCStr>>(
         &self,
         context: &mut Self::FileContext,
         _file_name: Option<P>,
         flags: u32,
     ) {
-        return;
         if flags & FspCleanupFlags::FspCleanupDelete as u32 != 0 {
             context.handle.invalidate();
         }
     }
 
-    fn create<P: AsRef<OsStr>>(
+    fn create<P: AsRef<WCStr>>(
         &self,
         file_name: P,
         create_options: u32,
@@ -249,7 +250,8 @@ impl FileSystemContext for PtfsContext {
         _extra_buffer_is_reparse_point: bool,
         file_info: &mut FSP_FSCTL_FILE_INFO,
     ) -> Result<Self::FileContext> {
-        return Err(STATUS_INVALID_DEVICE_REQUEST.into());
+        let file_name = OsString::from_wide(file_name.as_ref().as_slice());
+
         let full_path = [self.path.as_os_str(), file_name.as_ref()].join(OsStr::new(""));
         if full_path.len() > FULLPATH_SIZE {
             return Err(STATUS_OBJECT_NAME_INVALID.into());
@@ -306,7 +308,6 @@ impl FileSystemContext for PtfsContext {
         context: Option<&Self::FileContext>,
         file_info: &mut FSP_FSCTL_FILE_INFO,
     ) -> Result<()> {
-        return Ok(());
         if context.is_none() {
             return Ok(());
         }
@@ -326,7 +327,6 @@ impl FileSystemContext for PtfsContext {
         context: &Self::FileContext,
         file_info: &mut FSP_FSCTL_FILE_INFO,
     ) -> Result<()> {
-        return Ok(());
         self.get_file_info_internal(*context.handle, file_info)
     }
 
@@ -336,7 +336,6 @@ impl FileSystemContext for PtfsContext {
         security_descriptor: PSECURITY_DESCRIPTOR,
         descriptor_len: Option<u64>,
     ) -> Result<u64> {
-        return Ok(0);
         let mut descriptor_size_needed = 0;
 
         win32_try!(unsafe GetKernelObjectSecurity(
@@ -354,7 +353,6 @@ impl FileSystemContext for PtfsContext {
     }
 
     fn get_volume_info(&self, out_volume_info: &mut FSP_FSCTL_VOLUME_INFO) -> Result<()> {
-        return Ok(());
         let mut root = [0u16; MAX_PATH as usize];
         let mut total_size = 0u64;
         let mut free_size = 0u64;
@@ -383,7 +381,6 @@ impl FileSystemContext for PtfsContext {
         _allocation_size: u64,
         file_info: &mut FSP_FSCTL_FILE_INFO,
     ) -> Result<()> {
-        return Ok(());
         // todo: preserve allocation size
         let mut attribute_tag_info = FILE_ATTRIBUTE_TAG_INFO::default();
 
@@ -440,7 +437,6 @@ impl FileSystemContext for PtfsContext {
         buffer: &mut [u8],
         offset: u64,
     ) -> Result<IoResult> {
-        return Err(STATUS_INVALID_DEVICE_REQUEST.into());
         let mut overlapped = OVERLAPPED {
             Anonymous: OVERLAPPED_0 {
                 Anonymous: OVERLAPPED_0_0 {
@@ -466,18 +462,16 @@ impl FileSystemContext for PtfsContext {
         })
     }
 
-    fn read_directory<P: Into<PCWSTR>>(
+    fn read_directory<P: AsRef<WCStr>>(
         &self,
         context: &mut Self::FileContext,
         pattern: Option<P>,
         marker: DirMarker,
         buffer: &mut [u8],
     ) -> Result<u32> {
-        return Ok(0);
         if let Ok(mut lock) = context.dir_buffer.acquire(marker.is_none(), None) {
             let mut dirinfo = DirInfo::<{ MAX_PATH as usize }>::new();
-
-            let pattern = pattern.map_or(PCWSTR::from(w!("*")), P::into);
+            let pattern = pattern.map_or(PCWSTR::from(w!("*")), |p| PCWSTR(p.as_ref().as_ptr()));
             let pattern = unsafe { U16CStr::from_ptr_str(pattern.0) };
 
             let mut full_path = [0; FULLPATH_SIZE];
@@ -557,15 +551,15 @@ impl FileSystemContext for PtfsContext {
         Ok(context.dir_buffer.read(marker, buffer))
     }
 
-    fn rename<P: AsRef<OsStr>>(
+    fn rename<P: AsRef<WCStr>>(
         &self,
         _context: &Self::FileContext,
         file_name: P,
         new_file_name: P,
         replace_if_exists: bool,
     ) -> Result<()> {
-        return Ok(());
         let full_path = {
+            let file_name = OsString::from_wide(file_name.as_ref().as_slice());
             let full_path = [self.path.as_os_str(), file_name.as_ref()].join(OsStr::new(""));
             if full_path.len() > FULLPATH_SIZE {
                 return Err(STATUS_OBJECT_NAME_INVALID.into());
@@ -574,6 +568,7 @@ impl FileSystemContext for PtfsContext {
         };
 
         let new_full_path = {
+            let new_file_name = OsString::from_wide(new_file_name.as_ref().as_slice());
             let new_full_path =
                 [self.path.as_os_str(), new_file_name.as_ref()].join(OsStr::new(""));
             if new_full_path.len() > FULLPATH_SIZE {
@@ -605,7 +600,6 @@ impl FileSystemContext for PtfsContext {
         last_change_time: u64,
         file_info: &mut FSP_FSCTL_FILE_INFO,
     ) -> Result<()> {
-        return Ok(());
         let basic_info = FILE_BASIC_INFO {
             FileAttributes: if file_attributes == INVALID_FILE_ATTRIBUTES {
                 0
@@ -629,13 +623,12 @@ impl FileSystemContext for PtfsContext {
         self.get_file_info_internal(*context.handle, file_info)
     }
 
-    fn set_delete<P: AsRef<OsStr>>(
+    fn set_delete<P: AsRef<WCStr>>(
         &self,
         context: &Self::FileContext,
         _file_name: P,
         delete_file: bool,
     ) -> Result<()> {
-        return Ok(());
         let disposition_info = FILE_DISPOSITION_INFO {
             DeleteFileA: BOOLEAN(if delete_file { 1 } else { 0 }),
         };
@@ -653,7 +646,6 @@ impl FileSystemContext for PtfsContext {
         set_allocation_size: bool,
         file_info: &mut FSP_FSCTL_FILE_INFO,
     ) -> Result<()> {
-        return Ok(());
         if set_allocation_size {
             let allocation_info = FILE_ALLOCATION_INFO {
                 AllocationSize: new_size as i64,
@@ -686,7 +678,6 @@ impl FileSystemContext for PtfsContext {
         security_information: u32,
         modification_descriptor: PSECURITY_DESCRIPTOR,
     ) -> Result<()> {
-        return Ok(());
         win32_try!(unsafe SetKernelObjectSecurity(
             *context.handle,
             security_information,
@@ -704,7 +695,6 @@ impl FileSystemContext for PtfsContext {
         constrained_io: bool,
         file_info: &mut FSP_FSCTL_FILE_INFO,
     ) -> Result<IoResult> {
-        return Err(STATUS_INVALID_DEVICE_REQUEST.into());
         if constrained_io {
             let mut fsize = 0;
             win32_try!(unsafe GetFileSizeEx(*context.handle, &mut fsize));

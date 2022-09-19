@@ -1,6 +1,6 @@
+use crate::WCStr;
 use crate::error::Result;
 use crate::filesystem::{DirInfo, DirMarker};
-use std::ffi::OsStr;
 
 use windows::core::{PCWSTR, PWSTR};
 use windows::Win32::Foundation::STATUS_INVALID_DEVICE_REQUEST;
@@ -29,14 +29,14 @@ pub const MAX_PATH: usize = 260;
 #[allow(unused_variables)]
 pub trait FileSystemContext<const DIR_INFO_SIZE: usize = MAX_PATH>: Sized {
     type FileContext: Sized;
-    fn get_security_by_name<P: AsRef<OsStr>>(
+    fn get_security_by_name<P: AsRef<WCStr>>(
         &self,
         file_name: P,
         security_descriptor: PSECURITY_DESCRIPTOR,
         descriptor_len: Option<u64>,
     ) -> Result<FileSecurity>;
 
-    fn open<P: AsRef<OsStr>>(
+    fn open<P: AsRef<WCStr>>(
         &self,
         file_name: P,
         create_options: u32,
@@ -46,7 +46,7 @@ pub trait FileSystemContext<const DIR_INFO_SIZE: usize = MAX_PATH>: Sized {
 
     fn close(&self, context: Self::FileContext);
 
-    fn cleanup<P: AsRef<OsStr>>(
+    fn cleanup<P: AsRef<WCStr>>(
         &self,
         context: &mut Self::FileContext,
         file_name: Option<P>,
@@ -65,7 +65,7 @@ pub trait FileSystemContext<const DIR_INFO_SIZE: usize = MAX_PATH>: Sized {
     }
 
     #[allow(clippy::too_many_arguments)]
-    fn create<P: AsRef<OsStr>>(
+    fn create<P: AsRef<WCStr>>(
         &self,
         file_name: P,
         create_options: u32,
@@ -80,7 +80,7 @@ pub trait FileSystemContext<const DIR_INFO_SIZE: usize = MAX_PATH>: Sized {
         Err(STATUS_INVALID_DEVICE_REQUEST.into())
     }
 
-    fn delete_reparse_point<P: AsRef<OsStr>>(
+    fn delete_reparse_point<P: AsRef<WCStr>>(
         &self,
         context: &Self::FileContext,
         file_name: P,
@@ -143,7 +143,7 @@ pub trait FileSystemContext<const DIR_INFO_SIZE: usize = MAX_PATH>: Sized {
         Err(STATUS_INVALID_DEVICE_REQUEST.into())
     }
 
-    fn read_directory<P: Into<PCWSTR>>(
+    fn read_directory<P: AsRef<WCStr>>(
         &self,
         context: &mut Self::FileContext,
         pattern: Option<P>,
@@ -153,7 +153,7 @@ pub trait FileSystemContext<const DIR_INFO_SIZE: usize = MAX_PATH>: Sized {
         Err(STATUS_INVALID_DEVICE_REQUEST.into())
     }
 
-    fn rename<P: AsRef<OsStr>>(
+    fn rename<P: AsRef<WCStr>>(
         &self,
         context: &Self::FileContext,
         file_name: P,
@@ -177,7 +177,7 @@ pub trait FileSystemContext<const DIR_INFO_SIZE: usize = MAX_PATH>: Sized {
         Err(STATUS_INVALID_DEVICE_REQUEST.into())
     }
 
-    fn set_delete<P: AsRef<OsStr>>(
+    fn set_delete<P: AsRef<WCStr>>(
         &self,
         context: &Self::FileContext,
         file_name: P,
@@ -225,7 +225,7 @@ pub trait FileSystemContext<const DIR_INFO_SIZE: usize = MAX_PATH>: Sized {
         Err(STATUS_INVALID_DEVICE_REQUEST.into())
     }
 
-    fn get_dir_info_by_name<P: AsRef<OsStr>>(
+    fn get_dir_info_by_name<P: AsRef<WCStr>>(
         &self,
         context: &Self::FileContext,
         file_name: P,
@@ -236,7 +236,7 @@ pub trait FileSystemContext<const DIR_INFO_SIZE: usize = MAX_PATH>: Sized {
     }
 
     #[cfg(feature = "reparse_points")]
-    fn get_reparse_point<P: AsRef<OsStr>>(
+    fn get_reparse_point<P: AsRef<WCStr>>(
         &self,
         context: &Self::FileContext,
         file_name: P,
@@ -246,7 +246,7 @@ pub trait FileSystemContext<const DIR_INFO_SIZE: usize = MAX_PATH>: Sized {
     }
 
     #[cfg(feature = "reparse_points")]
-    fn set_reparse_point<P: AsRef<OsStr>>(
+    fn set_reparse_point<P: AsRef<WCStr>>(
         &self,
         context: &Self::FileContext,
         file_name: P,

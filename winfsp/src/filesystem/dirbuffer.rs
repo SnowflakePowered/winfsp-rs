@@ -11,6 +11,7 @@ use winfsp_sys::{
 };
 
 use crate::error::Result;
+use crate::WCStr;
 
 pub struct DirBuffer(PVOID);
 pub struct DirBufferLock<'a>(&'a mut DirBuffer);
@@ -190,6 +191,13 @@ impl<const BUFFER_SIZE: usize> DirInfo<BUFFER_SIZE> {
             .chain(iter::once(0))
             .collect::<Vec<_>>();
         unsafe { self.set_file_name_raw(file_name.as_slice()) }
+    }
+
+
+    /// Set the file name of the directory info.
+    pub fn set_file_name_cstr<P: AsRef<WCStr>>(&mut self, file_name: P) -> Result<()> {
+        let file_name = file_name.as_ref();
+        unsafe { self.set_file_name_raw(file_name.as_slice_with_nul()) }
     }
 
     /// Get a mutable reference to the file information of this directory entry.

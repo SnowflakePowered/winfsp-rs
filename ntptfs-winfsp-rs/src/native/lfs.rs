@@ -9,11 +9,12 @@ use ntapi::ntioapi::{
 use ntapi::winapi::um::fileapi::INVALID_FILE_ATTRIBUTES;
 
 use ntapi::winapi::um::winnt::{FILE_ATTRIBUTE_NORMAL, LARGE_INTEGER};
-use std::ffi::c_void;
+use std::ffi::{c_void, OsStr};
 use std::mem::{size_of, MaybeUninit};
 use std::ops::DerefMut;
 use std::ptr::addr_of_mut;
 use std::slice;
+use windows::core::HSTRING;
 use windows::core::{PCWSTR, PWSTR};
 use windows::Win32::Foundation::{
     HANDLE, INVALID_HANDLE_VALUE, NTSTATUS, STATUS_ACCESS_DENIED, STATUS_BUFFER_OVERFLOW,
@@ -40,6 +41,7 @@ use windows_sys::Win32::System::WindowsProgramming::{
 };
 use winfsp::filesystem::{FSP_FSCTL_FILE_INFO, FSP_FSCTL_OPEN_FILE_INFO};
 use winfsp::util::{NtSafeHandle, VariableSizedBox};
+use winfsp::WCStr;
 
 macro_rules! r_return {
     ($res:expr) => {
@@ -96,7 +98,7 @@ fn new_thread_event() -> windows::core::Result<HANDLE> {
     unsafe { CreateEventW(std::ptr::null(), true, false, PCWSTR::null()) }
 }
 
-pub fn lfs_create_file<P: Into<PCWSTR>>(
+pub fn lfs_create_file<P: AsRef<WCStr>>(
     root_handle: HANDLE,
     file_name: P,
     desired_access: u32,
@@ -107,12 +109,17 @@ pub fn lfs_create_file<P: Into<PCWSTR>>(
     create_options: u32,
     ea_buffer: &mut Option<&mut [u8]>,
 ) -> winfsp::Result<NtSafeHandle> {
+    let file_name = file_name.as_ref();
     let mut unicode_filename = unsafe {
         let mut unicode_filename: MaybeUninit<UNICODE_STRING> = MaybeUninit::uninit();
         // wrapping add to get rid of slash..
         RtlInitUnicodeString(
             unicode_filename.as_mut_ptr(),
-            file_name.into().0.wrapping_add(1),
+            if file_name.as_slice_with_nul()[0] == (b'\\' as u16) {
+                file_name[1..].as_ptr()
+            } else {
+                file_name.as_ptr()
+            },
         );
         unicode_filename.assume_init()
     };
@@ -169,18 +176,24 @@ pub fn lfs_create_file<P: Into<PCWSTR>>(
     r_return!(result, handle)
 }
 
-pub fn lfs_open_file<P: Into<PCWSTR>>(
+pub fn lfs_open_file<P: AsRef<WCStr>>(
     root_handle: HANDLE,
     file_name: P,
     desired_access: u32,
     open_options: u32,
 ) -> winfsp::Result<NtSafeHandle> {
+    let file_name = file_name.as_ref();
+    eprintln!("lfs_opn: {:?}", file_name);
     let mut unicode_filename = unsafe {
         let mut unicode_filename: MaybeUninit<UNICODE_STRING> = MaybeUninit::uninit();
         // wrapping add to get rid of slash..
         RtlInitUnicodeString(
             unicode_filename.as_mut_ptr(),
-            file_name.into().0.wrapping_add(1),
+            if file_name.as_slice_with_nul()[0] == (b'\\' as u16) {
+                file_name[1..].as_ptr()
+            } else {
+                file_name.as_ptr()
+            },
         );
         unicode_filename.assume_init()
     };
@@ -533,15 +546,19 @@ pub enum LfsRenameSemantics {
     PosixReplaceSemantics,
 }
 
-pub fn lfs_rename(
+pub fn lfs_rename<P: AsRef<[u16]>>(
     root_handle: HANDLE,
     handle: HANDLE,
-    new_file_name: windows::core::HSTRING,
+    new_file_name: P,
     replace_if_exists: LfsRenameSemantics,
 ) -> winfsp::Result<()> {
+    let new_file_name = new_file_name.as_ref();
     let mut iosb: MaybeUninit<IO_STATUS_BLOCK> = MaybeUninit::uninit();
     // todo: check if needs to be null_checked
-    let file_path_len = (new_file_name.len()) * std::mem::size_of::<u16>();
+    // length in bytes
+    let file_path_len = (new_file_name.len()) * size_of::<u16>();
+
+    eprintln!("new fn: {:?}", new_file_name);
     let mut rename_info: VariableSizedBox<FILE_RENAME_INFO> =
         VariableSizedBox::new(file_path_len + std::mem::size_of::<FILE_RENAME_INFO>() + 1);
 
@@ -552,13 +569,8 @@ pub fn lfs_rename(
     unsafe {
         addr_of_mut!((*rename_info.as_mut_ptr()).RootDirectory).write(root_handle.0);
         addr_of_mut!((*rename_info.as_mut_ptr()).FileNameLength).write(file_path_len as u32);
-        addr_of_mut!((*rename_info.as_mut_ptr()).FileName).copy_from(
-            new_file_name.as_ptr().wrapping_add(1).cast(),
-            new_file_name
-                .len()
-                .checked_sub(1)
-                .expect("filename invalid"),
-        );
+        addr_of_mut!((*rename_info.as_mut_ptr()).FileName)
+            .copy_from(new_file_name.as_ptr().cast(), new_file_name.len());
         addr_of_mut!((*rename_info.as_mut_ptr()).Anonymous.Flags).write(
             if replace_if_exists == LfsRenameSemantics::PosixReplaceSemantics {
                 1

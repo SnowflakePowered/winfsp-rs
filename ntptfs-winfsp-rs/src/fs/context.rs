@@ -11,10 +11,11 @@ use ntapi::winapi::um::winnt::{
 
 use std::ffi::{OsStr, OsString};
 use std::mem::size_of;
+use std::os::windows::ffi::{OsStrExt, OsStringExt};
 use std::os::windows::fs::MetadataExt;
 use std::path::Path;
 use std::ptr::addr_of;
-use widestring::U16CString;
+use widestring::{u16cstr, U16CString};
 use windows::core::{HSTRING, PCWSTR, PWSTR};
 use windows::w;
 use windows::Win32::Foundation::{
@@ -46,6 +47,7 @@ use winfsp::filesystem::{
     FSP_FSCTL_VOLUME_INFO, FSP_FSCTL_VOLUME_PARAMS, MAX_PATH,
 };
 use winfsp::util::Win32SafeHandle;
+use winfsp::WCStr;
 
 const VOLUME_LABEL: &HSTRING = w!("Snowflake");
 
@@ -183,17 +185,16 @@ impl NtPassthroughContext {
 impl FileSystemContext for NtPassthroughContext {
     type FileContext = NtPassthroughFile;
 
-    fn get_security_by_name<P: AsRef<OsStr>>(
+    fn get_security_by_name<P: AsRef<WCStr>>(
         &self,
         file_name: P,
         security_descriptor: PSECURITY_DESCRIPTOR,
         descriptor_len: Option<u64>,
     ) -> winfsp::Result<FileSecurity> {
         // todo: reparse
-        let file_name = HSTRING::from(file_name.as_ref());
         let handle = lfs::lfs_open_file(
             *self.root_handle,
-            PCWSTR(file_name.as_ptr()),
+            file_name.as_ref(),
             READ_CONTROL.0,
             FILE_OPEN_FOR_BACKUP_INTENT | FILE_OPEN_REPARSE_POINT,
         )?;
@@ -229,7 +230,7 @@ impl FileSystemContext for NtPassthroughContext {
         })
     }
 
-    fn open<P: AsRef<OsStr>>(
+    fn open<P: AsRef<WCStr>>(
         &self,
         file_name: P,
         create_options: u32,
@@ -272,11 +273,9 @@ impl FileSystemContext for NtPassthroughContext {
             create_options |= FILE_SYNCHRONOUS_IO_NONALERT
         }
 
-        let file_name = HSTRING::from(file_name.as_ref());
-
         let result = lfs::lfs_open_file(
             *self.root_handle,
-            PCWSTR(file_name.as_ptr()),
+            file_name.as_ref(),
             maximum_access.0,
             FILE_OPEN_FOR_BACKUP_INTENT | FILE_OPEN_REPARSE_POINT | create_options,
         );
@@ -290,7 +289,7 @@ impl FileSystemContext for NtPassthroughContext {
                 | STATUS_INVALID_PARAMETER,
             )) if maximum_access.0 == MAXIMUM_ALLOWED => lfs::lfs_open_file(
                 *self.root_handle,
-                PCWSTR(file_name.as_ptr()),
+                file_name.as_ref(),
                 backup_access,
                 FILE_OPEN_FOR_BACKUP_INTENT | FILE_OPEN_REPARSE_POINT | create_options,
             ),
@@ -306,7 +305,7 @@ impl FileSystemContext for NtPassthroughContext {
         ))
     }
 
-    fn create<P: AsRef<OsStr>>(
+    fn create<P: AsRef<WCStr>>(
         &self,
         file_name: P,
         create_options: u32,
@@ -358,11 +357,9 @@ impl FileSystemContext for NtPassthroughContext {
             file_attributes
         };
 
-        let file_name = HSTRING::from(file_name.as_ref());
-
         let result = lfs::lfs_create_file(
             *self.root_handle,
-            PCWSTR(file_name.as_ptr()),
+            file_name.as_ref(),
             maximum_access.0,
             security_descriptor,
             allocation_size.as_mut(),
@@ -380,7 +377,7 @@ impl FileSystemContext for NtPassthroughContext {
             {
                 lfs::lfs_create_file(
                     *self.root_handle,
-                    PCWSTR(file_name.as_ptr()),
+                    file_name.as_ref(),
                     maximum_access.0,
                     security_descriptor,
                     allocation_size.as_mut(),
@@ -424,7 +421,7 @@ impl FileSystemContext for NtPassthroughContext {
 
         let new_handle = lfs::lfs_create_file(
             context.handle(),
-            windows::w!(""),
+            u16cstr!(""),
             if replace_file_attributes {
                 DELETE
             } else {
@@ -522,7 +519,7 @@ impl FileSystemContext for NtPassthroughContext {
         lfs::lfs_get_file_info(context.handle(), None, file_info)
     }
 
-    fn rename<P: AsRef<OsStr>>(
+    fn rename<P: AsRef<WCStr>>(
         &self,
         context: &Self::FileContext,
         _file_name: P,
@@ -545,11 +542,12 @@ impl FileSystemContext for NtPassthroughContext {
             LfsRenameSemantics::DoNotReplace
         };
 
-        let new_filename = HSTRING::from(new_file_name.as_ref());
+        // skip first char
+        let new_file_name = &new_file_name.as_ref()[1..];
         lfs::lfs_rename(
             *self.root_handle,
             context.handle(),
-            new_filename,
+            new_file_name,
             replace_mode,
         )
     }
@@ -577,7 +575,7 @@ impl FileSystemContext for NtPassthroughContext {
         Ok(needed_size as u64)
     }
 
-    fn set_delete<P: AsRef<OsStr>>(
+    fn set_delete<P: AsRef<WCStr>>(
         &self,
         context: &Self::FileContext,
         _file_name: P,
@@ -623,7 +621,7 @@ impl FileSystemContext for NtPassthroughContext {
         lfs::lfs_get_file_info(context.handle(), None, file_info)
     }
 
-    fn cleanup<P: AsRef<OsStr>>(
+    fn cleanup<P: AsRef<WCStr>>(
         &self,
         context: &mut Self::FileContext,
         _file_name: Option<P>,
@@ -640,7 +638,7 @@ impl FileSystemContext for NtPassthroughContext {
         }
     }
 
-    fn read_directory<P: Into<PCWSTR>>(
+    fn read_directory<P: AsRef<WCStr>>(
         &self,
         context: &mut Self::FileContext,
         pattern: Option<P>,
@@ -653,7 +651,7 @@ impl FileSystemContext for NtPassthroughContext {
         );
         let dir_size = context.dir_size();
         let handle = context.handle();
-        let pattern = pattern.map(|p| p.into());
+        let pattern = pattern.map(|p| PCWSTR(p.as_ref().as_ptr()));
         {
             let mut dirinfo = DirInfo::<{ MAX_PATH as usize }>::new();
             let mut dirbuffer = context
@@ -720,7 +718,7 @@ impl FileSystemContext for NtPassthroughContext {
     ) -> winfsp::Result<u32> {
         todo!()
     }
-    fn delete_reparse_point<P: AsRef<OsStr>>(
+    fn delete_reparse_point<P: AsRef<WCStr>>(
         &self,
         _context: &Self::FileContext,
         _file_name: P,
@@ -735,7 +733,7 @@ impl FileSystemContext for NtPassthroughContext {
     ) -> winfsp::Result<()> {
         todo!()
     }
-    fn get_dir_info_by_name<P: AsRef<OsStr>>(
+    fn get_dir_info_by_name<P: AsRef<WCStr>>(
         &self,
         _context: &Self::FileContext,
         _file_name: P,
