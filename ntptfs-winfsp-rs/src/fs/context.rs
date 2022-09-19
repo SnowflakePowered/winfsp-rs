@@ -10,26 +10,26 @@ use ntapi::winapi::um::winnt::{
 };
 
 use std::ffi::{OsStr, OsString};
-use std::mem::{size_of};
+use std::mem::size_of;
 use std::os::windows::fs::MetadataExt;
-use std::path::{Path};
+use std::path::Path;
 use std::ptr::addr_of;
 use widestring::U16CString;
 use windows::core::{HSTRING, PCWSTR, PWSTR};
 use windows::w;
 use windows::Win32::Foundation::{
-    GetLastError, HANDLE, INVALID_HANDLE_VALUE, STATUS_ACCESS_DENIED, STATUS_INVALID_PARAMETER, STATUS_MEDIA_WRITE_PROTECTED,
-    STATUS_NOT_A_DIRECTORY, STATUS_SHARING_VIOLATION,
+    GetLastError, HANDLE, INVALID_HANDLE_VALUE, STATUS_ACCESS_DENIED, STATUS_INVALID_PARAMETER,
+    STATUS_MEDIA_WRITE_PROTECTED, STATUS_NOT_A_DIRECTORY, STATUS_SHARING_VIOLATION,
 };
 use windows::Win32::Security::{
-    DACL_SECURITY_INFORMATION, GROUP_SECURITY_INFORMATION,
-    OWNER_SECURITY_INFORMATION, PSECURITY_DESCRIPTOR,
+    DACL_SECURITY_INFORMATION, GROUP_SECURITY_INFORMATION, OWNER_SECURITY_INFORMATION,
+    PSECURITY_DESCRIPTOR,
 };
 use windows::Win32::Storage::FileSystem::{
-    CreateFileW, GetFileInformationByHandle,
-    BY_HANDLE_FILE_INFORMATION, FILE_ACCESS_FLAGS, FILE_ATTRIBUTE_NORMAL,
-    FILE_FLAGS_AND_ATTRIBUTES, FILE_FLAG_BACKUP_SEMANTICS,
-    FILE_FLAG_OVERLAPPED, FILE_ID_BOTH_DIR_INFO, FILE_READ_ATTRIBUTES, FILE_SHARE_DELETE, FILE_SHARE_READ, FILE_SHARE_WRITE, OPEN_EXISTING, READ_CONTROL, SYNCHRONIZE,
+    CreateFileW, GetFileInformationByHandle, BY_HANDLE_FILE_INFORMATION, FILE_ACCESS_FLAGS,
+    FILE_ATTRIBUTE_NORMAL, FILE_FLAGS_AND_ATTRIBUTES, FILE_FLAG_BACKUP_SEMANTICS,
+    FILE_FLAG_OVERLAPPED, FILE_ID_BOTH_DIR_INFO, FILE_READ_ATTRIBUTES, FILE_SHARE_DELETE,
+    FILE_SHARE_READ, FILE_SHARE_WRITE, OPEN_EXISTING, READ_CONTROL, SYNCHRONIZE,
 };
 use windows::Win32::System::WindowsProgramming::{
     FILE_OPEN_FOR_BACKUP_INTENT, FILE_OPEN_REPARSE_POINT,
@@ -45,7 +45,7 @@ use winfsp::filesystem::{
     DirInfo, DirMarker, FileSecurity, FileSystemContext, IoResult, FSP_FSCTL_FILE_INFO,
     FSP_FSCTL_VOLUME_INFO, FSP_FSCTL_VOLUME_PARAMS, MAX_PATH,
 };
-use winfsp::util::{Win32SafeHandle};
+use winfsp::util::Win32SafeHandle;
 
 const VOLUME_LABEL: &HSTRING = w!("Snowflake");
 
@@ -214,8 +214,7 @@ impl NtPassthroughContext {
         file_info.HardLinks = 0;
 
         file_info.FileSize = quadpart(os_file_info.nFileSizeHigh, os_file_info.nFileSizeLow);
-        file_info.AllocationSize =
-            (file_info.FileSize + 4096_u64 - 1) / 4096_u64 * 4096_u64;
+        file_info.AllocationSize = (file_info.FileSize + 4096_u64 - 1) / 4096_u64 * 4096_u64;
         file_info.CreationTime = quadpart(
             os_file_info.ftCreationTime.dwHighDateTime,
             os_file_info.ftCreationTime.dwLowDateTime,
@@ -537,7 +536,6 @@ impl FileSystemContext for NtPassthroughContext {
         constrained_io: bool,
         file_info: &mut FSP_FSCTL_FILE_INFO,
     ) -> winfsp::Result<IoResult> {
-        eprintln!("wr ok");
         if constrained_io {
             let fsize = lfs::lfs_query_file_size(context.handle())?;
             if offset >= fsize {
@@ -633,7 +631,6 @@ impl FileSystemContext for NtPassthroughContext {
             0
         };
 
-        eprintln!("gs ok");
         Ok(needed_size as u64)
     }
 
@@ -720,7 +717,8 @@ impl FileSystemContext for NtPassthroughContext {
             let mut dirbuffer = context
                 .dir_buffer()
                 .acquire(marker.is_none(), Some(dir_size))?;
-            let mut query_buffer = [0u8; 16 * 1024];
+            // todo: don't reallocate this.
+            let mut query_buffer = vec![0u8; 16 * 1024];
             let mut restart_scan = true;
             'once: while restart_scan {
                 let bytes_transferred = lfs::lfs_query_directory_file(
@@ -732,26 +730,30 @@ impl FileSystemContext for NtPassthroughContext {
                     restart_scan,
                 )?;
 
-                let mut query_buffer_ptr = query_buffer.as_ptr() as *const FILE_ID_BOTH_DIR_INFO;
+                eprintln!("bfs: {:?}", bytes_transferred);
+                eprintln!("expected: {:?}", size_of::<FILE_ID_BOTH_DIR_INFO>());
+                let query_buffer = &query_buffer[..bytes_transferred];
+                let mut query_buffer_cursor = query_buffer.as_ptr() as *const FILE_ID_BOTH_DIR_INFO;
                 loop {
                     // SAFETY: FILE_ID_BOTH_DIR_INFO has FileName as the last VST array member, so it's offset is size_of - 1.
-                    if query_buffer_ptr.wrapping_add(bytes_transferred) as *const ()
-                        < query_buffer
-                            .as_ptr()
+                    // bounds check to ensure we don't go past the edge of the buffer.
+                    if query_buffer.as_ptr().wrapping_add(bytes_transferred)
+                        < (query_buffer_cursor as *const _ as *const u8)
                             .wrapping_add(size_of::<FILE_ID_BOTH_DIR_INFO>() - 1)
-                            as *const ()
                     {
                         break 'once;
                     }
-                    Self::copy_query_info_to_dirinfo(query_buffer_ptr, &mut dirinfo)?;
+                    Self::copy_query_info_to_dirinfo(query_buffer_cursor, &mut dirinfo)?;
                     dirbuffer.write(&mut dirinfo)?;
 
                     unsafe {
-                        let query_next = addr_of!((*query_buffer_ptr).NextEntryOffset).read();
+                        let query_next = addr_of!((*query_buffer_cursor).NextEntryOffset).read();
                         if query_next == 0 {
                             break;
                         }
-                        query_buffer_ptr = query_buffer_ptr.wrapping_add(query_next as usize);
+                        query_buffer_cursor = (query_buffer_cursor as *const _ as *const u8)
+                            .wrapping_add(query_next as usize)
+                            .cast();
                     }
                 }
                 restart_scan = false;

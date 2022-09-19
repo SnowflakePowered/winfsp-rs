@@ -1,34 +1,32 @@
 use ntapi::ntioapi::{
     FileAllInformation, FileAllocationInformation, FileAttributeTagInformation,
     FileBasicInformation, FileDispositionInformation, FileDispositionInformationEx,
-    FileEndOfFileInformation, FileNameInformation,
-    FileRenameInformation, FileRenameInformationEx, FileStandardInformation,
-    FILE_ALLOCATION_INFORMATION, FILE_ALL_INFORMATION, FILE_ATTRIBUTE_TAG_INFORMATION,
-    FILE_BASIC_INFORMATION, FILE_DISPOSITION_INFORMATION, FILE_END_OF_FILE_INFORMATION,
-    FILE_NAME_INFORMATION, FILE_STANDARD_INFORMATION,
+    FileEndOfFileInformation, FileNameInformation, FileRenameInformation, FileRenameInformationEx,
+    FileStandardInformation, FILE_ALLOCATION_INFORMATION, FILE_ALL_INFORMATION,
+    FILE_ATTRIBUTE_TAG_INFORMATION, FILE_BASIC_INFORMATION, FILE_DISPOSITION_INFORMATION,
+    FILE_END_OF_FILE_INFORMATION, FILE_NAME_INFORMATION, FILE_STANDARD_INFORMATION,
 };
 use ntapi::winapi::um::fileapi::INVALID_FILE_ATTRIBUTES;
 
 use ntapi::winapi::um::winnt::{FILE_ATTRIBUTE_NORMAL, LARGE_INTEGER};
 use std::ffi::c_void;
 use std::mem::{size_of, MaybeUninit};
-use std::ops::{DerefMut};
+use std::ops::DerefMut;
 use std::ptr::addr_of_mut;
 use std::slice;
-use windows::core::{PCWSTR};
+use windows::core::PCWSTR;
 use windows::Win32::Foundation::{
     HANDLE, INVALID_HANDLE_VALUE, NTSTATUS, STATUS_ACCESS_DENIED, STATUS_BUFFER_OVERFLOW,
-    STATUS_CANNOT_DELETE, STATUS_DIRECTORY_NOT_EMPTY, STATUS_FILE_DELETED,
-    STATUS_INVALID_PARAMETER, STATUS_OBJECT_NAME_COLLISION, STATUS_PENDING, STATUS_SUCCESS,
+    STATUS_CANNOT_DELETE, STATUS_DATATYPE_MISALIGNMENT, STATUS_DIRECTORY_NOT_EMPTY,
+    STATUS_FILE_DELETED, STATUS_INVALID_PARAMETER, STATUS_OBJECT_NAME_COLLISION, STATUS_PENDING,
+    STATUS_SUCCESS,
 };
 use windows::Win32::Security::PSECURITY_DESCRIPTOR;
 use windows::Win32::Storage::FileSystem::{
-    FILE_READ_ATTRIBUTES,
-    FILE_SHARE_DELETE, FILE_SHARE_READ, FILE_SHARE_WRITE,
+    FILE_READ_ATTRIBUTES, FILE_SHARE_DELETE, FILE_SHARE_READ, FILE_SHARE_WRITE,
 };
 use windows::Win32::System::Threading::{CreateEventW, WaitForSingleObject};
 use windows::Win32::System::WindowsProgramming::INFINITE;
-
 
 use windows_sys::Win32::Foundation::{BOOLEAN, UNICODE_STRING};
 use windows_sys::Win32::Storage::FileSystem::{
@@ -689,27 +687,43 @@ pub fn lfs_query_directory_file(
 ) -> winfsp::Result<usize> {
     LFS_EVENT.with(|event| {
         let mut iosb: MaybeUninit<IO_STATUS_BLOCK> = MaybeUninit::uninit();
-        let mut unicode_filename = file_name.map(|f| unsafe {
+        let unicode_filename = file_name.map(|f| unsafe {
             let mut unicode_filename: MaybeUninit<UNICODE_STRING> = MaybeUninit::uninit();
             RtlInitUnicodeString(unicode_filename.as_mut_ptr(), f.0);
             unicode_filename.assume_init()
         });
 
         let mut result = unsafe {
-            NTSTATUS(nt::NtQueryDirectoryFile(
-                handle.0,
-                event.0,
-                None,
-                std::ptr::null_mut(),
-                iosb.as_mut_ptr(),
-                buffer.as_mut_ptr() as *mut c_void,
-                buffer.len() as u32,
-                class,
-                into_bit_boolean(return_single_entry),
-                // SAFETY: Option guarantees niche optimization here.
-                std::mem::transmute(unicode_filename.as_mut()),
-                into_bit_boolean(restart_scan),
-            ))
+            // lifetime of unicode_filename must be past the NtQueryDirectoryFile.
+            if let Some(mut file_name) = unicode_filename {
+                NTSTATUS(nt::NtQueryDirectoryFile(
+                    handle.0,
+                    event.0,
+                    None,
+                    std::ptr::null_mut(),
+                    iosb.as_mut_ptr(),
+                    buffer.as_mut_ptr() as *mut c_void,
+                    buffer.len() as u32,
+                    class,
+                    into_bit_boolean(return_single_entry),
+                    &mut file_name,
+                    into_bit_boolean(restart_scan),
+                ))
+            } else {
+                NTSTATUS(nt::NtQueryDirectoryFile(
+                    handle.0,
+                    event.0,
+                    None,
+                    std::ptr::null_mut(),
+                    iosb.as_mut_ptr(),
+                    buffer.as_mut_ptr() as *mut c_void,
+                    buffer.len() as u32,
+                    class,
+                    into_bit_boolean(return_single_entry),
+                    std::ptr::null_mut(),
+                    into_bit_boolean(restart_scan),
+                ))
+            }
         };
 
         if result == STATUS_PENDING {
@@ -717,7 +731,7 @@ pub fn lfs_query_directory_file(
                 WaitForSingleObject(*event, INFINITE);
             }
             let iosb = unsafe { iosb.assume_init() };
-            result = NTSTATUS(unsafe { iosb.Anonymous.Status })
+            result = NTSTATUS(unsafe { iosb.Anonymous.Status });
         }
 
         r_return!(result, unsafe { iosb.assume_init().Information })

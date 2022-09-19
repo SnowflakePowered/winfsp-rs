@@ -3,9 +3,7 @@ use std::iter;
 use std::os::windows::ffi::OsStrExt;
 
 use widestring::{u16cstr, U16CStr};
-use windows::Win32::Foundation::{
-    STATUS_INSUFFICIENT_RESOURCES, STATUS_SUCCESS,
-};
+use windows::Win32::Foundation::{STATUS_INSUFFICIENT_RESOURCES, STATUS_SUCCESS};
 use winfsp_sys::{
     FspFileSystemAcquireDirectoryBufferEx, FspFileSystemDeleteDirectoryBuffer,
     FspFileSystemFillDirectoryBuffer, FspFileSystemReadDirectoryBuffer,
