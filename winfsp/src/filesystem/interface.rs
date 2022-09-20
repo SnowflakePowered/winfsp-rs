@@ -32,8 +32,8 @@ fn require_fctx<C: FileSystemContext<DIR_BUF_SIZE>, F, const DIR_BUF_SIZE: usize
     fctx: PVOID,
     inner: F,
 ) -> FSP_STATUS
-where
-    F: FnOnce(&C, &mut C::FileContext) -> error::Result<()>,
+    where
+        F: FnOnce(&C, &mut C::FileContext) -> error::Result<()>,
 {
     if fs.is_null() || fctx.is_null() {
         dbg!("require_ref failed");
@@ -59,8 +59,8 @@ fn require_ctx<C: FileSystemContext<DIR_BUF_SIZE>, F, const DIR_BUF_SIZE: usize>
     fs: *mut FSP_FILE_SYSTEM,
     inner: F,
 ) -> FSP_STATUS
-where
-    F: FnOnce(&C) -> error::Result<()>,
+    where
+        F: FnOnce(&C) -> error::Result<()>,
 {
     if fs.is_null() {
         dbg!("require_ref failed");
@@ -80,8 +80,8 @@ fn require_fctx_io<C: FileSystemContext<DIR_BUF_SIZE>, F, const DIR_BUF_SIZE: us
     fctx: PVOID,
     inner: F,
 ) -> FSP_STATUS
-where
-    F: FnOnce(&C, &C::FileContext) -> error::Result<IoResult>,
+    where
+        F: FnOnce(&C, &C::FileContext) -> error::Result<IoResult>,
 {
     let context: &C = unsafe { &*(*fs).UserContext.cast::<C>() };
     let fctx = fctx.cast::<C::FileContext>();
@@ -590,8 +590,9 @@ unsafe extern "C" fn flush<T: FileSystemContext<DIR_BUF_SIZE>, const DIR_BUF_SIZ
     out_file_info: *mut FSP_FSCTL_FILE_INFO,
 ) -> FSP_STATUS {
     catch_panic!({
-        require_fctx(fs, fctx, |context, fctx| {
-            T::flush(context, fctx, unsafe { &mut *out_file_info })
+        require_ctx(fs, |context| {
+            let fctx = fctx.cast::<T::FileContext>();
+            unsafe { T::flush(context, fctx.as_ref(), &mut *out_file_info) }
         })
     })
 }

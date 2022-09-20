@@ -10,8 +10,11 @@ use winfsp_sys::{FspFileSystemAcquireDirectoryBufferEx, FspFileSystemDeleteDirec
 use crate::error::Result;
 use crate::WCStr;
 
+#[derive(Debug)]
 pub struct DirBuffer(PVOID);
+#[derive(Debug)]
 pub struct DirBufferLock<'a>(&'a mut DirBuffer);
+#[derive(Debug)]
 pub struct DirMarker<'a>(pub(crate) Option<&'a U16CStr>);
 
 impl DirMarker<'_> {

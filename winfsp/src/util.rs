@@ -1,5 +1,6 @@
 use crate::error::FspError;
 use crate::filesystem::MAX_PATH;
+use std::marker::PhantomData;
 
 use std::ops::{Deref, DerefMut};
 
@@ -14,6 +15,7 @@ use windows::Win32::Storage::FileSystem::{
     FILE_SHARE_READ, FILE_SHARE_WRITE, OPEN_EXISTING, READ_CONTROL,
 };
 use windows::Win32::System::LibraryLoader::GetModuleFileNameW;
+use windows::Win32::System::WindowsProgramming::NtClose;
 
 /// An owned handle that will always be dropped
 /// when it goes out of scope.
@@ -25,31 +27,65 @@ use windows::Win32::System::LibraryLoader::GetModuleFileNameW;
 /// to obtain a `HANDLE` that is `Copy` without dropping the `SafeDropHandle`
 /// and invalidating the underlying handle.
 #[repr(transparent)]
-pub struct SafeDropHandle(HANDLE);
+#[derive(Debug)]
+pub struct SafeDropHandle<T>(HANDLE, PhantomData<T>)
+    where
+        T: HandleCloseHandler;
 
-impl SafeDropHandle {
+pub trait HandleCloseHandler {
+    fn close(handle: HANDLE);
+}
+
+#[derive(Debug)]
+pub struct Win32HandleDrop;
+pub type Win32SafeHandle = SafeDropHandle<Win32HandleDrop>;
+impl HandleCloseHandler for Win32HandleDrop {
+    fn close(handle: HANDLE) {
+        unsafe {
+            CloseHandle(handle);
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct NtHandleDrop;
+pub type NtSafeHandle = SafeDropHandle<NtHandleDrop>;
+impl HandleCloseHandler for NtHandleDrop {
+    fn close(handle: HANDLE) {
+        if let Err(e) = unsafe { NtClose(handle) } {
+            eprintln!("unable to close nt handle: {:?}", e)
+        }
+    }
+}
+
+impl<T> SafeDropHandle<T>
+    where
+        T: HandleCloseHandler,
+{
     /// Invalidate the handle without dropping it.
     pub fn invalidate(&mut self) {
-        if !self.0.is_invalid() {
-            unsafe {
-                CloseHandle(self.0);
-            }
+        if !self.is_invalid() {
+            T::close(self.0)
         }
         self.0 = INVALID_HANDLE_VALUE
     }
 }
 
-impl Drop for SafeDropHandle {
+impl<T> Drop for SafeDropHandle<T>
+    where
+        T: HandleCloseHandler,
+{
     fn drop(&mut self) {
-        unsafe {
-            if !self.0.is_invalid() {
-                CloseHandle(self.0);
-            }
+        if !self.is_invalid() {
+            T::close(self.0)
         }
     }
 }
 
-impl Deref for SafeDropHandle {
+impl<T> Deref for SafeDropHandle<T>
+    where
+        T: HandleCloseHandler,
+{
     type Target = HANDLE;
 
     fn deref(&self) -> &Self::Target {
@@ -57,15 +93,21 @@ impl Deref for SafeDropHandle {
     }
 }
 
-impl DerefMut for SafeDropHandle {
+impl<T> DerefMut for SafeDropHandle<T>
+    where
+        T: HandleCloseHandler,
+{
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
 }
 
-impl From<HANDLE> for SafeDropHandle {
+impl<T> From<HANDLE> for SafeDropHandle<T>
+    where
+        T: HandleCloseHandler,
+{
     fn from(h: HANDLE) -> Self {
-        Self(h)
+        Self(h, PhantomData::default())
     }
 }
 
@@ -169,3 +211,5 @@ mod test {
         get_process_security(PSECURITY_DESCRIPTOR::default(), None);
     }
 }
+
+pub use crate::vsb::VariableSizedBox;

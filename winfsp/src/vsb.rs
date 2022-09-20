@@ -49,6 +49,11 @@ impl<T> VariableSizedBox<T> {
         assert!(self.size >= size_of::<T>());
         unsafe { self.data.as_ref() }
     }
+
+    /// The length of the allocation specified in bytes.
+    pub fn len(&self) -> usize {
+        self.size
+    }
 }
 impl<T> Drop for VariableSizedBox<T> {
     fn drop(&mut self) {
