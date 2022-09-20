@@ -1,5 +1,6 @@
 use ntapi::ntioapi::FS_INFORMATION_CLASS;
 use std::ffi::c_void;
+use ntapi::winapi::um::winnt::{PSECURITY_DESCRIPTOR, SECURITY_INFORMATION};
 use windows_sys::Win32::Foundation::{BOOLEAN, HANDLE, UNICODE_STRING};
 use windows_sys::Win32::System::WindowsProgramming::{
     FILE_INFORMATION_CLASS, IO_STATUS_BLOCK, PIO_APC_ROUTINE,
@@ -81,6 +82,12 @@ extern "system" {
         FsInformation: *mut c_void,
         Length: u32,
         FsInformationClass: FS_INFORMATION_CLASS,
+    ) -> windows_sys::Win32::Foundation::NTSTATUS;
+
+    pub fn NtSetSecurityObject(
+        Handle: HANDLE,
+        SecurityInformation: SECURITY_INFORMATION,
+        SecurityDescriptor: PSECURITY_DESCRIPTOR
     ) -> windows_sys::Win32::Foundation::NTSTATUS;
 }
 

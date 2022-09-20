@@ -16,12 +16,7 @@ use std::ptr::addr_of_mut;
 use std::slice;
 use windows::core::HSTRING;
 use windows::core::{PCWSTR, PWSTR};
-use windows::Win32::Foundation::{
-    HANDLE, INVALID_HANDLE_VALUE, NTSTATUS, STATUS_ACCESS_DENIED, STATUS_BUFFER_OVERFLOW,
-    STATUS_CANNOT_DELETE, STATUS_DATATYPE_MISALIGNMENT, STATUS_DIRECTORY_NOT_EMPTY,
-    STATUS_FILE_DELETED, STATUS_INVALID_PARAMETER, STATUS_OBJECT_NAME_COLLISION, STATUS_PENDING,
-    STATUS_SUCCESS,
-};
+use windows::Win32::Foundation::{HANDLE, INVALID_HANDLE_VALUE, NTSTATUS, STATUS_ACCESS_DENIED, STATUS_BUFFER_OVERFLOW, STATUS_CANNOT_DELETE, STATUS_DATATYPE_MISALIGNMENT, STATUS_DIRECTORY_NOT_EMPTY, STATUS_FILE_DELETED, STATUS_INVALID_PARAMETER, STATUS_OBJECT_NAME_COLLISION, STATUS_OBJECT_NAME_NOT_FOUND, STATUS_PENDING, STATUS_SUCCESS};
 use windows::Win32::Security::PSECURITY_DESCRIPTOR;
 use windows::Win32::Storage::FileSystem::{
     FILE_READ_ATTRIBUTES, FILE_SHARE_DELETE, FILE_SHARE_READ, FILE_SHARE_WRITE,
@@ -51,6 +46,7 @@ macro_rules! r_return {
         if $res.is_ok() {
             Ok($val)
         } else {
+            drop($val);
             Err($res.into())
         }
     };
@@ -115,7 +111,7 @@ pub fn lfs_create_file<P: AsRef<WCStr>>(
         // wrapping add to get rid of slash..
         RtlInitUnicodeString(
             unicode_filename.as_mut_ptr(),
-            if file_name.as_slice_with_nul()[0] == (b'\\' as u16) {
+            if file_name.len() > 0 {
                 file_name[1..].as_ptr()
             } else {
                 file_name.as_ptr()
@@ -132,6 +128,7 @@ pub fn lfs_create_file<P: AsRef<WCStr>>(
     );
 
     let mut iosb: MaybeUninit<IO_STATUS_BLOCK> = MaybeUninit::uninit();
+
     let mut handle = NtSafeHandle::from(INVALID_HANDLE_VALUE);
 
     let result = if let Some(buffer) = ea_buffer.as_deref_mut() {
@@ -173,6 +170,10 @@ pub fn lfs_create_file<P: AsRef<WCStr>>(
         })
     };
 
+    if result == STATUS_OBJECT_NAME_NOT_FOUND {
+        eprintln!("cr: {} NOT FOUND", file_name.display())
+    }
+
     r_return!(result, handle)
 }
 
@@ -183,13 +184,13 @@ pub fn lfs_open_file<P: AsRef<WCStr>>(
     open_options: u32,
 ) -> winfsp::Result<NtSafeHandle> {
     let file_name = file_name.as_ref();
-    eprintln!("lfs_opn: {:?}", file_name);
+    eprintln!("lfs_opn: {}", file_name.display());
     let mut unicode_filename = unsafe {
         let mut unicode_filename: MaybeUninit<UNICODE_STRING> = MaybeUninit::uninit();
         // wrapping add to get rid of slash..
         RtlInitUnicodeString(
             unicode_filename.as_mut_ptr(),
-            if file_name.as_slice_with_nul()[0] == (b'\\' as u16) {
+            if file_name.len() > 0 {
                 file_name[1..].as_ptr()
             } else {
                 file_name.as_ptr()
@@ -215,6 +216,9 @@ pub fn lfs_open_file<P: AsRef<WCStr>>(
         )
     });
 
+    if result == STATUS_OBJECT_NAME_NOT_FOUND {
+        eprintln!("opn: {} NOT FOUND", file_name.display())
+    }
     r_return!(result, handle)
 }
 
@@ -495,7 +499,6 @@ pub fn lfs_flush(handle: HANDLE) -> winfsp::Result<()> {
     r_return!(result)
 }
 
-// todo: make these return winfsp
 pub fn lfs_set_delete(handle: HANDLE, delete: bool) -> winfsp::Result<()> {
     let mut iosb: MaybeUninit<IO_STATUS_BLOCK> = MaybeUninit::uninit();
     let mut disp_info = FILE_DISPOSITION_INFORMATION {
@@ -757,4 +760,12 @@ pub fn lfs_query_directory_file(
 
         r_return!(result, unsafe { iosb.assume_init().Information })
     })
+}
+
+pub fn lfs_set_security(handle: HANDLE, information: u32, security_descriptor: PSECURITY_DESCRIPTOR) -> winfsp::Result<()> {
+    let result = unsafe {
+        NTSTATUS(nt::NtSetSecurityObject(handle.0, information, security_descriptor.0))
+    };
+
+    r_return!(result)
 }

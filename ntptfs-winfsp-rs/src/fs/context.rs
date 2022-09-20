@@ -15,7 +15,7 @@ use std::os::windows::ffi::{OsStrExt, OsStringExt};
 use std::os::windows::fs::MetadataExt;
 use std::path::Path;
 use std::ptr::addr_of;
-use widestring::{u16cstr, U16CString};
+use widestring::{u16cstr, U16CStr, U16CString};
 use windows::core::{HSTRING, PCWSTR, PWSTR};
 use windows::w;
 use windows::Win32::Foundation::{
@@ -143,7 +143,7 @@ impl NtPassthroughContext {
         let file_name_slice = unsafe {
             let file_name_ptr = addr_of!((*query_info).FileName) as *const u16;
             std::slice::from_raw_parts(
-                file_name_ptr,
+                file_name_ptr.cast(),
                 addr_of!((*query_info).FileNameLength)
                     .read()
                     .checked_div(std::mem::size_of::<u16>() as u32)
@@ -152,7 +152,8 @@ impl NtPassthroughContext {
             )
         };
 
-        // todo: check null termination
+        eprintln!("dir {}", U16CString::from_vec(file_name_slice).expect("invalid fname").display());
+
         unsafe { dir_info.set_file_name_raw(file_name_slice)? }
 
         let file_info = dir_info.file_info_mut();
@@ -170,7 +171,7 @@ impl NtPassthroughContext {
         file_info.LastAccessTime = unsafe { addr_of!((*query_info).LastAccessTime).read() } as u64;
         file_info.LastWriteTime = unsafe { addr_of!((*query_info).LastWriteTime).read() } as u64;
         file_info.ChangeTime = unsafe { addr_of!((*query_info).ChangeTime).read() } as u64;
-        // file_info.IndexNumber = unsafe { addr_of!((*query_info).FileId).read() } as u64;
+        file_info.IndexNumber = unsafe { addr_of!((*query_info).FileId).read() } as u64;
         file_info.HardLinks = 0;
         file_info.EaSize = if FILE_ATTRIBUTE_REPARSE_POINT & file_info.FileAttributes != 0 {
             lfs::lfs_get_ea_size(unsafe { addr_of!((*query_info).EaSize).read() })
@@ -237,7 +238,6 @@ impl FileSystemContext for NtPassthroughContext {
         granted_access: FILE_ACCESS_FLAGS,
         file_info: &mut FSP_FSCTL_FILE_INFO,
     ) -> winfsp::Result<Self::FileContext> {
-        eprintln!("open: {:?}", file_name.as_ref());
         let backup_access = granted_access.0;
 
         let is_directory = unsafe {
@@ -649,52 +649,57 @@ impl FileSystemContext for NtPassthroughContext {
         const _: () = assert!(
             size_of::<FILE_ID_BOTH_DIR_INFORMATION>() == size_of::<FILE_ID_BOTH_DIR_INFO>()
         );
+        eprintln!("readdir");
         let dir_size = context.dir_size();
         let handle = context.handle();
         let pattern = pattern.map(|p| PCWSTR(p.as_ref().as_ptr()));
+        eprintln!("Pattern: {}", pattern.as_ref().map_or(Box::new("None") as Box<dyn std::fmt::Display>, |f| unsafe { Box::new(f.display()) as Box<dyn std::fmt::Display> }));
         {
             let mut dirinfo = DirInfo::<{ MAX_PATH as usize }>::new();
             let mut dirbuffer = context
                 .dir_buffer()
                 .acquire(marker.is_none(), Some(dir_size))?;
+
             // todo: don't reallocate this.
             let mut query_buffer = vec![0u8; 16 * 1024];
             let mut restart_scan = true;
-            'once: while restart_scan {
-                let bytes_transferred = lfs::lfs_query_directory_file(
+
+            'once: loop {
+                if let Ok(bytes_transferred) = lfs::lfs_query_directory_file(
                     handle,
                     &mut query_buffer,
                     FileIdBothDirectoryInformation as i32,
                     false,
                     &pattern,
                     restart_scan,
-                )?;
-
-                let query_buffer = &query_buffer[..bytes_transferred];
-                let mut query_buffer_cursor = query_buffer.as_ptr() as *const FILE_ID_BOTH_DIR_INFO;
-                loop {
-                    // SAFETY: FILE_ID_BOTH_DIR_INFO has FileName as the last VST array member, so it's offset is size_of - 1.
-                    // bounds check to ensure we don't go past the edge of the buffer.
-                    if query_buffer.as_ptr().wrapping_add(bytes_transferred)
-                        < (query_buffer_cursor as *const _ as *const u8)
+                ) {
+                    let mut query_buffer_cursor = query_buffer.as_ptr() as *const FILE_ID_BOTH_DIR_INFO;
+                    'inner: loop {
+                        // SAFETY: FILE_ID_BOTH_DIR_INFO has FileName as the last VST array member, so it's offset is size_of - 1.
+                        // bounds check to ensure we don't go past the edge of the buffer.
+                        if query_buffer.as_ptr().wrapping_add(bytes_transferred)
+                            < (query_buffer_cursor as *const _ as *const u8)
                             .wrapping_add(size_of::<FILE_ID_BOTH_DIR_INFO>() - 1)
-                    {
-                        break 'once;
-                    }
-                    Self::copy_query_info_to_dirinfo(query_buffer_cursor, &mut dirinfo)?;
-                    dirbuffer.write(&mut dirinfo)?;
-
-                    unsafe {
-                        let query_next = addr_of!((*query_buffer_cursor).NextEntryOffset).read();
-                        if query_next == 0 {
-                            break;
+                        {
+                            break 'once;
                         }
-                        query_buffer_cursor = (query_buffer_cursor as *const _ as *const u8)
-                            .wrapping_add(query_next as usize)
-                            .cast();
+                        Self::copy_query_info_to_dirinfo(query_buffer_cursor, &mut dirinfo)?;
+                        dirbuffer.write(&mut dirinfo)?;
+
+                        unsafe {
+                            let query_next = addr_of!((*query_buffer_cursor).NextEntryOffset).read();
+                            if query_next == 0 {
+                                break 'inner;
+                            }
+                            query_buffer_cursor = (query_buffer_cursor as *const _ as *const u8)
+                                .wrapping_add(query_next as usize)
+                                .cast();
+                        }
                     }
+                    restart_scan = false;
+                } else {
+                    break 'once;
                 }
-                restart_scan = false;
             }
         }
         Ok(context.dir_buffer().read(marker, buffer))
@@ -718,6 +723,7 @@ impl FileSystemContext for NtPassthroughContext {
     ) -> winfsp::Result<u32> {
         todo!()
     }
+
     fn delete_reparse_point<P: AsRef<WCStr>>(
         &self,
         _context: &Self::FileContext,
@@ -726,6 +732,7 @@ impl FileSystemContext for NtPassthroughContext {
     ) -> winfsp::Result<()> {
         todo!()
     }
+
     fn set_volume_label<P: Into<PWSTR>>(
         &self,
         _volume_label: P,
@@ -733,6 +740,7 @@ impl FileSystemContext for NtPassthroughContext {
     ) -> winfsp::Result<()> {
         todo!()
     }
+
     fn get_dir_info_by_name<P: AsRef<WCStr>>(
         &self,
         _context: &Self::FileContext,
@@ -741,6 +749,7 @@ impl FileSystemContext for NtPassthroughContext {
     ) -> winfsp::Result<()> {
         todo!()
     }
+
     fn get_stream_info(
         &self,
         _context: &Self::FileContext,
@@ -750,10 +759,10 @@ impl FileSystemContext for NtPassthroughContext {
     }
     fn set_security(
         &self,
-        _context: &Self::FileContext,
-        _security_information: u32,
-        _modification_descriptor: PSECURITY_DESCRIPTOR,
+        context: &Self::FileContext,
+        security_information: u32,
+        modification_descriptor: PSECURITY_DESCRIPTOR,
     ) -> winfsp::Result<()> {
-        todo!()
+        lfs::lfs_set_security(context.handle(), security_information, modification_descriptor)
     }
 }
