@@ -29,8 +29,8 @@ use windows::Win32::System::WindowsProgramming::NtClose;
 #[repr(transparent)]
 #[derive(Debug)]
 pub struct SafeDropHandle<T>(HANDLE, PhantomData<T>)
-    where
-        T: HandleCloseHandler;
+where
+    T: HandleCloseHandler;
 
 pub trait HandleCloseHandler {
     fn close(handle: HANDLE);
@@ -59,8 +59,8 @@ impl HandleCloseHandler for NtHandleDrop {
 }
 
 impl<T> SafeDropHandle<T>
-    where
-        T: HandleCloseHandler,
+where
+    T: HandleCloseHandler,
 {
     /// Invalidate the handle without dropping it.
     pub fn invalidate(&mut self) {
@@ -72,8 +72,8 @@ impl<T> SafeDropHandle<T>
 }
 
 impl<T> Drop for SafeDropHandle<T>
-    where
-        T: HandleCloseHandler,
+where
+    T: HandleCloseHandler,
 {
     fn drop(&mut self) {
         if !self.is_invalid() {
@@ -83,8 +83,8 @@ impl<T> Drop for SafeDropHandle<T>
 }
 
 impl<T> Deref for SafeDropHandle<T>
-    where
-        T: HandleCloseHandler,
+where
+    T: HandleCloseHandler,
 {
     type Target = HANDLE;
 
@@ -94,8 +94,8 @@ impl<T> Deref for SafeDropHandle<T>
 }
 
 impl<T> DerefMut for SafeDropHandle<T>
-    where
-        T: HandleCloseHandler,
+where
+    T: HandleCloseHandler,
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
@@ -103,8 +103,8 @@ impl<T> DerefMut for SafeDropHandle<T>
 }
 
 impl<T> From<HANDLE> for SafeDropHandle<T>
-    where
-        T: HandleCloseHandler,
+where
+    T: HandleCloseHandler,
 {
     fn from(h: HANDLE) -> Self {
         Self(h, PhantomData::default())

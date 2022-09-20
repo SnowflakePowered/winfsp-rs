@@ -1,7 +1,7 @@
 use std::ffi::c_void;
 use std::slice;
 use widestring::U16CStr;
-use windows::core::{PCWSTR, PWSTR};
+use windows::core::PWSTR;
 
 use windows::Win32::Foundation::{
     EXCEPTION_NONCONTINUABLE_EXCEPTION, STATUS_ACCESS_VIOLATION, STATUS_INSUFFICIENT_RESOURCES,
@@ -32,8 +32,8 @@ fn require_fctx<C: FileSystemContext<DIR_BUF_SIZE>, F, const DIR_BUF_SIZE: usize
     fctx: PVOID,
     inner: F,
 ) -> FSP_STATUS
-    where
-        F: FnOnce(&C, &mut C::FileContext) -> error::Result<()>,
+where
+    F: FnOnce(&C, &mut C::FileContext) -> error::Result<()>,
 {
     if fs.is_null() || fctx.is_null() {
         dbg!("require_ref failed");
@@ -59,8 +59,8 @@ fn require_ctx<C: FileSystemContext<DIR_BUF_SIZE>, F, const DIR_BUF_SIZE: usize>
     fs: *mut FSP_FILE_SYSTEM,
     inner: F,
 ) -> FSP_STATUS
-    where
-        F: FnOnce(&C) -> error::Result<()>,
+where
+    F: FnOnce(&C) -> error::Result<()>,
 {
     if fs.is_null() {
         dbg!("require_ref failed");
@@ -80,8 +80,8 @@ fn require_fctx_io<C: FileSystemContext<DIR_BUF_SIZE>, F, const DIR_BUF_SIZE: us
     fctx: PVOID,
     inner: F,
 ) -> FSP_STATUS
-    where
-        F: FnOnce(&C, &C::FileContext) -> error::Result<IoResult>,
+where
+    F: FnOnce(&C, &C::FileContext) -> error::Result<IoResult>,
 {
     let context: &C = unsafe { &*(*fs).UserContext.cast::<C>() };
     let fctx = fctx.cast::<C::FileContext>();

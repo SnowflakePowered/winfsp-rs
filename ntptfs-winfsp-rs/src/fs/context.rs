@@ -9,17 +9,18 @@ use ntapi::winapi::um::winnt::{
     MAXIMUM_ALLOWED,
 };
 
-use std::ffi::{OsStr, OsString};
+use std::ffi::OsString;
 use std::mem::size_of;
-use std::os::windows::ffi::{OsStrExt, OsStringExt};
+
 use std::os::windows::fs::MetadataExt;
 use std::path::Path;
 use std::ptr::addr_of;
-use widestring::{u16cstr, U16CStr, U16CString};
+
+use widestring::{u16cstr, U16CString};
 use windows::core::{HSTRING, PCWSTR, PWSTR};
 use windows::w;
 use windows::Win32::Foundation::{
-    GetLastError, HANDLE, INVALID_HANDLE_VALUE, STATUS_ACCESS_DENIED, STATUS_INVALID_PARAMETER,
+    GetLastError, INVALID_HANDLE_VALUE, STATUS_ACCESS_DENIED, STATUS_INVALID_PARAMETER,
     STATUS_MEDIA_WRITE_PROTECTED, STATUS_NOT_A_DIRECTORY, STATUS_SHARING_VIOLATION,
 };
 use windows::Win32::Security::{
@@ -27,13 +28,12 @@ use windows::Win32::Security::{
     PSECURITY_DESCRIPTOR,
 };
 use windows::Win32::Storage::FileSystem::{
-    CreateFileW, GetFileInformationByHandle, BY_HANDLE_FILE_INFORMATION, FILE_ACCESS_FLAGS,
-    FILE_ATTRIBUTE_NORMAL, FILE_FLAGS_AND_ATTRIBUTES, FILE_FLAG_BACKUP_SEMANTICS,
-    FILE_FLAG_OVERLAPPED, FILE_ID_BOTH_DIR_INFO, FILE_READ_ATTRIBUTES, FILE_SHARE_DELETE,
-    FILE_SHARE_READ, FILE_SHARE_WRITE, OPEN_EXISTING, READ_CONTROL, SYNCHRONIZE,
+    CreateFileW, FILE_ACCESS_FLAGS, FILE_ATTRIBUTE_NORMAL, FILE_FLAGS_AND_ATTRIBUTES,
+    FILE_FLAG_BACKUP_SEMANTICS, FILE_FLAG_OVERLAPPED, FILE_ID_BOTH_DIR_INFO, FILE_READ_ATTRIBUTES,
+    FILE_SHARE_DELETE, FILE_SHARE_READ, FILE_SHARE_WRITE, OPEN_EXISTING, READ_CONTROL, SYNCHRONIZE,
 };
 use windows::Win32::System::WindowsProgramming::{
-    FILE_OPEN_FOR_BACKUP_INTENT, FILE_OPEN_REPARSE_POINT,
+    FILE_OPEN_FOR_BACKUP_INTENT, FILE_OPEN_REPARSE_POINT, INFINITE,
 };
 use windows_sys::Win32::Storage::FileSystem::FILE_CREATE;
 use windows_sys::Win32::System::WindowsProgramming::{
@@ -130,7 +130,7 @@ impl NtPassthroughContext {
         volume_params.set_FlushAndPurgeOnCleanup(1);
         volume_params.set_RejectIrpPriorToTransact0(1);
         volume_params.set_UmFileContextIsUserContext2(1);
-
+        volume_params.FileInfoTimeout = INFINITE;
         Ok(context)
     }
 
@@ -151,8 +151,6 @@ impl NtPassthroughContext {
                     as usize,
             )
         };
-
-        eprintln!("dir {}", U16CString::from_vec(file_name_slice).expect("invalid fname").display());
 
         unsafe { dir_info.set_file_name_raw(file_name_slice)? }
 
@@ -649,22 +647,21 @@ impl FileSystemContext for NtPassthroughContext {
         const _: () = assert!(
             size_of::<FILE_ID_BOTH_DIR_INFORMATION>() == size_of::<FILE_ID_BOTH_DIR_INFO>()
         );
-        eprintln!("readdir");
+
         let dir_size = context.dir_size();
         let handle = context.handle();
         let pattern = pattern.map(|p| PCWSTR(p.as_ref().as_ptr()));
-        eprintln!("Pattern: {}", pattern.as_ref().map_or(Box::new("None") as Box<dyn std::fmt::Display>, |f| unsafe { Box::new(f.display()) as Box<dyn std::fmt::Display> }));
+        let mut dirinfo = DirInfo::<{ MAX_PATH as usize }>::new();
+        if let Ok(mut dirbuffer) = context
+            .dir_buffer()
+            .acquire(marker.is_none(), Some(dir_size))
         {
-            let mut dirinfo = DirInfo::<{ MAX_PATH as usize }>::new();
-            let mut dirbuffer = context
-                .dir_buffer()
-                .acquire(marker.is_none(), Some(dir_size))?;
-
             // todo: don't reallocate this.
             let mut query_buffer = vec![0u8; 16 * 1024];
             let mut restart_scan = true;
 
             'once: loop {
+                query_buffer.fill(0);
                 if let Ok(bytes_transferred) = lfs::lfs_query_directory_file(
                     handle,
                     &mut query_buffer,
@@ -673,13 +670,14 @@ impl FileSystemContext for NtPassthroughContext {
                     &pattern,
                     restart_scan,
                 ) {
-                    let mut query_buffer_cursor = query_buffer.as_ptr() as *const FILE_ID_BOTH_DIR_INFO;
+                    let mut query_buffer_cursor =
+                        query_buffer.as_ptr() as *const FILE_ID_BOTH_DIR_INFO;
                     'inner: loop {
                         // SAFETY: FILE_ID_BOTH_DIR_INFO has FileName as the last VST array member, so it's offset is size_of - 1.
                         // bounds check to ensure we don't go past the edge of the buffer.
                         if query_buffer.as_ptr().wrapping_add(bytes_transferred)
                             < (query_buffer_cursor as *const _ as *const u8)
-                            .wrapping_add(size_of::<FILE_ID_BOTH_DIR_INFO>() - 1)
+                                .wrapping_add(size_of::<FILE_ID_BOTH_DIR_INFO>() - 1)
                         {
                             break 'once;
                         }
@@ -687,7 +685,8 @@ impl FileSystemContext for NtPassthroughContext {
                         dirbuffer.write(&mut dirinfo)?;
 
                         unsafe {
-                            let query_next = addr_of!((*query_buffer_cursor).NextEntryOffset).read();
+                            let query_next =
+                                addr_of!((*query_buffer_cursor).NextEntryOffset).read();
                             if query_next == 0 {
                                 break 'inner;
                             }
@@ -763,6 +762,10 @@ impl FileSystemContext for NtPassthroughContext {
         security_information: u32,
         modification_descriptor: PSECURITY_DESCRIPTOR,
     ) -> winfsp::Result<()> {
-        lfs::lfs_set_security(context.handle(), security_information, modification_descriptor)
+        lfs::lfs_set_security(
+            context.handle(),
+            security_information,
+            modification_descriptor,
+        )
     }
 }

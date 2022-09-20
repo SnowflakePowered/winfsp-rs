@@ -5,7 +5,11 @@ use std::os::windows::ffi::OsStrExt;
 
 use widestring::{u16cstr, U16CStr};
 use windows::Win32::Foundation::{STATUS_INSUFFICIENT_RESOURCES, STATUS_SUCCESS};
-use winfsp_sys::{FspFileSystemAcquireDirectoryBufferEx, FspFileSystemDeleteDirectoryBuffer, FspFileSystemFillDirectoryBuffer, FspFileSystemReadDirectoryBuffer, FspFileSystemReleaseDirectoryBuffer, FSP_FSCTL_FILE_INFO, PVOID, FSP_FSCTL_DIR_INFO};
+use winfsp_sys::{
+    FspFileSystemAcquireDirectoryBufferEx, FspFileSystemDeleteDirectoryBuffer,
+    FspFileSystemFillDirectoryBuffer, FspFileSystemReadDirectoryBuffer,
+    FspFileSystemReleaseDirectoryBuffer, FSP_FSCTL_DIR_INFO, FSP_FSCTL_FILE_INFO, PVOID,
+};
 
 use crate::error::Result;
 use crate::WCStr;
@@ -156,7 +160,10 @@ pub struct DirInfo<const BUFFER_SIZE: usize> {
 impl<const BUFFER_SIZE: usize> DirInfo<BUFFER_SIZE> {
     pub fn new() -> Self {
         assert_eq!(104, std::mem::size_of::<DirInfo<0>>());
-        assert_eq!(Layout::new::<FSP_FSCTL_DIR_INFO>(), Layout::new::<DirInfo<0>>());
+        assert_eq!(
+            Layout::new::<FSP_FSCTL_DIR_INFO>(),
+            Layout::new::<DirInfo<0>>()
+        );
         Self {
             // begin with initially no file_name
             size: std::mem::size_of::<DirInfo<0>>() as u16,
@@ -193,7 +200,6 @@ impl<const BUFFER_SIZE: usize> DirInfo<BUFFER_SIZE> {
             .collect::<Vec<_>>();
         unsafe { self.set_file_name_raw(file_name.as_slice()) }
     }
-
 
     /// Set the file name of the directory info.
     pub fn set_file_name_cstr<P: AsRef<WCStr>>(&mut self, file_name: P) -> Result<()> {
