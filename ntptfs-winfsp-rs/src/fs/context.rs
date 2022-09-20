@@ -18,7 +18,6 @@ use std::ptr::addr_of;
 
 use widestring::{u16cstr, U16CString};
 use windows::core::{HSTRING, PCWSTR, PWSTR};
-use windows::w;
 use windows::Win32::Foundation::{
     GetLastError, INVALID_HANDLE_VALUE, STATUS_ACCESS_DENIED, STATUS_INVALID_PARAMETER,
     STATUS_MEDIA_WRITE_PROTECTED, STATUS_NOT_A_DIRECTORY, STATUS_SHARING_VIOLATION,
@@ -48,8 +47,6 @@ use winfsp::filesystem::{
 };
 use winfsp::util::Win32SafeHandle;
 use winfsp::WCStr;
-
-const VOLUME_LABEL: &HSTRING = w!("Snowflake");
 
 #[repr(C)]
 #[derive(Debug)]
