@@ -6,6 +6,7 @@ use windows::core::PWSTR;
 use windows::Win32::Foundation::STATUS_INVALID_DEVICE_REQUEST;
 use windows::Win32::Security::PSECURITY_DESCRIPTOR;
 use windows::Win32::Storage::FileSystem::{FILE_ACCESS_FLAGS, FILE_FLAGS_AND_ATTRIBUTES};
+use windows::Win32::System::WindowsProgramming::IO_STATUS_BLOCK;
 
 use winfsp_sys::{
     FSP_FSCTL_FILE_INFO, FSP_FSCTL_TRANSACT_REQ, FSP_FSCTL_TRANSACT_RSP, FSP_FSCTL_VOLUME_INFO,
@@ -22,6 +23,22 @@ pub struct FileSecurity {
 pub struct IoResult {
     pub bytes_transferred: u32,
     pub io_pending: bool,
+}
+
+#[repr(C)]
+#[derive(Default, Copy, Clone, Debug)]
+pub struct FileInfo {
+    pub file_attributes: u32,
+    pub reparse_tag: u32,
+    pub allocation_size: u64,
+    pub file_size: u64,
+    pub creation_time: u64,
+    pub last_access_time: u64,
+    pub last_write_time: u64,
+    pub change_time: u64,
+    pub index_number: u64,
+    pub hard_links: u32,
+    pub ea_size: u32,
 }
 
 pub const MAX_PATH: usize = 260;
@@ -80,15 +97,6 @@ pub trait FileSystemContext<const DIR_INFO_SIZE: usize = MAX_PATH>: Sized {
         Err(STATUS_INVALID_DEVICE_REQUEST.into())
     }
 
-    fn delete_reparse_point<P: AsRef<WCStr>>(
-        &self,
-        context: &Self::FileContext,
-        file_name: P,
-        buffer: &[u8],
-    ) -> Result<()> {
-        Err(STATUS_INVALID_DEVICE_REQUEST.into())
-    }
-
     fn flush(
         &self,
         context: Option<&Self::FileContext>,
@@ -129,6 +137,7 @@ pub trait FileSystemContext<const DIR_INFO_SIZE: usize = MAX_PATH>: Sized {
         file_attributes: FILE_FLAGS_AND_ATTRIBUTES,
         replace_file_attributes: bool,
         allocation_size: u64,
+        extra_buffer: Option<&[u8]>,
         file_info: &mut FSP_FSCTL_FILE_INFO,
     ) -> Result<()> {
         Err(STATUS_INVALID_DEVICE_REQUEST.into())
@@ -231,21 +240,40 @@ pub trait FileSystemContext<const DIR_INFO_SIZE: usize = MAX_PATH>: Sized {
         file_name: P,
         out_dir_info: &mut DirInfo<DIR_INFO_SIZE>,
     ) -> Result<()> {
-        // todo: wrap FSP_FSCTL_DIR_INFO
         Err(STATUS_INVALID_DEVICE_REQUEST.into())
     }
 
-    #[cfg(feature = "reparse_points")]
+    fn resolve_reparse_points<P: AsRef<WCStr>>(
+        &self,
+        context: &Self::FileContext,
+        file_name: P,
+        index: u32,
+        resolve_last_component: bool,
+        io_status_block: &mut IO_STATUS_BLOCK,
+        buffer: &mut [u8],
+    ) -> Result<u32> {
+        Err(STATUS_INVALID_DEVICE_REQUEST.into())
+    }
+
+    fn get_reparse_point_by_name<P: AsRef<WCStr>>(
+        &self,
+        context: &Self::FileContext,
+        file_name: P,
+        is_directory: bool,
+        buffer: &mut [u8],
+    ) -> Result<u32> {
+        Err(STATUS_INVALID_DEVICE_REQUEST.into())
+    }
+
     fn get_reparse_point<P: AsRef<WCStr>>(
         &self,
         context: &Self::FileContext,
         file_name: P,
         buffer: &mut [u8],
-    ) -> Result<()> {
+    ) -> Result<u32> {
         Err(STATUS_INVALID_DEVICE_REQUEST.into())
     }
 
-    #[cfg(feature = "reparse_points")]
     fn set_reparse_point<P: AsRef<WCStr>>(
         &self,
         context: &Self::FileContext,
@@ -254,7 +282,33 @@ pub trait FileSystemContext<const DIR_INFO_SIZE: usize = MAX_PATH>: Sized {
     ) -> Result<()> {
         Err(STATUS_INVALID_DEVICE_REQUEST.into())
     }
-    // todo: figure out extended attributes safely
+
+    fn delete_reparse_point<P: AsRef<WCStr>>(
+        &self,
+        context: &Self::FileContext,
+        file_name: P,
+        buffer: &[u8],
+    ) -> Result<()> {
+        Err(STATUS_INVALID_DEVICE_REQUEST.into())
+    }
+
+    fn get_extended_attributes<P: AsRef<WCStr>>(
+        &self,
+        context: &Self::FileContext,
+        file_name: P,
+        buffer: &mut [u8],
+    ) -> Result<u32> {
+        Err(STATUS_INVALID_DEVICE_REQUEST.into())
+    }
+
+    fn set_extended_attributes<P: AsRef<WCStr>>(
+        &self,
+        context: &Self::FileContext,
+        buffer: &[u8],
+        file_info: &mut FSP_FSCTL_FILE_INFO,
+    ) -> Result<()> {
+        Err(STATUS_INVALID_DEVICE_REQUEST.into())
+    }
 
     /// Get the context response of the current FSP interface operation.
     ///

@@ -11,9 +11,7 @@ use windows::Win32::Security::PSECURITY_DESCRIPTOR;
 use windows::Win32::Storage::FileSystem::{FILE_ACCESS_FLAGS, FILE_FLAGS_AND_ATTRIBUTES};
 
 use crate::error;
-use winfsp_sys::{
-    FSP_FILE_SYSTEM, FSP_FILE_SYSTEM_INTERFACE, FSP_FSCTL_FILE_INFO, FSP_FSCTL_VOLUME_INFO,
-};
+use winfsp_sys::{FSP_FILE_SYSTEM, FSP_FILE_SYSTEM_INTERFACE, FSP_FSCTL_FILE_INFO, FSP_FSCTL_VOLUME_INFO, PFILE_FULL_EA_INFORMATION};
 use winfsp_sys::{NTSTATUS as FSP_STATUS, PVOID};
 
 use crate::filesystem::{DirMarker, FileSecurity, FileSystemContext, IoResult};
@@ -299,23 +297,37 @@ unsafe extern "C" fn set_volume_label<
     })
 }
 
-unsafe extern "C" fn overwrite<T: FileSystemContext<DIR_BUF_SIZE>, const DIR_BUF_SIZE: usize>(
+unsafe extern "C" fn overwrite_ex<T: FileSystemContext<DIR_BUF_SIZE>, const DIR_BUF_SIZE: usize>(
     fs: *mut FSP_FILE_SYSTEM,
     fctx: PVOID,
     file_attributes: u32,
     replace_file_attributes: u8,
     allocation_size: u64,
+    extra_buffer: PFILE_FULL_EA_INFORMATION,
+    extra_len: u32,
     out_file_info: *mut FSP_FSCTL_FILE_INFO,
 ) -> FSP_STATUS {
     catch_panic!({
         require_fctx(fs, fctx, |context, fctx| {
             let out_file_info = unsafe { &mut *out_file_info };
+            let extra_buffer = if !extra_buffer.is_null() {
+                unsafe {
+                    Some(slice::from_raw_parts(
+                        extra_buffer as *mut u8,
+                        extra_len as usize,
+                    ))
+                }
+            } else {
+                None
+            };
+
             T::overwrite(
                 context,
                 fctx,
                 FILE_FLAGS_AND_ATTRIBUTES(file_attributes),
                 replace_file_attributes != 0,
                 allocation_size,
+                extra_buffer,
                 out_file_info,
             )
         })
@@ -654,13 +666,15 @@ pub struct Interface {
             out_finfo: *mut FSP_FSCTL_FILE_INFO,
         ) -> FSP_STATUS,
     >,
-    overwrite: Option<
+    overwrite_ex: Option<
         unsafe extern "C" fn(
             fs: *mut FSP_FILE_SYSTEM,
             fctx: PVOID,
             file_attributes: u32,
             replace_file_attributes: u8,
             allocation_size: u64,
+            extra_buffer: PFILE_FULL_EA_INFORMATION,
+            extra_len: u32,
             out_file_info: *mut FSP_FSCTL_FILE_INFO,
         ) -> FSP_STATUS,
     >,
@@ -806,14 +820,14 @@ pub struct Interface {
 }
 
 impl Interface {
-    pub fn create<T: FileSystemContext<DIR_BUF_SIZE>, const DIR_BUF_SIZE: usize>() -> Self {
+    pub(crate) fn create<T: FileSystemContext<DIR_BUF_SIZE>, const DIR_BUF_SIZE: usize>() -> Self {
         Interface {
             open: Some(open::<T, DIR_BUF_SIZE>),
             get_security_by_name: Some(get_security_by_name::<T, DIR_BUF_SIZE>),
             close: Some(close::<T, DIR_BUF_SIZE>),
             create_ex: Some(create_ex::<T, DIR_BUF_SIZE>),
             control: Some(control::<T, DIR_BUF_SIZE>),
-            overwrite: Some(overwrite::<T, DIR_BUF_SIZE>),
+            overwrite_ex: Some(overwrite_ex::<T, DIR_BUF_SIZE>),
             read_directory: Some(read_directory::<T, DIR_BUF_SIZE>),
             get_volume_info: Some(get_volume_info::<T, DIR_BUF_SIZE>),
             set_volume_label: Some(set_volume_label::<T, DIR_BUF_SIZE>),
@@ -830,6 +844,10 @@ impl Interface {
             rename: Some(rename::<T, DIR_BUF_SIZE>),
         }
     }
+
+    pub(crate) fn create_with_dirinfo_by_name<T: FileSystemContext<DIR_BUF_SIZE>, const DIR_BUF_SIZE: usize>() -> Self {
+        todo!()
+    }
 }
 
 impl From<Interface> for FSP_FILE_SYSTEM_INTERFACE {
@@ -840,7 +858,7 @@ impl From<Interface> for FSP_FILE_SYSTEM_INTERFACE {
             CreateEx: interface.create_ex,
             GetSecurityByName: interface.get_security_by_name,
             Control: interface.control,
-            Overwrite: interface.overwrite,
+            OverwriteEx: interface.overwrite_ex,
             ReadDirectory: interface.read_directory,
             GetVolumeInfo: interface.get_volume_info,
             SetVolumeLabelW: interface.set_volume_label,

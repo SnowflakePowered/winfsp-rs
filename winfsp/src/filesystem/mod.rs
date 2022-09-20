@@ -1,4 +1,3 @@
-pub mod constants;
 mod context;
 mod dirbuffer;
 mod host;

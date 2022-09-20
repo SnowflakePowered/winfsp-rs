@@ -106,7 +106,7 @@ pub fn lfs_create_file<P: AsRef<WCStr>>(
     file_attributes: u32,
     create_disposition: u32,
     create_options: u32,
-    ea_buffer: &mut Option<&mut [u8]>,
+    ea_buffer: &Option<&[u8]>,
 ) -> winfsp::Result<NtSafeHandle> {
     let file_name = file_name.as_ref();
     let mut unicode_filename = unsafe {
@@ -134,7 +134,7 @@ pub fn lfs_create_file<P: AsRef<WCStr>>(
 
     let mut handle = NtSafeHandle::from(INVALID_HANDLE_VALUE);
 
-    let result = if let Some(buffer) = ea_buffer.as_deref_mut() {
+    let result = if let Some(buffer) = ea_buffer.as_deref() {
         // the lifetime of buffer has to last until after NtCreateFile.
         NTSTATUS(unsafe {
             NtCreateFile(
@@ -149,7 +149,8 @@ pub fn lfs_create_file<P: AsRef<WCStr>>(
                 FILE_SHARE_READ.0 | FILE_SHARE_WRITE.0 | FILE_SHARE_DELETE.0,
                 create_disposition,
                 create_options,
-                buffer.as_mut_ptr().cast(),
+                // SAFETY: Windows promises [in]: https://learn.microsoft.com/en-us/windows/win32/api/winternl/nf-winternl-ntcreatefile
+                buffer.as_ptr().cast_mut().cast(),
                 buffer.len() as u32,
             )
         })
@@ -332,7 +333,7 @@ pub fn lfs_get_ea_size(ea_size: u32) -> u32 {
 pub fn lfs_query_file_name(handle: HANDLE) -> winfsp::Result<Box<[u16]>> {
     let mut iosb: MaybeUninit<IO_STATUS_BLOCK> = MaybeUninit::uninit();
     let mut name_info: VariableSizedBox<FILE_NAME_INFORMATION> = VariableSizedBox::new(
-        winfsp::filesystem::constants::FSP_FSCTL_TRANSACT_PATH_SIZEMAX as usize
+        winfsp::constants::FSP_FSCTL_TRANSACT_PATH_SIZEMAX as usize
             + size_of::<FILE_NAME_INFORMATION>()
             + 1,
     );
@@ -365,7 +366,7 @@ pub fn lfs_get_file_info(
 ) -> winfsp::Result<()> {
     let mut iosb: MaybeUninit<IO_STATUS_BLOCK> = MaybeUninit::uninit();
     let mut file_all_info: VariableSizedBox<FILE_ALL_INFORMATION> = VariableSizedBox::new(
-        winfsp::filesystem::constants::FSP_FSCTL_TRANSACT_PATH_SIZEMAX as usize
+        winfsp::constants::FSP_FSCTL_TRANSACT_PATH_SIZEMAX as usize
             + size_of::<FILE_ALL_INFORMATION>()
             + 1,
     );
@@ -557,7 +558,7 @@ pub fn lfs_rename<P: AsRef<[u16]>>(
     let mut rename_info: VariableSizedBox<FILE_RENAME_INFO> =
         VariableSizedBox::new(file_path_len + std::mem::size_of::<FILE_RENAME_INFO>() + 1);
 
-    if winfsp::filesystem::constants::FSP_FSCTL_TRANSACT_PATH_SIZEMAX < file_path_len as u32 {
+    if winfsp::constants::FSP_FSCTL_TRANSACT_PATH_SIZEMAX < file_path_len as u32 {
         return Err(STATUS_INVALID_PARAMETER.into());
     }
 
@@ -765,4 +766,55 @@ pub fn lfs_set_security(
     };
 
     r_return!(result)
+}
+
+pub fn lfs_fs_control_file(
+    handle: HANDLE,
+    control_code: u32,
+    input: &[u8],
+    output: Option<&mut [u8]>,
+) -> winfsp::Result<usize> {
+    LFS_EVENT.with(|event| {
+        let mut iosb: MaybeUninit<IO_STATUS_BLOCK> = MaybeUninit::uninit();
+        let mut result = if let Some(output) = output {
+            unsafe {
+                NTSTATUS(nt::NtFsControlFile(
+                    handle.0,
+                    event.0,
+                    None,
+                    std::ptr::null_mut(),
+                    iosb.as_mut_ptr(),
+                    control_code,
+                    input.as_ptr().cast(),
+                    input.len() as u32,
+                    output.as_mut_ptr().cast(),
+                    output.len() as u32,
+                ))
+            }
+        } else {
+            unsafe {
+                NTSTATUS(nt::NtFsControlFile(
+                    handle.0,
+                    event.0,
+                    None,
+                    std::ptr::null_mut(),
+                    iosb.as_mut_ptr(),
+                    control_code,
+                    input.as_ptr().cast(),
+                    input.len() as u32,
+                    std::ptr::null_mut(),
+                    0u32,
+                ))
+            }
+        };
+
+        if result == STATUS_PENDING {
+            unsafe {
+                WaitForSingleObject(*event, INFINITE);
+            }
+            let iosb = unsafe { iosb.assume_init() };
+            result = NTSTATUS(unsafe { iosb.Anonymous.Status });
+        }
+        r_return!(result, unsafe { iosb.assume_init().Information })
+    })
 }

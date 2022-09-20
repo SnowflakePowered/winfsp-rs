@@ -89,6 +89,19 @@ extern "system" {
         SecurityInformation: SECURITY_INFORMATION,
         SecurityDescriptor: PSECURITY_DESCRIPTOR,
     ) -> windows_sys::Win32::Foundation::NTSTATUS;
+
+    pub fn NtFsControlFile(
+        FileHandle: HANDLE,
+        Event: HANDLE,
+        ApcRoutine: PIO_APC_ROUTINE,
+        ApcContext: *mut c_void,
+        IoStatusBlock: *mut IO_STATUS_BLOCK,
+        FsControlCode: u32,
+        InputBuffer: *const c_void,
+        InputBufferLength: u32,
+        OutputBuffer: *mut c_void,
+        OutputBufferLength: u32,
+    ) -> windows_sys::Win32::Foundation::NTSTATUS;
 }
 
 #[allow(non_snake_case)]

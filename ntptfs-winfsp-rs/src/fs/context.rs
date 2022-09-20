@@ -12,6 +12,7 @@ use ntapi::winapi::um::winnt::{
 use std::ffi::OsString;
 use std::mem::size_of;
 
+use ntapi::winapi::um::winioctl::FSCTL_SET_REPARSE_POINT;
 use std::os::windows::fs::MetadataExt;
 use std::path::Path;
 use std::ptr::addr_of;
@@ -39,8 +40,8 @@ use windows_sys::Win32::System::WindowsProgramming::{
     FILE_DIRECTORY_FILE, FILE_NON_DIRECTORY_FILE, FILE_NO_EA_KNOWLEDGE,
     FILE_SYNCHRONOUS_IO_NONALERT,
 };
+use winfsp::constants::FspCleanupFlags::FspCleanupDelete;
 use winfsp::error::FspError;
-use winfsp::filesystem::constants::FspCleanupFlags::FspCleanupDelete;
 use winfsp::filesystem::{
     DirInfo, DirMarker, FileSecurity, FileSystemContext, IoResult, FSP_FSCTL_FILE_INFO,
     FSP_FSCTL_VOLUME_INFO, FSP_FSCTL_VOLUME_PARAMS, MAX_PATH,
@@ -94,7 +95,7 @@ impl NtPassthroughContext {
             root_prefix_len,
             root_osstring: root.as_ref().to_path_buf().into_os_string(),
             root_prefix: U16CString::from_vec(root_prefix).expect("invalid root path"),
-            set_alloc_size_on_cleanup: false,
+            set_alloc_size_on_cleanup: true,
         })
     }
 
@@ -127,7 +128,9 @@ impl NtPassthroughContext {
         volume_params.set_FlushAndPurgeOnCleanup(1);
         volume_params.set_RejectIrpPriorToTransact0(1);
         volume_params.set_UmFileContextIsUserContext2(1);
-        volume_params.FileInfoTimeout = INFINITE;
+        volume_params.set_FlushAndPurgeOnCleanup(1);
+        volume_params.set_WslFeatures(1);
+        volume_params.FileInfoTimeout = 1000;
         Ok(context)
     }
 
@@ -197,7 +200,7 @@ impl FileSystemContext for NtPassthroughContext {
 
         let attributes = lfs::lfs_query_file_attributes(*handle)?;
 
-        // cache FileAttributes for Open
+        // cache file_attributes for Open
         unsafe {
             self.with_operation_response(|rsp| {
                 rsp.Rsp.Create.Opened.FileInfo.FileAttributes = attributes;
@@ -308,8 +311,8 @@ impl FileSystemContext for NtPassthroughContext {
         file_attributes: FILE_FLAGS_AND_ATTRIBUTES,
         security_descriptor: PSECURITY_DESCRIPTOR,
         allocation_size: u64,
-        _extra_buffer: Option<&[u8]>,
-        _extra_buffer_is_reparse_point: bool,
+        extra_buffer: Option<&[u8]>,
+        extra_buffer_is_reparse_point: bool,
         file_info: &mut FSP_FSCTL_FILE_INFO,
     ) -> winfsp::Result<Self::FileContext> {
         let is_directory = create_options & FILE_DIRECTORY_FILE != 0;
@@ -361,8 +364,7 @@ impl FileSystemContext for NtPassthroughContext {
             file_attributes.0,
             FILE_CREATE,
             FILE_OPEN_FOR_BACKUP_INTENT | FILE_OPEN_REPARSE_POINT | create_options,
-            // todo: ea
-            &mut None,
+            &extra_buffer,
         );
 
         let handle = match result {
@@ -379,13 +381,15 @@ impl FileSystemContext for NtPassthroughContext {
                     file_attributes.0,
                     FILE_CREATE,
                     FILE_OPEN_FOR_BACKUP_INTENT | FILE_OPEN_REPARSE_POINT | create_options,
-                    &mut None,
+                    &extra_buffer,
                 )
             }
             Err(e) => Err(e),
         }?;
 
-        // todo: WSL features
+        if let Some(extra_buffer) = extra_buffer && extra_buffer_is_reparse_point {
+            lfs::lfs_fs_control_file(*handle, FSCTL_SET_REPARSE_POINT, extra_buffer, None)?;
+        }
 
         lfs::lfs_get_file_info(*handle, Some(self.root_prefix_len), file_info)?;
 
@@ -406,6 +410,7 @@ impl FileSystemContext for NtPassthroughContext {
         file_attributes: FILE_FLAGS_AND_ATTRIBUTES,
         replace_file_attributes: bool,
         allocation_size: u64,
+        extra_buffer: Option<&[u8]>,
         file_info: &mut FSP_FSCTL_FILE_INFO,
     ) -> winfsp::Result<()> {
         let mut allocation_size = if allocation_size != 0 {
@@ -440,7 +445,7 @@ impl FileSystemContext for NtPassthroughContext {
                 FILE_OVERWRITE
             },
             FILE_OPEN_FOR_BACKUP_INTENT | FILE_OPEN_REPARSE_POINT,
-            &mut None,
+            &extra_buffer,
         )?;
 
         // explicit close handle.

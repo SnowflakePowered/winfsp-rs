@@ -2,6 +2,7 @@
 #![feature(io_error_more)]
 #![deny(unsafe_op_in_unsafe_fn)]
 
+pub mod constants;
 pub mod error;
 pub mod filesystem;
 mod init;

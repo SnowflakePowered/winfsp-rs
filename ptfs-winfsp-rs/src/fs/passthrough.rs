@@ -35,8 +35,8 @@ use windows::Win32::Storage::FileSystem::{
 use windows::Win32::System::WindowsProgramming::{FILE_DELETE_ON_CLOSE, FILE_DIRECTORY_FILE};
 use windows::Win32::System::IO::{OVERLAPPED, OVERLAPPED_0, OVERLAPPED_0_0};
 
+use winfsp::constants::FspCleanupFlags;
 use winfsp::error::{FspError, Result};
-use winfsp::filesystem::constants::FspCleanupFlags;
 use winfsp::filesystem::{
     DirBuffer, DirInfo, DirMarker, FileSecurity, FileSystemContext, FileSystemHost, IoResult,
     FSP_FSCTL_FILE_INFO, FSP_FSCTL_VOLUME_INFO, FSP_FSCTL_VOLUME_PARAMS,
@@ -48,8 +48,7 @@ use winfsp::WCStr;
 const ALLOCATION_UNIT: u16 = 4096;
 const VOLUME_LABEL: &HSTRING = w!("Snowflake");
 const FULLPATH_SIZE: usize = MAX_PATH as usize
-    + (winfsp::filesystem::constants::FSP_FSCTL_TRANSACT_PATH_SIZEMAX as usize
-        / std::mem::size_of::<u16>());
+    + (winfsp::constants::FSP_FSCTL_TRANSACT_PATH_SIZEMAX as usize / std::mem::size_of::<u16>());
 
 pub struct Ptfs {
     pub fs: FileSystemHost,
@@ -377,7 +376,8 @@ impl FileSystemContext for PtfsContext {
         context: &Self::FileContext,
         file_attributes: FILE_FLAGS_AND_ATTRIBUTES,
         replace_file_attributes: bool,
-        _allocation_size: u64,
+        allocation_size: u64,
+        extra_buffer: Option<&[u8]>,
         file_info: &mut FSP_FSCTL_FILE_INFO,
     ) -> Result<()> {
         // todo: preserve allocation size
