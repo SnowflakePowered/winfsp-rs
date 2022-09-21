@@ -1,7 +1,7 @@
-use widestring::U16CStr;
 use crate::error::Result;
 use crate::filesystem::{DirInfo, DirMarker};
 use crate::WCStr;
+use widestring::U16CStr;
 
 use windows::core::PWSTR;
 use windows::Win32::Foundation::STATUS_INVALID_DEVICE_REQUEST;
@@ -262,7 +262,6 @@ pub trait FileSystemContext<const DIR_INFO_SIZE: usize = MAX_PATH>: Sized {
     /// Unlike WinFSP, you may assume that `buffer` is always valid and never null.
     fn get_reparse_point_by_name<P: AsRef<WCStr>>(
         &self,
-        context: &Self::FileContext,
         file_name: P,
         is_directory: bool,
         buffer: &mut [u8],

@@ -199,8 +199,8 @@ impl FileSystemContext for NtPassthroughContext {
             return Ok(FileSecurity {
                 reparse: true,
                 sz_security_descriptor: descriptor_len.unwrap_or(0),
-                attributes: reparse_index
-            })
+                attributes: reparse_index,
+            });
         }
         let handle = lfs::lfs_open_file(
             *self.root_handle,
@@ -766,7 +766,6 @@ impl FileSystemContext for NtPassthroughContext {
 
     fn get_reparse_point_by_name<P: AsRef<WCStr>>(
         &self,
-        _context: &Self::FileContext,
         file_name: P,
         is_directory: bool,
         buffer: &mut [u8],

@@ -685,14 +685,14 @@ unsafe extern "C" fn get_reparse_point_by_name<
     const DIR_BUF_SIZE: usize,
 >(
     fs: *mut FSP_FILE_SYSTEM,
-    fctx: PVOID,
+    _ctx: PVOID,
     file_name: *mut u16,
     is_directory: u8,
     buffer: PVOID,
     psize: PSIZE_T,
 ) -> FSP_STATUS {
     catch_panic!({
-        require_fctx(fs, fctx, |context, fctx| {
+        require_ctx(fs, |context| {
             let file_name = unsafe { U16CStr::from_ptr_str_mut(file_name) };
             let buffer_len = unsafe { psize.read() };
             assert!(
@@ -704,7 +704,6 @@ unsafe extern "C" fn get_reparse_point_by_name<
                     unsafe { slice::from_raw_parts_mut(buffer.cast::<u8>(), buffer_len as usize) };
                 let bytes_transferred = T::get_reparse_point_by_name(
                     context,
-                    fctx,
                     file_name,
                     is_directory != 0,
                     buffer,
@@ -718,7 +717,6 @@ unsafe extern "C" fn get_reparse_point_by_name<
                 let mut buffer = vec![0u8; crate::constants::FSP_FSCTL_TRANSACT_RSP_BUFFER_SIZEMAX];
                 let bytes_transferred = T::get_reparse_point_by_name(
                     context,
-                    fctx,
                     file_name,
                     is_directory != 0,
                     &mut buffer,
