@@ -1,3 +1,4 @@
+use widestring::U16CStr;
 use crate::error::Result;
 use crate::filesystem::{DirInfo, DirMarker};
 use crate::WCStr;
@@ -51,6 +52,7 @@ pub trait FileSystemContext<const DIR_INFO_SIZE: usize = MAX_PATH>: Sized {
         file_name: P,
         security_descriptor: PSECURITY_DESCRIPTOR,
         descriptor_len: Option<u64>,
+        reparse_point_resolver: impl FnOnce(&WCStr) -> Option<u32>,
     ) -> Result<FileSecurity>;
 
     fn open<P: AsRef<WCStr>>(

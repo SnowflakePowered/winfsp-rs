@@ -1,4 +1,12 @@
-use ntapi::ntioapi::{FileAllInformation, FileAllocationInformation, FileAttributeTagInformation, FileBasicInformation, FileDispositionInformation, FileDispositionInformationEx, FileEndOfFileInformation, FileFsSizeInformation, FileNameInformation, FileRenameInformation, FileRenameInformationEx, FileStandardInformation, FILE_ALLOCATION_INFORMATION, FILE_ALL_INFORMATION, FILE_ATTRIBUTE_TAG_INFORMATION, FILE_BASIC_INFORMATION, FILE_DISPOSITION_INFORMATION, FILE_END_OF_FILE_INFORMATION, FILE_FS_SIZE_INFORMATION, FILE_NAME_INFORMATION, FILE_STANDARD_INFORMATION, FileStreamInformation};
+use ntapi::ntioapi::{
+    FileAllInformation, FileAllocationInformation, FileAttributeTagInformation,
+    FileBasicInformation, FileDispositionInformation, FileDispositionInformationEx,
+    FileEndOfFileInformation, FileFsSizeInformation, FileNameInformation, FileRenameInformation,
+    FileRenameInformationEx, FileStandardInformation, FileStreamInformation,
+    FILE_ALLOCATION_INFORMATION, FILE_ALL_INFORMATION, FILE_ATTRIBUTE_TAG_INFORMATION,
+    FILE_BASIC_INFORMATION, FILE_DISPOSITION_INFORMATION, FILE_END_OF_FILE_INFORMATION,
+    FILE_FS_SIZE_INFORMATION, FILE_NAME_INFORMATION, FILE_STANDARD_INFORMATION,
+};
 use ntapi::winapi::um::fileapi::INVALID_FILE_ATTRIBUTES;
 
 use ntapi::winapi::um::winnt::{FILE_ATTRIBUTE_NORMAL, LARGE_INTEGER};

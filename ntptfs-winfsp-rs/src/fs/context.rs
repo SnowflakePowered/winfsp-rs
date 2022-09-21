@@ -1,7 +1,10 @@
 use crate::fs::file::NtPassthroughFile;
 use crate::native::lfs::LfsRenameSemantics;
 use crate::native::{lfs, volume};
-use ntapi::ntioapi::{FileIdBothDirectoryInformation, FILE_ID_BOTH_DIR_INFORMATION, FILE_OVERWRITE, FILE_SUPERSEDE, FILE_STREAM_INFORMATION};
+use ntapi::ntioapi::{
+    FileIdBothDirectoryInformation, FILE_ID_BOTH_DIR_INFORMATION, FILE_OVERWRITE,
+    FILE_STREAM_INFORMATION, FILE_SUPERSEDE,
+};
 use ntapi::winapi::um::winnt::{
     DELETE, FILE_ATTRIBUTE_DIRECTORY, FILE_ATTRIBUTE_REPARSE_POINT, FILE_WRITE_DATA,
     MAXIMUM_ALLOWED,
@@ -17,7 +20,7 @@ use std::os::windows::fs::MetadataExt;
 use std::path::Path;
 use std::ptr::addr_of;
 
-use widestring::{u16cstr, U16CString};
+use widestring::{u16cstr, U16CStr, U16CString};
 use windows::core::{HSTRING, PCWSTR};
 use windows::Win32::Foundation::{
     GetLastError, INVALID_HANDLE_VALUE, STATUS_ACCESS_DENIED, STATUS_BUFFER_OVERFLOW,
@@ -43,7 +46,10 @@ use windows_sys::Win32::System::WindowsProgramming::{
 };
 use winfsp::constants::FspCleanupFlags::FspCleanupDelete;
 use winfsp::error::FspError;
-use winfsp::filesystem::{DirInfo, DirMarker, FileSecurity, FileSystemContext, IoResult, FSP_FSCTL_FILE_INFO, FSP_FSCTL_VOLUME_INFO, FSP_FSCTL_VOLUME_PARAMS, MAX_PATH, WideNameInfo, StreamInfo};
+use winfsp::filesystem::{
+    DirInfo, DirMarker, FileSecurity, FileSystemContext, IoResult, StreamInfo, WideNameInfo,
+    FSP_FSCTL_FILE_INFO, FSP_FSCTL_VOLUME_INFO, FSP_FSCTL_VOLUME_PARAMS, MAX_PATH,
+};
 use winfsp::util::Win32SafeHandle;
 use winfsp::WCStr;
 
@@ -187,8 +193,15 @@ impl FileSystemContext for NtPassthroughContext {
         file_name: P,
         security_descriptor: PSECURITY_DESCRIPTOR,
         descriptor_len: Option<u64>,
+        resolve_reparse_points: impl FnOnce(&WCStr) -> Option<u32>,
     ) -> winfsp::Result<FileSecurity> {
-        // todo: reparse
+        if let Some(reparse_index) = resolve_reparse_points(file_name.as_ref()) {
+            return Ok(FileSecurity {
+                reparse: true,
+                sz_security_descriptor: descriptor_len.unwrap_or(0),
+                attributes: reparse_index
+            })
+        }
         let handle = lfs::lfs_open_file(
             *self.root_handle,
             file_name.as_ref(),
@@ -767,8 +780,7 @@ impl FileSystemContext for NtPassthroughContext {
                 | if is_directory { FILE_DIRECTORY_FILE } else { 0 },
         )?;
         let result =
-            lfs::lfs_fs_control_file(*reparse_handle, FSCTL_GET_REPARSE_POINT, None,
-                                     Some(buffer));
+            lfs::lfs_fs_control_file(*reparse_handle, FSCTL_GET_REPARSE_POINT, None, Some(buffer));
 
         match result {
             Err(FspError::NTSTATUS(STATUS_BUFFER_OVERFLOW)) => Err(STATUS_BUFFER_TOO_SMALL.into()),
@@ -836,14 +848,13 @@ impl FileSystemContext for NtPassthroughContext {
         let mut stream_info = StreamInfo::<{ MAX_PATH as usize }>::new();
         let bytes_transferred = lfs::lfs_get_stream_info(context.handle(), &mut query_buffer)?;
 
-        let mut query_buffer_cursor =
-            query_buffer.as_ptr() as *const FILE_STREAM_INFORMATION;
+        let mut query_buffer_cursor = query_buffer.as_ptr() as *const FILE_STREAM_INFORMATION;
         loop {
             // SAFETY: FILE_STREAM_INFORMATION has StreamName as the last VST array member, so it's offset is size_of - 1.
             // bounds check to ensure we don't go past the edge of the buffer.
             if query_buffer.as_ptr().wrapping_add(bytes_transferred)
                 < (query_buffer_cursor as *const _ as *const u8)
-                .wrapping_add(size_of::<FILE_STREAM_INFORMATION>() - 1)
+                    .wrapping_add(size_of::<FILE_STREAM_INFORMATION>() - 1)
             {
                 break;
             }
@@ -868,17 +879,21 @@ impl FileSystemContext for NtPassthroughContext {
             }
 
             unsafe {
-                stream_info.stream_size = *addr_of!((*query_buffer_cursor).StreamSize).read().QuadPart() as u64;
-                stream_info.stream_alloc_size = *addr_of!((*query_buffer_cursor).StreamAllocationSize).read().QuadPart() as u64;
+                stream_info.stream_size = *addr_of!((*query_buffer_cursor).StreamSize)
+                    .read()
+                    .QuadPart() as u64;
+                stream_info.stream_alloc_size =
+                    *addr_of!((*query_buffer_cursor).StreamAllocationSize)
+                        .read()
+                        .QuadPart() as u64;
             }
 
             if !stream_info.append_to_buffer(buffer, &mut buffer_cursor) {
-                return Ok(buffer_cursor)
+                return Ok(buffer_cursor);
             }
 
             unsafe {
-                let query_next =
-                    addr_of!((*query_buffer_cursor).NextEntryOffset).read();
+                let query_next = addr_of!((*query_buffer_cursor).NextEntryOffset).read();
                 if query_next == 0 {
                     break;
                 }

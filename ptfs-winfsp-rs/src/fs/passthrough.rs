@@ -122,7 +122,8 @@ impl FileSystemContext for PtfsContext {
         &self,
         file_name: P,
         security_descriptor: PSECURITY_DESCRIPTOR,
-        security_descriptor_len: Option<u64>,
+        descriptor_len: Option<u64>,
+        reparse_point_resolver: impl FnOnce(&WCStr) -> Option<u32>,
     ) -> Result<FileSecurity> {
         let file_name = OsString::from_wide(file_name.as_ref().as_slice());
         let full_path = [self.path.as_os_str(), file_name.as_ref()].join(OsStr::new(""));
@@ -155,7 +156,7 @@ impl FileSystemContext for PtfsContext {
             std::mem::size_of::<FILE_ATTRIBUTE_TAG_INFO>() as u32,
         ));
 
-        if let Some(descriptor_len) = security_descriptor_len {
+        if let Some(descriptor_len) = descriptor_len {
             win32_try!(unsafe GetKernelObjectSecurity(
                 *handle,
                 (OWNER_SECURITY_INFORMATION

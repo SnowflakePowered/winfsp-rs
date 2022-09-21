@@ -10,12 +10,8 @@ use windows::Win32::Foundation::{
 use windows::Win32::Security::PSECURITY_DESCRIPTOR;
 use windows::Win32::Storage::FileSystem::{FILE_ACCESS_FLAGS, FILE_FLAGS_AND_ATTRIBUTES};
 
-use crate::error;
-use winfsp_sys::{
-    FspFileSystemResolveReparsePoints, BOOLEAN, FSP_FILE_SYSTEM, FSP_FILE_SYSTEM_INTERFACE,
-    FSP_FSCTL_DIR_INFO, FSP_FSCTL_FILE_INFO, FSP_FSCTL_VOLUME_INFO, PFILE_FULL_EA_INFORMATION,
-    PIO_STATUS_BLOCK, PSIZE_T,
-};
+use crate::{error, WCStr};
+use winfsp_sys::{FspFileSystemResolveReparsePoints, BOOLEAN, FSP_FILE_SYSTEM, FSP_FILE_SYSTEM_INTERFACE, FSP_FSCTL_DIR_INFO, FSP_FSCTL_FILE_INFO, FSP_FSCTL_VOLUME_INFO, PFILE_FULL_EA_INFORMATION, PIO_STATUS_BLOCK, PSIZE_T, FspFileSystemFindReparsePoint};
 use winfsp_sys::{NTSTATUS as FSP_STATUS, PVOID};
 
 use crate::filesystem::{DirInfo, DirMarker, FileSecurity, FileSystemContext, IoResult};
@@ -139,11 +135,26 @@ unsafe extern "C" fn get_security_by_name<
             panic!("gsbn: filename is null")
         }
         let file_name = unsafe { U16CStr::from_ptr_str_mut(file_name) };
+
+        // pass reparse point resolver into function
+        let find_reparse_points = |file_name: &WCStr| {
+            let mut reparse_index = 0;
+            unsafe {
+                if FspFileSystemFindReparsePoint(fs, Some(get_reparse_point_by_name::<T, DIR_BUF_SIZE>),
+                        std::ptr::null_mut(), file_name.as_ptr().cast_mut(), &mut reparse_index) != 0 {
+                    Some(reparse_index)
+                } else {
+                    None
+                }
+            }
+        };
+
         match T::get_security_by_name(
             context,
             file_name,
             PSECURITY_DESCRIPTOR(security_descriptor),
             unsafe { sz_security_descriptor.as_ref() }.cloned(),
+            find_reparse_points
         ) {
             Ok(FileSecurity {
                 attributes,
