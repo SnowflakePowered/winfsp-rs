@@ -707,11 +707,9 @@ impl FileSystemContext for NtPassthroughContext {
     }
 
     fn get_volume_info(&self, out_volume_info: &mut FSP_FSCTL_VOLUME_INFO) -> winfsp::Result<()> {
-        let total_size = 1073741824u64;
-        let free_size = 1073741824u64;
-
-        out_volume_info.TotalSize = total_size;
-        out_volume_info.FreeSize = free_size;
+        let vol_info = lfs::lfs_get_volume_info(*self.root_handle)?;
+        out_volume_info.TotalSize = vol_info.total_size;
+        out_volume_info.FreeSize = vol_info.free_size;
         Ok(())
     }
 

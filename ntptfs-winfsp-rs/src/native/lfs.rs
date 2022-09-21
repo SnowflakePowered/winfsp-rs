@@ -818,3 +818,36 @@ pub fn lfs_fs_control_file(
         r_return!(result, unsafe { iosb.assume_init().Information })
     })
 }
+
+#[derive(Debug, Eq, PartialEq)]
+pub struct LfsVolumeInfo {
+    pub total_size: u64,
+    pub free_size: u64,
+}
+
+pub fn lfs_get_volume_info(root_handle: HANDLE) -> winfsp::Result<LfsVolumeInfo> {
+    let mut iosb: MaybeUninit<IO_STATUS_BLOCK> = MaybeUninit::uninit();
+    let mut fsize_info: MaybeUninit<FILE_FS_SIZE_INFORMATION> = MaybeUninit::uninit();
+    let mut result = unsafe {
+        NTSTATUS(nt::NtQueryVolumeInformationFile(
+            root_handle.0,
+            iosb.as_mut_ptr(),
+            fsize_info.as_mut_ptr().cast(),
+            size_of::<FILE_FS_SIZE_INFORMATION>() as u32,
+            FileFsSizeInformation,
+        ))
+    };
+    r_return!(result, unsafe {
+        let fsize_info = fsize_info.assume_init();
+        let sector_size = fsize_info.BytesPerSector;
+        let sectors_per_alloc_unit = fsize_info.SectorsPerAllocationUnit;
+        let alloc_unit = sector_size * sectors_per_alloc_unit;
+
+        LfsVolumeInfo {
+            total_size: fsize_info.TotalAllocationUnits.QuadPart().clone() as u64
+                * alloc_unit as u64,
+            free_size: fsize_info.AvailableAllocationUnits.QuadPart().clone() as u64
+                * alloc_unit as u64,
+        }
+    })
+}
