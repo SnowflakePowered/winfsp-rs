@@ -24,8 +24,16 @@ pub trait WideNameInfo<const BUFFER_SIZE: usize>: super::sealed::Sealed {
     /// Reset the contents of the entry.
     fn reset(&mut self);
 
-    /// Adds the entry to the provided buffer.
-    fn add_to_buffer(entry: Option<&Self>, buffer: &mut [u8], cursor: &mut u32) -> bool;
+    #[doc(hidden)]
+    fn add_to_buffer_internal(entry: Option<&Self>, buffer: &mut [u8], cursor: &mut u32) -> bool;
+
+    fn finalize_buffer(buffer: &mut [u8], cursor: &mut u32) -> bool {
+        Self::add_to_buffer_internal(None, buffer, cursor)
+    }
+
+    fn append_to_buffer(&self, buffer: &mut [u8], cursor: &mut u32) -> bool {
+        Self::add_to_buffer_internal(Some(self), buffer, cursor)
+    }
 
     /// Write the name of the entry as raw u16 bytes..
     ///

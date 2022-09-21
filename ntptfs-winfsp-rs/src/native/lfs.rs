@@ -891,7 +891,7 @@ pub fn lfs_set_ea(handle: HANDLE, buffer: &[u8]) -> winfsp::Result<()> {
     r_return!(result)
 }
 
-pub fn lfs_get_stream_info(handle: HANDLE, buffer: &mut [u8]) -> winfsp::Result<()> {
+pub fn lfs_get_stream_info(handle: HANDLE, buffer: &mut [u8]) -> winfsp::Result<usize> {
     let mut iosb: MaybeUninit<IO_STATUS_BLOCK> = MaybeUninit::uninit();
 
     let result = unsafe {
@@ -908,5 +908,5 @@ pub fn lfs_get_stream_info(handle: HANDLE, buffer: &mut [u8]) -> winfsp::Result<
         return Err(result.into());
     }
 
-    Ok(())
+    Ok(unsafe { iosb.assume_init().Information })
 }

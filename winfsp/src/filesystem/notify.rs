@@ -44,7 +44,7 @@ impl<const BUFFER_SIZE: usize> WideNameInfo<BUFFER_SIZE> for NotifyInfo<BUFFER_S
         self.file_name = [0; BUFFER_SIZE];
     }
 
-    fn add_to_buffer(entry: Option<&Self>, buffer: &mut [u8], cursor: &mut u32) -> bool {
+    fn add_to_buffer_internal(entry: Option<&Self>, buffer: &mut [u8], cursor: &mut u32) -> bool {
         unsafe {
             // SAFETY: https://github.com/winfsp/winfsp/blob/0a91292e0502d6629f9a968a168c6e89eea69ea1/src/dll/fsop.c#L1500
             // does not mutate entry.

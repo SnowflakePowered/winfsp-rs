@@ -1,9 +1,7 @@
 use crate::fs::file::NtPassthroughFile;
 use crate::native::lfs::LfsRenameSemantics;
 use crate::native::{lfs, volume};
-use ntapi::ntioapi::{
-    FileIdBothDirectoryInformation, FILE_ID_BOTH_DIR_INFORMATION, FILE_OVERWRITE, FILE_SUPERSEDE,
-};
+use ntapi::ntioapi::{FileIdBothDirectoryInformation, FILE_ID_BOTH_DIR_INFORMATION, FILE_OVERWRITE, FILE_SUPERSEDE, FILE_STREAM_INFORMATION};
 use ntapi::winapi::um::winnt::{
     DELETE, FILE_ATTRIBUTE_DIRECTORY, FILE_ATTRIBUTE_REPARSE_POINT, FILE_WRITE_DATA,
     MAXIMUM_ALLOWED,
@@ -45,7 +43,7 @@ use windows_sys::Win32::System::WindowsProgramming::{
 };
 use winfsp::constants::FspCleanupFlags::FspCleanupDelete;
 use winfsp::error::FspError;
-use winfsp::filesystem::{DirInfo, DirMarker, FileSecurity, FileSystemContext, IoResult, FSP_FSCTL_FILE_INFO, FSP_FSCTL_VOLUME_INFO, FSP_FSCTL_VOLUME_PARAMS, MAX_PATH, WideNameInfo};
+use winfsp::filesystem::{DirInfo, DirMarker, FileSecurity, FileSystemContext, IoResult, FSP_FSCTL_FILE_INFO, FSP_FSCTL_VOLUME_INFO, FSP_FSCTL_VOLUME_PARAMS, MAX_PATH, WideNameInfo, StreamInfo};
 use winfsp::util::Win32SafeHandle;
 use winfsp::WCStr;
 
@@ -143,7 +141,7 @@ impl NtPassthroughContext {
         let file_name_slice = unsafe {
             let file_name_ptr = addr_of!((*query_info).FileName) as *const u16;
             std::slice::from_raw_parts(
-                file_name_ptr.cast(),
+                file_name_ptr,
                 addr_of!((*query_info).FileNameLength)
                     .read()
                     .checked_div(std::mem::size_of::<u16>() as u32)
@@ -831,11 +829,66 @@ impl FileSystemContext for NtPassthroughContext {
     fn get_stream_info(
         &self,
         context: &Self::FileContext,
-        _buffer: &mut [u8],
+        buffer: &mut [u8],
     ) -> winfsp::Result<u32> {
         let mut query_buffer = vec![0u8; 16 * 1024];
-        lfs::lfs_get_stream_info(context.handle(), &mut query_buffer)?;
+        let mut buffer_cursor = 0;
+        let mut stream_info = StreamInfo::<{ MAX_PATH as usize }>::new();
+        let bytes_transferred = lfs::lfs_get_stream_info(context.handle(), &mut query_buffer)?;
 
-        Ok(0)
+        let mut query_buffer_cursor =
+            query_buffer.as_ptr() as *const FILE_STREAM_INFORMATION;
+        loop {
+            // SAFETY: FILE_STREAM_INFORMATION has StreamName as the last VST array member, so it's offset is size_of - 1.
+            // bounds check to ensure we don't go past the edge of the buffer.
+            if query_buffer.as_ptr().wrapping_add(bytes_transferred)
+                < (query_buffer_cursor as *const _ as *const u8)
+                .wrapping_add(size_of::<FILE_STREAM_INFORMATION>() - 1)
+            {
+                break;
+            }
+
+            unsafe {
+                let name_length = addr_of!((*query_buffer_cursor).StreamNameLength).read();
+                let mut stream_name_slice = {
+                    let stream_name_ptr = addr_of!((*query_buffer_cursor).StreamName) as *const u16;
+                    std::slice::from_raw_parts(
+                        stream_name_ptr,
+                        name_length
+                            .checked_div(std::mem::size_of::<u16>() as u32)
+                            .expect("Passed in stream name length of 0 from Windows!!")
+                            as usize,
+                    )
+                };
+                if stream_name_slice.first().cloned() == Some(b':' as u16) {
+                    stream_name_slice = &stream_name_slice[1..]
+                }
+
+                stream_info.set_name_raw(stream_name_slice)?;
+            }
+
+            unsafe {
+                stream_info.stream_size = *addr_of!((*query_buffer_cursor).StreamSize).read().QuadPart() as u64;
+                stream_info.stream_alloc_size = *addr_of!((*query_buffer_cursor).StreamAllocationSize).read().QuadPart() as u64;
+            }
+
+            if !stream_info.append_to_buffer(buffer, &mut buffer_cursor) {
+                return Ok(buffer_cursor)
+            }
+
+            unsafe {
+                let query_next =
+                    addr_of!((*query_buffer_cursor).NextEntryOffset).read();
+                if query_next == 0 {
+                    break;
+                }
+                query_buffer_cursor = (query_buffer_cursor as *const _ as *const u8)
+                    .wrapping_add(query_next as usize)
+                    .cast();
+            }
+        }
+
+        StreamInfo::<{ MAX_PATH as usize }>::finalize_buffer(buffer, &mut buffer_cursor);
+        Ok(buffer_cursor)
     }
 }
