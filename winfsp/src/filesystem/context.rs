@@ -122,7 +122,7 @@ pub trait FileSystemContext<const DIR_INFO_SIZE: usize = MAX_PATH>: Sized {
         Err(STATUS_INVALID_DEVICE_REQUEST.into())
     }
 
-    fn get_stream_info(&self, context: &Self::FileContext, buffer: &mut [u8]) -> Result<u64> {
+    fn get_stream_info(&self, context: &Self::FileContext, buffer: &mut [u8]) -> Result<u32> {
         Err(STATUS_INVALID_DEVICE_REQUEST.into())
     }
 
@@ -255,13 +255,16 @@ pub trait FileSystemContext<const DIR_INFO_SIZE: usize = MAX_PATH>: Sized {
         Err(STATUS_INVALID_DEVICE_REQUEST.into())
     }
 
+    /// Get reparse point information by its name.
+    ///
+    /// Unlike WinFSP, you may assume that `buffer` is always valid and never null.
     fn get_reparse_point_by_name<P: AsRef<WCStr>>(
         &self,
         context: &Self::FileContext,
         file_name: P,
         is_directory: bool,
         buffer: &mut [u8],
-    ) -> Result<u32> {
+    ) -> Result<u64> {
         Err(STATUS_INVALID_DEVICE_REQUEST.into())
     }
 
@@ -270,7 +273,7 @@ pub trait FileSystemContext<const DIR_INFO_SIZE: usize = MAX_PATH>: Sized {
         context: &Self::FileContext,
         file_name: P,
         buffer: &mut [u8],
-    ) -> Result<u32> {
+    ) -> Result<u64> {
         Err(STATUS_INVALID_DEVICE_REQUEST.into())
     }
 

@@ -1,4 +1,4 @@
-use winfsp_sys::WCHAR;
+use winfsp_sys::{FSP_FSCTL_TRANSACT_REQ, FSP_FSCTL_TRANSACT_RSP, WCHAR};
 
 pub use winfsp_sys::FSP_FSCTL_DEFAULT_ALIGNMENT;
 pub use winfsp_sys::FSP_FSCTL_DEVICECONTROL_SIZEMAX;
@@ -24,4 +24,8 @@ impl FspCleanupFlags {
         (*self as u32) & flag != 0
     }
 }
-pub const FSP_FSCTL_TRANSACT_PATH_SIZEMAX: u32 = (1024 * std::mem::size_of::<WCHAR>()) as u32;
+pub const FSP_FSCTL_TRANSACT_PATH_SIZEMAX: usize = 1024 * std::mem::size_of::<WCHAR>();
+pub const FSP_FSCTL_TRANSACT_REQ_BUFFER_SIZEMAX: usize =
+    FSP_FSCTL_TRANSACT_REQ_SIZEMAX as usize - std::mem::size_of::<FSP_FSCTL_TRANSACT_REQ>();
+pub const FSP_FSCTL_TRANSACT_RSP_BUFFER_SIZEMAX: usize =
+    FSP_FSCTL_TRANSACT_RSP_SIZEMAX as usize - std::mem::size_of::<FSP_FSCTL_TRANSACT_RSP>();

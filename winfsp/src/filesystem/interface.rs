@@ -12,12 +12,13 @@ use windows::Win32::Storage::FileSystem::{FILE_ACCESS_FLAGS, FILE_FLAGS_AND_ATTR
 
 use crate::error;
 use winfsp_sys::{
-    FSP_FILE_SYSTEM, FSP_FILE_SYSTEM_INTERFACE, FSP_FSCTL_FILE_INFO, FSP_FSCTL_VOLUME_INFO,
-    PFILE_FULL_EA_INFORMATION,
+    FspFileSystemResolveReparsePoints, BOOLEAN, FSP_FILE_SYSTEM, FSP_FILE_SYSTEM_INTERFACE,
+    FSP_FSCTL_DIR_INFO, FSP_FSCTL_FILE_INFO, FSP_FSCTL_VOLUME_INFO, PFILE_FULL_EA_INFORMATION,
+    PIO_STATUS_BLOCK, PSIZE_T,
 };
 use winfsp_sys::{NTSTATUS as FSP_STATUS, PVOID};
 
-use crate::filesystem::{DirMarker, FileSecurity, FileSystemContext, IoResult};
+use crate::filesystem::{DirInfo, DirMarker, FileSecurity, FileSystemContext, IoResult};
 
 /// Catch panic and return EXECPTION_NONCONTINUABLE_EXCEPTION
 macro_rules! catch_panic {
@@ -639,13 +640,15 @@ unsafe extern "C" fn get_ea<T: FileSystemContext<DIR_BUF_SIZE>, const DIR_BUF_SI
     fctx: PVOID,
     ea: PFILE_FULL_EA_INFORMATION,
     ea_len: u32,
-    bytes_transferred: *mut u32,
+    psize: *mut u32,
 ) -> FSP_STATUS {
     catch_panic!({
         require_fctx(fs, fctx, |context, fctx| {
             let buffer = unsafe { slice::from_raw_parts_mut(ea.cast::<u8>(), ea_len as usize) };
-            let written = T::get_extended_attributes(context, fctx, buffer)?;
-            unsafe { bytes_transferred.write(written) };
+            let bytes_transferred = T::get_extended_attributes(context, fctx, buffer)?;
+            if !psize.is_null() {
+                unsafe { psize.write(bytes_transferred) };
+            }
             Ok(())
         })
     })
@@ -662,6 +665,206 @@ unsafe extern "C" fn set_ea<T: FileSystemContext<DIR_BUF_SIZE>, const DIR_BUF_SI
         require_fctx(fs, fctx, |context, fctx| {
             let buffer = unsafe { slice::from_raw_parts(ea.cast::<u8>(), ea_len as usize) };
             unsafe { T::set_extended_attributes(context, fctx, buffer, &mut *out_file_info) }
+        })
+    })
+}
+
+unsafe extern "C" fn get_reparse_point_by_name<
+    T: FileSystemContext<DIR_BUF_SIZE>,
+    const DIR_BUF_SIZE: usize,
+>(
+    fs: *mut FSP_FILE_SYSTEM,
+    fctx: PVOID,
+    file_name: *mut u16,
+    is_directory: u8,
+    buffer: PVOID,
+    psize: PSIZE_T,
+) -> FSP_STATUS {
+    catch_panic!({
+        require_fctx(fs, fctx, |context, fctx| {
+            let file_name = unsafe { U16CStr::from_ptr_str_mut(file_name) };
+            let buffer_len = unsafe { psize.read() };
+            assert!(
+                !buffer.is_null(),
+                "get reparse point by name buffer was null"
+            );
+            if buffer.is_null() {
+                let buffer =
+                    unsafe { slice::from_raw_parts_mut(buffer.cast::<u8>(), buffer_len as usize) };
+                let bytes_transferred = T::get_reparse_point_by_name(
+                    context,
+                    fctx,
+                    file_name,
+                    is_directory != 0,
+                    buffer,
+                )?;
+                if !psize.is_null() {
+                    unsafe { psize.write(bytes_transferred) };
+                }
+            } else {
+                // sometimes GetReparsePointByName is called with a null buffer, in
+                // cases where the caller does not care about the result.
+                let mut buffer = vec![0u8; crate::constants::FSP_FSCTL_TRANSACT_RSP_BUFFER_SIZEMAX];
+                let bytes_transferred = T::get_reparse_point_by_name(
+                    context,
+                    fctx,
+                    file_name,
+                    is_directory != 0,
+                    &mut buffer,
+                )?;
+                if !psize.is_null() {
+                    unsafe { psize.write(bytes_transferred) };
+                }
+            }
+
+            Ok(())
+        })
+    })
+}
+
+unsafe extern "C" fn resolve_reparse_points<
+    T: FileSystemContext<DIR_BUF_SIZE>,
+    const DIR_BUF_SIZE: usize,
+>(
+    fs: *mut FSP_FILE_SYSTEM,
+    file_name: *mut u16,
+    reparse_point_index: u32,
+    resolve_last_component: BOOLEAN,
+    io_status: PIO_STATUS_BLOCK,
+    buffer: PVOID,
+    psize: PSIZE_T,
+) -> FSP_STATUS {
+    unsafe {
+        FspFileSystemResolveReparsePoints(
+            fs,
+            Some(get_reparse_point_by_name::<T, DIR_BUF_SIZE>),
+            std::ptr::null_mut(),
+            file_name,
+            reparse_point_index,
+            resolve_last_component,
+            io_status,
+            buffer,
+            psize,
+        )
+    }
+}
+
+unsafe extern "C" fn get_reparse_point<
+    T: FileSystemContext<DIR_BUF_SIZE>,
+    const DIR_BUF_SIZE: usize,
+>(
+    fs: *mut FSP_FILE_SYSTEM,
+    fctx: PVOID,
+    file_name: *mut u16,
+    buffer: PVOID,
+    psize: PSIZE_T,
+) -> FSP_STATUS {
+    catch_panic!({
+        require_fctx(fs, fctx, |context, fctx| {
+            let file_name = unsafe { U16CStr::from_ptr_str_mut(file_name) };
+            let buffer_len = unsafe { psize.read() };
+            let buffer =
+                unsafe { slice::from_raw_parts_mut(buffer.cast::<u8>(), buffer_len as usize) };
+            let bytes_transferred = T::get_reparse_point(context, fctx, file_name, buffer)?;
+
+            if !psize.is_null() {
+                unsafe { psize.write(bytes_transferred) };
+            }
+            Ok(())
+        })
+    })
+}
+
+unsafe extern "C" fn set_reparse_point<
+    T: FileSystemContext<DIR_BUF_SIZE>,
+    const DIR_BUF_SIZE: usize,
+>(
+    fs: *mut FSP_FILE_SYSTEM,
+    fctx: PVOID,
+    file_name: *mut u16,
+    buffer: PVOID,
+    buffer_len: u64,
+) -> FSP_STATUS {
+    catch_panic!({
+        require_fctx(fs, fctx, |context, fctx| {
+            let file_name = unsafe { U16CStr::from_ptr_str_mut(file_name) };
+            let buffer =
+                unsafe { slice::from_raw_parts_mut(buffer.cast::<u8>(), buffer_len as usize) };
+            T::set_reparse_point(context, fctx, file_name, buffer)?;
+            Ok(())
+        })
+    })
+}
+
+unsafe extern "C" fn delete_reparse_point<
+    T: FileSystemContext<DIR_BUF_SIZE>,
+    const DIR_BUF_SIZE: usize,
+>(
+    fs: *mut FSP_FILE_SYSTEM,
+    fctx: PVOID,
+    file_name: *mut u16,
+    buffer: PVOID,
+    buffer_len: u64,
+) -> FSP_STATUS {
+    catch_panic!({
+        require_fctx(fs, fctx, |context, fctx| {
+            let file_name = unsafe { U16CStr::from_ptr_str_mut(file_name) };
+            let buffer =
+                unsafe { slice::from_raw_parts_mut(buffer.cast::<u8>(), buffer_len as usize) };
+            T::delete_reparse_point(context, fctx, file_name, buffer)?;
+            Ok(())
+        })
+    })
+}
+
+unsafe extern "C" fn get_stream_info<
+    T: FileSystemContext<DIR_BUF_SIZE>,
+    const DIR_BUF_SIZE: usize,
+>(
+    fs: *mut FSP_FILE_SYSTEM,
+    fctx: PVOID,
+    buffer: PVOID,
+    buffer_len: u32,
+    bytes_transferred: *mut u32,
+) -> FSP_STATUS {
+    catch_panic!({
+        require_fctx(fs, fctx, |context, fctx| {
+            if !bytes_transferred.is_null() {
+                unsafe { bytes_transferred.write(0) }
+            }
+
+            let buffer =
+                unsafe { slice::from_raw_parts_mut(buffer as *mut _, buffer_len as usize) };
+            let bytes_read = T::get_stream_info(context, fctx, buffer)?;
+            if !bytes_transferred.is_null() {
+                unsafe { bytes_transferred.write(bytes_read) }
+            }
+            Ok(())
+        })
+    })
+}
+
+unsafe extern "C" fn get_dir_info_by_name<
+    T: FileSystemContext<DIR_BUF_SIZE>,
+    const DIR_BUF_SIZE: usize,
+>(
+    fs: *mut FSP_FILE_SYSTEM,
+    fctx: PVOID,
+    file_name: *mut u16,
+    dir_info: *mut FSP_FSCTL_DIR_INFO,
+) -> FSP_STATUS {
+    catch_panic!({
+        require_fctx(fs, fctx, |context, fctx| {
+            let file_name = unsafe { U16CStr::from_ptr_str_mut(file_name) };
+            if dir_info.is_null() {
+                panic!("get_dir_info_by_name was passed a null dirinfo buffer.")
+            }
+
+            let buffer = dir_info.cast::<DirInfo<DIR_BUF_SIZE>>();
+            todo!("verify dirinfo is correct size");
+            T::get_dir_info_by_name(context, fctx, file_name, unsafe {
+                buffer.as_mut().unwrap()
+            })
         })
     })
 }
@@ -869,6 +1072,61 @@ pub struct Interface {
             out_file_info: *mut FSP_FSCTL_FILE_INFO,
         ) -> FSP_STATUS,
     >,
+    get_reparse_point: Option<
+        unsafe extern "C" fn(
+            fs: *mut FSP_FILE_SYSTEM,
+            fctx: PVOID,
+            file_name: *mut u16,
+            buffer: PVOID,
+            psize: PSIZE_T,
+        ) -> FSP_STATUS,
+    >,
+    set_reparse_point: Option<
+        unsafe extern "C" fn(
+            fs: *mut FSP_FILE_SYSTEM,
+            fctx: PVOID,
+            file_name: *mut u16,
+            buffer: PVOID,
+            buffer_len: u64,
+        ) -> FSP_STATUS,
+    >,
+    delete_reparse_point: Option<
+        unsafe extern "C" fn(
+            fs: *mut FSP_FILE_SYSTEM,
+            fctx: PVOID,
+            file_name: *mut u16,
+            buffer: PVOID,
+            buffer_len: u64,
+        ) -> FSP_STATUS,
+    >,
+    resolve_reparse_points: Option<
+        unsafe extern "C" fn(
+            fs: *mut FSP_FILE_SYSTEM,
+            file_name: *mut u16,
+            reparse_point_index: u32,
+            resolve_last_component: BOOLEAN,
+            io_status: PIO_STATUS_BLOCK,
+            buffer: PVOID,
+            psize: PSIZE_T,
+        ) -> FSP_STATUS,
+    >,
+    get_stream_info: Option<
+        unsafe extern "C" fn(
+            fs: *mut FSP_FILE_SYSTEM,
+            fctx: PVOID,
+            buffer: PVOID,
+            buffer_len: u32,
+            bytes_transferred: *mut u32,
+        ) -> FSP_STATUS,
+    >,
+    get_dir_info_by_name: Option<
+        unsafe extern "C" fn(
+            fs: *mut FSP_FILE_SYSTEM,
+            fctx: PVOID,
+            file_name: *mut u16,
+            dir_info: *mut FSP_FSCTL_DIR_INFO,
+        ) -> FSP_STATUS,
+    >,
 }
 
 impl Interface {
@@ -896,6 +1154,12 @@ impl Interface {
             rename: Some(rename::<T, DIR_BUF_SIZE>),
             get_ea: Some(get_ea::<T, DIR_BUF_SIZE>),
             set_ea: Some(set_ea::<T, DIR_BUF_SIZE>),
+            get_reparse_point: Some(get_reparse_point::<T, DIR_BUF_SIZE>),
+            set_reparse_point: Some(set_reparse_point::<T, DIR_BUF_SIZE>),
+            delete_reparse_point: Some(delete_reparse_point::<T, DIR_BUF_SIZE>),
+            resolve_reparse_points: Some(resolve_reparse_points::<T, DIR_BUF_SIZE>),
+            get_stream_info: Some(get_stream_info::<T, DIR_BUF_SIZE>),
+            get_dir_info_by_name: None,
         }
     }
 
@@ -903,7 +1167,36 @@ impl Interface {
         T: FileSystemContext<DIR_BUF_SIZE>,
         const DIR_BUF_SIZE: usize,
     >() -> Self {
-        todo!()
+        Interface {
+            open: Some(open::<T, DIR_BUF_SIZE>),
+            get_security_by_name: Some(get_security_by_name::<T, DIR_BUF_SIZE>),
+            close: Some(close::<T, DIR_BUF_SIZE>),
+            create_ex: Some(create_ex::<T, DIR_BUF_SIZE>),
+            control: Some(control::<T, DIR_BUF_SIZE>),
+            overwrite_ex: Some(overwrite_ex::<T, DIR_BUF_SIZE>),
+            read_directory: None,
+            get_volume_info: Some(get_volume_info::<T, DIR_BUF_SIZE>),
+            set_volume_label: Some(set_volume_label::<T, DIR_BUF_SIZE>),
+            get_security: Some(get_security::<T, DIR_BUF_SIZE>),
+            get_file_info: Some(get_file_info::<T, DIR_BUF_SIZE>),
+            read: Some(read::<T, DIR_BUF_SIZE>),
+            write: Some(write::<T, DIR_BUF_SIZE>),
+            cleanup: Some(cleanup::<T, DIR_BUF_SIZE>),
+            set_basic_info: Some(set_basic_info::<T, DIR_BUF_SIZE>),
+            set_file_size: Some(set_file_size::<T, DIR_BUF_SIZE>),
+            set_security: Some(set_security::<T, DIR_BUF_SIZE>),
+            set_delete: Some(set_delete::<T, DIR_BUF_SIZE>),
+            flush: Some(flush::<T, DIR_BUF_SIZE>),
+            rename: Some(rename::<T, DIR_BUF_SIZE>),
+            get_ea: Some(get_ea::<T, DIR_BUF_SIZE>),
+            set_ea: Some(set_ea::<T, DIR_BUF_SIZE>),
+            get_reparse_point: Some(get_reparse_point::<T, DIR_BUF_SIZE>),
+            set_reparse_point: Some(set_reparse_point::<T, DIR_BUF_SIZE>),
+            delete_reparse_point: Some(delete_reparse_point::<T, DIR_BUF_SIZE>),
+            resolve_reparse_points: Some(resolve_reparse_points::<T, DIR_BUF_SIZE>),
+            get_stream_info: Some(get_stream_info::<T, DIR_BUF_SIZE>),
+            get_dir_info_by_name: Some(get_dir_info_by_name::<T, DIR_BUF_SIZE>),
+        }
     }
 }
 
@@ -932,7 +1225,11 @@ impl From<Interface> for FSP_FILE_SYSTEM_INTERFACE {
             Rename: interface.rename,
             GetEa: interface.get_ea,
             SetEa: interface.set_ea,
-            // todo: GetDirInfoByName
+            GetReparsePoint: interface.get_reparse_point,
+            SetReparsePoint: interface.set_reparse_point,
+            DeleteReparsePoint: interface.delete_reparse_point,
+            ResolveReparsePoints: interface.resolve_reparse_points,
+            GetDirInfoByName: interface.get_dir_info_by_name,
             ..Default::default()
         }
     }

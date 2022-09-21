@@ -48,7 +48,7 @@ use winfsp::WCStr;
 const ALLOCATION_UNIT: u16 = 4096;
 const VOLUME_LABEL: &HSTRING = w!("Snowflake");
 const FULLPATH_SIZE: usize = MAX_PATH as usize
-    + (winfsp::constants::FSP_FSCTL_TRANSACT_PATH_SIZEMAX as usize / std::mem::size_of::<u16>());
+    + (winfsp::constants::FSP_FSCTL_TRANSACT_PATH_SIZEMAX / std::mem::size_of::<u16>());
 
 pub struct Ptfs {
     pub fs: FileSystemHost,

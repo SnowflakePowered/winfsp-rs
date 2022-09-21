@@ -334,9 +334,7 @@ pub fn lfs_get_ea_size(ea_size: u32) -> u32 {
 pub fn lfs_query_file_name(handle: HANDLE) -> winfsp::Result<Box<[u16]>> {
     let mut iosb: MaybeUninit<IO_STATUS_BLOCK> = MaybeUninit::uninit();
     let mut name_info: VariableSizedBox<FILE_NAME_INFORMATION> = VariableSizedBox::new(
-        winfsp::constants::FSP_FSCTL_TRANSACT_PATH_SIZEMAX as usize
-            + size_of::<FILE_NAME_INFORMATION>()
-            + 1,
+        winfsp::constants::FSP_FSCTL_TRANSACT_PATH_SIZEMAX + size_of::<FILE_NAME_INFORMATION>() + 1,
     );
 
     let result = unsafe {
@@ -367,9 +365,7 @@ pub fn lfs_get_file_info(
 ) -> winfsp::Result<()> {
     let mut iosb: MaybeUninit<IO_STATUS_BLOCK> = MaybeUninit::uninit();
     let mut file_all_info: VariableSizedBox<FILE_ALL_INFORMATION> = VariableSizedBox::new(
-        winfsp::constants::FSP_FSCTL_TRANSACT_PATH_SIZEMAX as usize
-            + size_of::<FILE_ALL_INFORMATION>()
-            + 1,
+        winfsp::constants::FSP_FSCTL_TRANSACT_PATH_SIZEMAX + size_of::<FILE_ALL_INFORMATION>() + 1,
     );
     let mut file_attr_info: FILE_ATTRIBUTE_TAG_INFORMATION = FILE_ATTRIBUTE_TAG_INFORMATION {
         FileAttributes: 0,
@@ -559,7 +555,7 @@ pub fn lfs_rename<P: AsRef<[u16]>>(
     let mut rename_info: VariableSizedBox<FILE_RENAME_INFO> =
         VariableSizedBox::new(file_path_len + std::mem::size_of::<FILE_RENAME_INFO>() + 1);
 
-    if winfsp::constants::FSP_FSCTL_TRANSACT_PATH_SIZEMAX < file_path_len as u32 {
+    if winfsp::constants::FSP_FSCTL_TRANSACT_PATH_SIZEMAX < file_path_len {
         return Err(STATUS_INVALID_PARAMETER.into());
     }
 
@@ -772,11 +768,17 @@ pub fn lfs_set_security(
 pub fn lfs_fs_control_file(
     handle: HANDLE,
     control_code: u32,
-    input: &[u8],
+    input: Option<&[u8]>,
     output: Option<&mut [u8]>,
 ) -> winfsp::Result<usize> {
     LFS_EVENT.with(|event| {
         let mut iosb: MaybeUninit<IO_STATUS_BLOCK> = MaybeUninit::uninit();
+        let input_len = input.as_ref().map_or(0, |f| f.len()) as u32;
+
+        // SAFETY: because input is a shared slice, it does not get moved and
+        // does not leave a dangling pointer.
+        // Can not say the same for output, which needs to stay alive until the call fron NtFsControlFile
+        // returns.
         let mut result = if let Some(output) = output {
             unsafe {
                 NTSTATUS(nt::NtFsControlFile(
@@ -786,8 +788,12 @@ pub fn lfs_fs_control_file(
                     std::ptr::null_mut(),
                     iosb.as_mut_ptr(),
                     control_code,
-                    input.as_ptr().cast(),
-                    input.len() as u32,
+                    if let Some(input) = input {
+                        input.as_ptr().cast()
+                    } else {
+                        std::ptr::null()
+                    },
+                    input_len,
                     output.as_mut_ptr().cast(),
                     output.len() as u32,
                 ))
@@ -801,10 +807,14 @@ pub fn lfs_fs_control_file(
                     std::ptr::null_mut(),
                     iosb.as_mut_ptr(),
                     control_code,
-                    input.as_ptr().cast(),
-                    input.len() as u32,
+                    if let Some(input) = input {
+                        input.as_ptr().cast()
+                    } else {
+                        std::ptr::null()
+                    },
+                    input_len,
                     std::ptr::null_mut(),
-                    0u32,
+                    0,
                 ))
             }
         };
