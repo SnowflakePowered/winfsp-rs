@@ -697,11 +697,7 @@ unsafe extern "C" fn get_reparse_point_by_name<
         require_ctx(fs, |context| {
             let file_name = unsafe { U16CStr::from_ptr_str_mut(file_name) };
             let buffer_len = unsafe { psize.read() };
-            assert!(
-                !buffer.is_null(),
-                "get reparse point by name buffer was null"
-            );
-            if buffer.is_null() {
+            if !buffer.is_null() {
                 let buffer =
                     unsafe { slice::from_raw_parts_mut(buffer.cast::<u8>(), buffer_len as usize) };
                 let bytes_transferred = T::get_reparse_point_by_name(
