@@ -12,16 +12,19 @@ use ntapi::winapi::um::winnt::{
 use std::ffi::OsString;
 use std::mem::size_of;
 
-use ntapi::winapi::um::winioctl::FSCTL_SET_REPARSE_POINT;
+use ntapi::winapi::um::winioctl::{
+    FSCTL_DELETE_REPARSE_POINT, FSCTL_GET_REPARSE_POINT, FSCTL_SET_REPARSE_POINT,
+};
 use std::os::windows::fs::MetadataExt;
 use std::path::Path;
 use std::ptr::addr_of;
 
 use widestring::{u16cstr, U16CString};
-use windows::core::{HSTRING, PCWSTR, PWSTR};
+use windows::core::{HSTRING, PCWSTR};
 use windows::Win32::Foundation::{
-    GetLastError, INVALID_HANDLE_VALUE, STATUS_ACCESS_DENIED, STATUS_INVALID_PARAMETER,
-    STATUS_MEDIA_WRITE_PROTECTED, STATUS_NOT_A_DIRECTORY, STATUS_SHARING_VIOLATION,
+    GetLastError, INVALID_HANDLE_VALUE, STATUS_ACCESS_DENIED, STATUS_BUFFER_OVERFLOW,
+    STATUS_BUFFER_TOO_SMALL, STATUS_INVALID_PARAMETER, STATUS_MEDIA_WRITE_PROTECTED,
+    STATUS_NOT_A_DIRECTORY, STATUS_SHARING_VIOLATION,
 };
 use windows::Win32::Security::{
     DACL_SECURITY_INFORMATION, GROUP_SECURITY_INFORMATION, OWNER_SECURITY_INFORMATION,
@@ -33,7 +36,7 @@ use windows::Win32::Storage::FileSystem::{
     FILE_SHARE_DELETE, FILE_SHARE_READ, FILE_SHARE_WRITE, OPEN_EXISTING, READ_CONTROL, SYNCHRONIZE,
 };
 use windows::Win32::System::WindowsProgramming::{
-    FILE_OPEN_FOR_BACKUP_INTENT, FILE_OPEN_REPARSE_POINT, INFINITE,
+    FILE_OPEN_FOR_BACKUP_INTENT, FILE_OPEN_REPARSE_POINT,
 };
 use windows_sys::Win32::Storage::FileSystem::FILE_CREATE;
 use windows_sys::Win32::System::WindowsProgramming::{
@@ -388,7 +391,7 @@ impl FileSystemContext for NtPassthroughContext {
         }?;
 
         if let Some(extra_buffer) = extra_buffer && extra_buffer_is_reparse_point {
-            lfs::lfs_fs_control_file(*handle, FSCTL_SET_REPARSE_POINT, extra_buffer, None)?;
+            lfs::lfs_fs_control_file(*handle, FSCTL_SET_REPARSE_POINT, Some(extra_buffer), None)?;
         }
 
         lfs::lfs_get_file_info(*handle, Some(self.root_prefix_len), file_info)?;
@@ -713,29 +716,12 @@ impl FileSystemContext for NtPassthroughContext {
         Ok(())
     }
 
-    fn delete_reparse_point<P: AsRef<WCStr>>(
-        &self,
-        _context: &Self::FileContext,
-        _file_name: P,
-        _buffer: &[u8],
-    ) -> winfsp::Result<()> {
-        todo!()
-    }
-
     fn get_dir_info_by_name<P: AsRef<WCStr>>(
         &self,
         _context: &Self::FileContext,
         _file_name: P,
         _out_dir_info: &mut DirInfo<MAX_PATH>,
     ) -> winfsp::Result<()> {
-        todo!()
-    }
-
-    fn get_stream_info(
-        &self,
-        _context: &Self::FileContext,
-        _buffer: &mut [u8],
-    ) -> winfsp::Result<u64> {
         todo!()
     }
 
@@ -768,5 +754,88 @@ impl FileSystemContext for NtPassthroughContext {
     ) -> winfsp::Result<()> {
         lfs::lfs_set_ea(context.handle(), buffer)?;
         lfs::lfs_get_file_info(context.handle(), None, file_info)
+    }
+
+    fn get_reparse_point_by_name<P: AsRef<WCStr>>(
+        &self,
+        _context: &Self::FileContext,
+        file_name: P,
+        is_directory: bool,
+        buffer: &mut [u8],
+    ) -> winfsp::Result<u64> {
+        let reparse_handle = lfs::lfs_open_file(
+            *self.root_handle,
+            file_name,
+            0,
+            FILE_OPEN_FOR_BACKUP_INTENT
+                | FILE_OPEN_REPARSE_POINT
+                | if is_directory { FILE_DIRECTORY_FILE } else { 0 },
+        )?;
+        let result =
+            lfs::lfs_fs_control_file(*reparse_handle, FSCTL_GET_REPARSE_POINT, None,
+                                     Some(buffer));
+
+        match result {
+            Err(FspError::NTSTATUS(STATUS_BUFFER_OVERFLOW)) => Err(STATUS_BUFFER_TOO_SMALL.into()),
+            Err(e) => Err(e),
+            Ok(bytes) => Ok(bytes as u64),
+        }
+    }
+
+    fn get_reparse_point<P: AsRef<WCStr>>(
+        &self,
+        context: &Self::FileContext,
+        _file_name: P,
+        buffer: &mut [u8],
+    ) -> winfsp::Result<u64> {
+        let result = lfs::lfs_fs_control_file(
+            context.handle(),
+            FSCTL_GET_REPARSE_POINT,
+            None,
+            Some(buffer),
+        );
+        match result {
+            Err(FspError::NTSTATUS(STATUS_BUFFER_OVERFLOW)) => Err(STATUS_BUFFER_TOO_SMALL.into()),
+            Err(e) => Err(e),
+            Ok(bytes) => Ok(bytes as u64),
+        }
+    }
+
+    fn set_reparse_point<P: AsRef<WCStr>>(
+        &self,
+        context: &Self::FileContext,
+        _file_name: P,
+        buffer: &[u8],
+    ) -> winfsp::Result<()> {
+        lfs::lfs_fs_control_file(
+            context.handle(),
+            FSCTL_SET_REPARSE_POINT,
+            Some(buffer),
+            None,
+        )?;
+        Ok(())
+    }
+
+    fn delete_reparse_point<P: AsRef<WCStr>>(
+        &self,
+        context: &Self::FileContext,
+        _file_name: P,
+        buffer: &[u8],
+    ) -> winfsp::Result<()> {
+        lfs::lfs_fs_control_file(
+            context.handle(),
+            FSCTL_DELETE_REPARSE_POINT,
+            Some(buffer),
+            None,
+        )?;
+        Ok(())
+    }
+
+    fn get_stream_info(
+        &self,
+        _context: &Self::FileContext,
+        _buffer: &mut [u8],
+    ) -> winfsp::Result<u32> {
+        todo!()
     }
 }

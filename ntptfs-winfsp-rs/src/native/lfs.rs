@@ -839,7 +839,7 @@ pub struct LfsVolumeInfo {
 pub fn lfs_get_volume_info(root_handle: HANDLE) -> winfsp::Result<LfsVolumeInfo> {
     let mut iosb: MaybeUninit<IO_STATUS_BLOCK> = MaybeUninit::uninit();
     let mut fsize_info: MaybeUninit<FILE_FS_SIZE_INFORMATION> = MaybeUninit::uninit();
-    let mut result = unsafe {
+    let result = unsafe {
         NTSTATUS(nt::NtQueryVolumeInformationFile(
             root_handle.0,
             iosb.as_mut_ptr(),
@@ -855,10 +855,8 @@ pub fn lfs_get_volume_info(root_handle: HANDLE) -> winfsp::Result<LfsVolumeInfo>
         let alloc_unit = sector_size * sectors_per_alloc_unit;
 
         LfsVolumeInfo {
-            total_size: fsize_info.TotalAllocationUnits.QuadPart().clone() as u64
-                * alloc_unit as u64,
-            free_size: fsize_info.AvailableAllocationUnits.QuadPart().clone() as u64
-                * alloc_unit as u64,
+            total_size: *fsize_info.TotalAllocationUnits.QuadPart() as u64 * alloc_unit as u64,
+            free_size: *fsize_info.AvailableAllocationUnits.QuadPart() as u64 * alloc_unit as u64,
         }
     })
 }
@@ -885,7 +883,7 @@ pub fn lfs_get_ea(handle: HANDLE, buffer: &mut [u8]) -> u64 {
     }
 
     let iosb = unsafe { iosb.assume_init() };
-    return iosb.Information as u64;
+    iosb.Information as u64
 }
 
 pub fn lfs_set_ea(handle: HANDLE, buffer: &[u8]) -> winfsp::Result<()> {

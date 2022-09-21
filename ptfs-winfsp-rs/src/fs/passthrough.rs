@@ -376,8 +376,8 @@ impl FileSystemContext for PtfsContext {
         context: &Self::FileContext,
         file_attributes: FILE_FLAGS_AND_ATTRIBUTES,
         replace_file_attributes: bool,
-        allocation_size: u64,
-        extra_buffer: Option<&[u8]>,
+        _allocation_size: u64,
+        _extra_buffer: Option<&[u8]>,
         file_info: &mut FSP_FSCTL_FILE_INFO,
     ) -> Result<()> {
         // todo: preserve allocation size
