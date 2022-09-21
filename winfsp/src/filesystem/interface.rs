@@ -1237,6 +1237,7 @@ impl From<Interface> for FSP_FILE_SYSTEM_INTERFACE {
             DeleteReparsePoint: interface.delete_reparse_point,
             ResolveReparsePoints: interface.resolve_reparse_points,
             GetDirInfoByName: interface.get_dir_info_by_name,
+            GetStreamInfo: interface.get_stream_info,
             ..Default::default()
         }
     }
