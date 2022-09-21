@@ -24,6 +24,20 @@ macro_rules! catch_panic {
     };
 }
 
+macro_rules! assert_ctx {
+    ($fs:expr) => {
+        if $fs.is_null() {
+            panic!("Received null {} context!", ::std::stringify!($fs));
+        }
+    };
+    ($fs:expr, $tag:expr) => {
+        if $fs.is_null() {
+            panic!("Received null {} context: {}", ::std::stringify!($fs), $tag);
+        }
+    }
+}
+
+
 #[inline(always)]
 fn require_fctx<C: FileSystemContext<DIR_BUF_SIZE>, F, const DIR_BUF_SIZE: usize>(
     fs: *mut FSP_FILE_SYSTEM,
@@ -33,22 +47,15 @@ fn require_fctx<C: FileSystemContext<DIR_BUF_SIZE>, F, const DIR_BUF_SIZE: usize
 where
     F: FnOnce(&C, &mut C::FileContext) -> error::Result<()>,
 {
-    if fs.is_null() || fctx.is_null() {
-        dbg!("require_ref failed");
-        return STATUS_ACCESS_VIOLATION.0;
-    }
+    assert_ctx!(fs);
+    assert_ctx!(fctx);
 
     let context: &C = unsafe { &*(*fs).UserContext.cast::<C>() };
-    let fctx = fctx.cast::<C::FileContext>();
+    let fctx = unsafe { &mut *fctx.cast::<C::FileContext>() };
 
-    if let Some(fctx) = unsafe { fctx.as_mut() } {
-        match inner(context, fctx) {
-            Ok(_) => STATUS_SUCCESS.0,
-            Err(e) => e.as_ntstatus(),
-        }
-    } else {
-        dbg!("require_ref failed");
-        STATUS_ACCESS_VIOLATION.0
+    match inner(context, fctx) {
+        Ok(_) => STATUS_SUCCESS.0,
+        Err(e) => e.as_ntstatus(),
     }
 }
 
@@ -60,10 +67,7 @@ fn require_ctx<C: FileSystemContext<DIR_BUF_SIZE>, F, const DIR_BUF_SIZE: usize>
 where
     F: FnOnce(&C) -> error::Result<()>,
 {
-    if fs.is_null() {
-        dbg!("require_ref failed");
-        return STATUS_ACCESS_VIOLATION.0;
-    }
+    assert_ctx!(fs);
 
     let context: &C = unsafe { &*(*fs).UserContext.cast::<C>() };
     match inner(context) {
@@ -81,23 +85,21 @@ fn require_fctx_io<C: FileSystemContext<DIR_BUF_SIZE>, F, const DIR_BUF_SIZE: us
 where
     F: FnOnce(&C, &C::FileContext) -> error::Result<IoResult>,
 {
-    let context: &C = unsafe { &*(*fs).UserContext.cast::<C>() };
-    let fctx = fctx.cast::<C::FileContext>();
+    assert_ctx!(fs);
+    assert_ctx!(fctx);
 
-    // todo: can we unwrap_unchecked.. probably to be honest.
-    if let Some(fctx) = unsafe { fctx.as_ref() } {
-        match inner(context, fctx) {
-            Ok(res) => {
-                if res.io_pending {
-                    STATUS_PENDING.0
-                } else {
-                    STATUS_SUCCESS.0
-                }
+    let context: &C = unsafe { &*(*fs).UserContext.cast::<C>() };
+    let fctx = unsafe { &mut *fctx.cast::<C::FileContext>() };
+
+    match inner(context, fctx) {
+        Ok(res) => {
+            if res.io_pending {
+                STATUS_PENDING.0
+            } else {
+                STATUS_SUCCESS.0
             }
-            Err(e) => e.as_ntstatus(),
         }
-    } else {
-        STATUS_ACCESS_VIOLATION.0
+        Err(e) => e.as_ntstatus(),
     }
 }
 
