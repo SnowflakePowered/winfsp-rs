@@ -292,16 +292,15 @@ pub trait FileSystemContext<const DIR_INFO_SIZE: usize = MAX_PATH>: Sized {
         Err(STATUS_INVALID_DEVICE_REQUEST.into())
     }
 
-    fn get_extended_attributes<P: AsRef<WCStr>>(
+    fn get_extended_attributes(
         &self,
         context: &Self::FileContext,
-        file_name: P,
         buffer: &mut [u8],
     ) -> Result<u32> {
         Err(STATUS_INVALID_DEVICE_REQUEST.into())
     }
 
-    fn set_extended_attributes<P: AsRef<WCStr>>(
+    fn set_extended_attributes(
         &self,
         context: &Self::FileContext,
         buffer: &[u8],

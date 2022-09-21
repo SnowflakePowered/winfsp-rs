@@ -1,10 +1,11 @@
 use ntapi::ntioapi::{
     FileAllInformation, FileAllocationInformation, FileAttributeTagInformation,
     FileBasicInformation, FileDispositionInformation, FileDispositionInformationEx,
-    FileEndOfFileInformation, FileNameInformation, FileRenameInformation, FileRenameInformationEx,
-    FileStandardInformation, FILE_ALLOCATION_INFORMATION, FILE_ALL_INFORMATION,
-    FILE_ATTRIBUTE_TAG_INFORMATION, FILE_BASIC_INFORMATION, FILE_DISPOSITION_INFORMATION,
-    FILE_END_OF_FILE_INFORMATION, FILE_NAME_INFORMATION, FILE_STANDARD_INFORMATION,
+    FileEndOfFileInformation, FileFsSizeInformation, FileNameInformation, FileRenameInformation,
+    FileRenameInformationEx, FileStandardInformation, FILE_ALLOCATION_INFORMATION,
+    FILE_ALL_INFORMATION, FILE_ATTRIBUTE_TAG_INFORMATION, FILE_BASIC_INFORMATION,
+    FILE_DISPOSITION_INFORMATION, FILE_END_OF_FILE_INFORMATION, FILE_FS_SIZE_INFORMATION,
+    FILE_NAME_INFORMATION, FILE_STANDARD_INFORMATION,
 };
 use ntapi::winapi::um::fileapi::INVALID_FILE_ATTRIBUTES;
 
@@ -537,7 +538,7 @@ pub fn lfs_set_delete(handle: HANDLE, delete: bool) -> winfsp::Result<()> {
     r_return!(result)
 }
 
-#[derive(Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum LfsRenameSemantics {
     DoNotReplace,
     NtReplaceSemantics,
@@ -850,4 +851,42 @@ pub fn lfs_get_volume_info(root_handle: HANDLE) -> winfsp::Result<LfsVolumeInfo>
                 * alloc_unit as u64,
         }
     })
+}
+
+pub fn lfs_get_ea(handle: HANDLE, buffer: &mut [u8]) -> u64 {
+    let mut iosb: MaybeUninit<IO_STATUS_BLOCK> = MaybeUninit::uninit();
+
+    let result = unsafe {
+        NTSTATUS(nt::NtQueryEaFile(
+            handle.0,
+            iosb.as_mut_ptr(),
+            buffer.as_mut_ptr().cast(),
+            buffer.len() as u32,
+            0,
+            std::ptr::null_mut(),
+            0,
+            std::ptr::null_mut(),
+            1,
+        ))
+    };
+
+    if result.is_err() && result != STATUS_BUFFER_OVERFLOW {
+        return 0;
+    }
+
+    let iosb = unsafe { iosb.assume_init() };
+    return iosb.Information as u64;
+}
+
+pub fn lfs_set_ea(handle: HANDLE, buffer: &[u8]) -> winfsp::Result<()> {
+    let mut iosb: MaybeUninit<IO_STATUS_BLOCK> = MaybeUninit::uninit();
+    let result = unsafe {
+        NTSTATUS(nt::NtSetEaFile(
+            handle.0,
+            iosb.as_mut_ptr(),
+            buffer.as_ptr().cast(),
+            buffer.len() as u32,
+        ))
+    };
+    r_return!(result)
 }

@@ -6,6 +6,7 @@ use windows_sys::Win32::System::WindowsProgramming::{
     FILE_INFORMATION_CLASS, IO_STATUS_BLOCK, PIO_APC_ROUTINE,
 };
 
+// todo: wait for ntifs.h metadata from https://github.com/microsoft/win32metadata/issues/401
 #[link(name = "windows")]
 #[allow(non_snake_case)]
 extern "system" {
@@ -101,6 +102,25 @@ extern "system" {
         InputBufferLength: u32,
         OutputBuffer: *mut c_void,
         OutputBufferLength: u32,
+    ) -> windows_sys::Win32::Foundation::NTSTATUS;
+
+    pub fn NtQueryEaFile(
+        FileHandle: HANDLE,
+        IoStatusBlock: *mut IO_STATUS_BLOCK,
+        Buffer: *mut c_void,
+        Length: u32,
+        ReturnSingleEntry: BOOLEAN,
+        EaList: *mut c_void,
+        EaListLength: u32,
+        EaIndex: *mut u32,
+        RestartScan: BOOLEAN,
+    ) -> windows_sys::Win32::Foundation::NTSTATUS;
+
+    pub fn NtSetEaFile(
+        FileHandle: HANDLE,
+        IoStatusBlock: *mut IO_STATUS_BLOCK,
+        Buffer: *const c_void,
+        Length: u32,
     ) -> windows_sys::Win32::Foundation::NTSTATUS;
 }
 

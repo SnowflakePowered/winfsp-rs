@@ -713,29 +713,11 @@ impl FileSystemContext for NtPassthroughContext {
         Ok(())
     }
 
-    fn control(
-        &self,
-        _context: &Self::FileContext,
-        _control_code: u32,
-        _input: &[u8],
-        _output: &mut [u8],
-    ) -> winfsp::Result<u32> {
-        todo!()
-    }
-
     fn delete_reparse_point<P: AsRef<WCStr>>(
         &self,
         _context: &Self::FileContext,
         _file_name: P,
         _buffer: &[u8],
-    ) -> winfsp::Result<()> {
-        todo!()
-    }
-
-    fn set_volume_label<P: Into<PWSTR>>(
-        &self,
-        _volume_label: P,
-        _volume_info: &mut FSP_FSCTL_VOLUME_INFO,
     ) -> winfsp::Result<()> {
         todo!()
     }
@@ -756,6 +738,7 @@ impl FileSystemContext for NtPassthroughContext {
     ) -> winfsp::Result<u64> {
         todo!()
     }
+
     fn set_security(
         &self,
         context: &Self::FileContext,
@@ -767,5 +750,23 @@ impl FileSystemContext for NtPassthroughContext {
             security_information,
             modification_descriptor,
         )
+    }
+
+    fn get_extended_attributes(
+        &self,
+        context: &Self::FileContext,
+        buffer: &mut [u8],
+    ) -> winfsp::Result<u32> {
+        Ok(lfs::lfs_get_ea(context.handle(), buffer) as u32)
+    }
+
+    fn set_extended_attributes(
+        &self,
+        context: &Self::FileContext,
+        buffer: &[u8],
+        file_info: &mut FSP_FSCTL_FILE_INFO,
+    ) -> winfsp::Result<()> {
+        lfs::lfs_set_ea(context.handle(), buffer)?;
+        lfs::lfs_get_file_info(context.handle(), None, file_info)
     }
 }

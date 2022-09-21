@@ -11,7 +11,10 @@ use windows::Win32::Security::PSECURITY_DESCRIPTOR;
 use windows::Win32::Storage::FileSystem::{FILE_ACCESS_FLAGS, FILE_FLAGS_AND_ATTRIBUTES};
 
 use crate::error;
-use winfsp_sys::{FSP_FILE_SYSTEM, FSP_FILE_SYSTEM_INTERFACE, FSP_FSCTL_FILE_INFO, FSP_FSCTL_VOLUME_INFO, PFILE_FULL_EA_INFORMATION};
+use winfsp_sys::{
+    FSP_FILE_SYSTEM, FSP_FILE_SYSTEM_INTERFACE, FSP_FSCTL_FILE_INFO, FSP_FSCTL_VOLUME_INFO,
+    PFILE_FULL_EA_INFORMATION,
+};
 use winfsp_sys::{NTSTATUS as FSP_STATUS, PVOID};
 
 use crate::filesystem::{DirMarker, FileSecurity, FileSystemContext, IoResult};
@@ -631,6 +634,38 @@ unsafe extern "C" fn rename<T: FileSystemContext<DIR_BUF_SIZE>, const DIR_BUF_SI
     })
 }
 
+unsafe extern "C" fn get_ea<T: FileSystemContext<DIR_BUF_SIZE>, const DIR_BUF_SIZE: usize>(
+    fs: *mut FSP_FILE_SYSTEM,
+    fctx: PVOID,
+    ea: PFILE_FULL_EA_INFORMATION,
+    ea_len: u32,
+    bytes_transferred: *mut u32,
+) -> FSP_STATUS {
+    catch_panic!({
+        require_fctx(fs, fctx, |context, fctx| {
+            let buffer = unsafe { slice::from_raw_parts_mut(ea.cast::<u8>(), ea_len as usize) };
+            let written = T::get_extended_attributes(context, fctx, buffer)?;
+            unsafe { bytes_transferred.write(written) };
+            Ok(())
+        })
+    })
+}
+
+unsafe extern "C" fn set_ea<T: FileSystemContext<DIR_BUF_SIZE>, const DIR_BUF_SIZE: usize>(
+    fs: *mut FSP_FILE_SYSTEM,
+    fctx: PVOID,
+    ea: PFILE_FULL_EA_INFORMATION,
+    ea_len: u32,
+    out_file_info: *mut FSP_FSCTL_FILE_INFO,
+) -> FSP_STATUS {
+    catch_panic!({
+        require_fctx(fs, fctx, |context, fctx| {
+            let buffer = unsafe { slice::from_raw_parts(ea.cast::<u8>(), ea_len as usize) };
+            unsafe { T::set_extended_attributes(context, fctx, buffer, &mut *out_file_info) }
+        })
+    })
+}
+
 pub struct Interface {
     get_volume_info: Option<
         unsafe extern "C" fn(
@@ -775,7 +810,6 @@ pub struct Interface {
             out_file_info: *mut FSP_FSCTL_FILE_INFO,
         ) -> FSP_STATUS,
     >,
-
     set_security: Option<
         unsafe extern "C" fn(
             fs: *mut FSP_FILE_SYSTEM,
@@ -817,6 +851,24 @@ pub struct Interface {
             replace_if_exists: u8,
         ) -> FSP_STATUS,
     >,
+    get_ea: Option<
+        unsafe extern "C" fn(
+            fs: *mut FSP_FILE_SYSTEM,
+            fctx: PVOID,
+            ea: PFILE_FULL_EA_INFORMATION,
+            ea_len: u32,
+            bytes_transferred: *mut u32,
+        ) -> FSP_STATUS,
+    >,
+    set_ea: Option<
+        unsafe extern "C" fn(
+            fs: *mut FSP_FILE_SYSTEM,
+            fctx: PVOID,
+            ea: PFILE_FULL_EA_INFORMATION,
+            ea_len: u32,
+            out_file_info: *mut FSP_FSCTL_FILE_INFO,
+        ) -> FSP_STATUS,
+    >,
 }
 
 impl Interface {
@@ -842,10 +894,15 @@ impl Interface {
             set_delete: Some(set_delete::<T, DIR_BUF_SIZE>),
             flush: Some(flush::<T, DIR_BUF_SIZE>),
             rename: Some(rename::<T, DIR_BUF_SIZE>),
+            get_ea: Some(get_ea::<T, DIR_BUF_SIZE>),
+            set_ea: Some(set_ea::<T, DIR_BUF_SIZE>),
         }
     }
 
-    pub(crate) fn create_with_dirinfo_by_name<T: FileSystemContext<DIR_BUF_SIZE>, const DIR_BUF_SIZE: usize>() -> Self {
+    pub(crate) fn create_with_dirinfo_by_name<
+        T: FileSystemContext<DIR_BUF_SIZE>,
+        const DIR_BUF_SIZE: usize,
+    >() -> Self {
         todo!()
     }
 }
@@ -873,6 +930,8 @@ impl From<Interface> for FSP_FILE_SYSTEM_INTERFACE {
             SetDelete: interface.set_delete,
             Flush: interface.flush,
             Rename: interface.rename,
+            GetEa: interface.get_ea,
+            SetEa: interface.set_ea,
             // todo: GetDirInfoByName
             ..Default::default()
         }
