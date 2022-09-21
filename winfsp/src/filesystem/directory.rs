@@ -5,13 +5,10 @@ use std::os::windows::ffi::OsStrExt;
 
 use widestring::{u16cstr, U16CStr};
 use windows::Win32::Foundation::{STATUS_INSUFFICIENT_RESOURCES, STATUS_SUCCESS};
-use winfsp_sys::{
-    FspFileSystemAcquireDirectoryBufferEx, FspFileSystemDeleteDirectoryBuffer,
-    FspFileSystemFillDirectoryBuffer, FspFileSystemReadDirectoryBuffer,
-    FspFileSystemReleaseDirectoryBuffer, FSP_FSCTL_DIR_INFO, FSP_FSCTL_FILE_INFO, PVOID,
-};
+use winfsp_sys::{FspFileSystemAcquireDirectoryBufferEx, FspFileSystemDeleteDirectoryBuffer, FspFileSystemFillDirectoryBuffer, FspFileSystemReadDirectoryBuffer, FspFileSystemReleaseDirectoryBuffer, FSP_FSCTL_DIR_INFO, FSP_FSCTL_FILE_INFO, PVOID, FspFileSystemAddDirInfo};
 
 use crate::error::Result;
+use crate::filesystem::WideNameInfo;
 use crate::WCStr;
 
 #[derive(Debug)]
@@ -159,7 +156,7 @@ pub struct DirInfo<const BUFFER_SIZE: usize> {
 
 impl<const BUFFER_SIZE: usize> DirInfo<BUFFER_SIZE> {
     pub fn new() -> Self {
-        assert_eq!(104, std::mem::size_of::<DirInfo<0>>());
+        const _: () = assert!(104 == std::mem::size_of::<DirInfo<0>>());
         assert_eq!(
             Layout::new::<FSP_FSCTL_DIR_INFO>(),
             Layout::new::<DirInfo<0>>()
@@ -173,57 +170,45 @@ impl<const BUFFER_SIZE: usize> DirInfo<BUFFER_SIZE> {
         }
     }
 
-    /// Set the file name of the directory info.
-    ///
-    /// If the input buffer is not null terminated, potentially bad things could happen.
-    ///
-    /// # Safety
-    /// The input buffer should either be null terminated or less than the size of the buffer.
-    pub unsafe fn set_file_name_raw<'a, P: Into<&'a [u16]>>(&mut self, file_name: P) -> Result<()> {
-        let file_name = file_name.into();
-        if file_name.len() >= BUFFER_SIZE {
-            return Err(STATUS_INSUFFICIENT_RESOURCES.into());
-        }
-        self.file_name[0..std::cmp::min(file_name.len(), BUFFER_SIZE)]
-            .copy_from_slice(&file_name[0..std::cmp::min(file_name.len(), BUFFER_SIZE)]);
-        self.size = (std::mem::size_of::<DirInfo<0>>()
-            + std::mem::size_of::<u16>() * file_name.len()) as u16;
-        Ok(())
-    }
-
-    /// Set the file name of the directory info.
-    pub fn set_file_name<P: AsRef<OsStr>>(&mut self, file_name: P) -> Result<()> {
-        let file_name = file_name.as_ref();
-        let file_name = file_name
-            .encode_wide()
-            .chain(iter::once(0))
-            .collect::<Vec<_>>();
-        unsafe { self.set_file_name_raw(file_name.as_slice()) }
-    }
-
-    /// Set the file name of the directory info.
-    pub fn set_file_name_cstr<P: AsRef<WCStr>>(&mut self, file_name: P) -> Result<()> {
-        let file_name = file_name.as_ref();
-        unsafe { self.set_file_name_raw(file_name.as_slice_with_nul()) }
-    }
-
     /// Get a mutable reference to the file information of this directory entry.
     pub fn file_info_mut(&mut self) -> &mut FSP_FSCTL_FILE_INFO {
         &mut self.file_info
-    }
-
-    /// Reset the directory entry.
-    pub fn reset(&mut self) {
-        self.size = 0;
-        self.file_info = FSP_FSCTL_FILE_INFO::default();
-        self.padding.next_offset = 0;
-        self.padding.padding = [0; 24];
-        self.file_name = [0; BUFFER_SIZE]
     }
 }
 
 impl<const BUFFER_SIZE: usize> Default for DirInfo<BUFFER_SIZE> {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl<const BUFFER_SIZE: usize> WideNameInfo<BUFFER_SIZE> for DirInfo<BUFFER_SIZE> {
+    fn name_buffer(&mut self) -> &mut [u16; BUFFER_SIZE] {
+        &mut self.file_name
+    }
+
+    fn set_size(&mut self, buffer_size: u16) {
+        self.size = std::mem::size_of::<DirInfo<0>>() as u16 + buffer_size
+    }
+
+    /// Reset the directory entry.
+    fn reset(&mut self) {
+        self.size = std::mem::size_of::<DirInfo<0>>() as u16;
+        self.file_info = FSP_FSCTL_FILE_INFO::default();
+        self.padding.next_offset = 0;
+        self.padding.padding = [0; 24];
+        self.file_name = [0; BUFFER_SIZE]
+    }
+
+    fn add_to_buffer(entry: Option<&Self>, buffer: &mut [u8], cursor: &mut u32) -> bool {
+        unsafe {
+            // SAFETY: https://github.com/winfsp/winfsp/blob/0a91292e0502d6629f9a968a168c6e89eea69ea1/src/dll/fsop.c#L1500
+            // does not mutate entry.
+            if let Some(entry) = entry {
+                FspFileSystemAddDirInfo((entry as *const Self).cast_mut().cast(), buffer.as_mut_ptr().cast(), buffer.len() as u32, cursor) != 0
+            } else {
+                FspFileSystemAddDirInfo(std::ptr::null_mut(), buffer.as_mut_ptr().cast(), buffer.len() as u32, cursor) != 0
+            }
+        }
     }
 }

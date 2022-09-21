@@ -45,10 +45,7 @@ use windows_sys::Win32::System::WindowsProgramming::{
 };
 use winfsp::constants::FspCleanupFlags::FspCleanupDelete;
 use winfsp::error::FspError;
-use winfsp::filesystem::{
-    DirInfo, DirMarker, FileSecurity, FileSystemContext, IoResult, FSP_FSCTL_FILE_INFO,
-    FSP_FSCTL_VOLUME_INFO, FSP_FSCTL_VOLUME_PARAMS, MAX_PATH,
-};
+use winfsp::filesystem::{DirInfo, DirMarker, FileSecurity, FileSystemContext, IoResult, FSP_FSCTL_FILE_INFO, FSP_FSCTL_VOLUME_INFO, FSP_FSCTL_VOLUME_PARAMS, MAX_PATH, WideNameInfo};
 use winfsp::util::Win32SafeHandle;
 use winfsp::WCStr;
 
@@ -90,7 +87,7 @@ impl NtPassthroughContext {
         root_handle: Win32SafeHandle,
         root: impl AsRef<Path>,
     ) -> winfsp::Result<Self> {
-        let root_prefix = lfs::lfs_query_file_name(*root_handle)?;
+        let root_prefix = lfs::lfs_get_file_name(*root_handle)?;
         let root_prefix_len = (root_prefix.len() * size_of::<u16>()) as u32;
 
         Ok(Self {
@@ -155,7 +152,7 @@ impl NtPassthroughContext {
             )
         };
 
-        unsafe { dir_info.set_file_name_raw(file_name_slice)? }
+        unsafe { dir_info.set_name_raw(file_name_slice)? }
 
         let file_info = dir_info.file_info_mut();
 
@@ -201,7 +198,7 @@ impl FileSystemContext for NtPassthroughContext {
             FILE_OPEN_FOR_BACKUP_INTENT | FILE_OPEN_REPARSE_POINT,
         )?;
 
-        let attributes = lfs::lfs_query_file_attributes(*handle)?;
+        let attributes = lfs::lfs_get_file_attributes(*handle)?;
 
         // cache file_attributes for Open
         unsafe {
@@ -212,7 +209,7 @@ impl FileSystemContext for NtPassthroughContext {
         }
 
         let needed_size = if let Some(descriptor_len) = descriptor_len {
-            lfs::lfs_query_security(
+            lfs::lfs_get_security(
                 *handle,
                 (OWNER_SECURITY_INFORMATION
                     | GROUP_SECURITY_INFORMATION
@@ -480,7 +477,7 @@ impl FileSystemContext for NtPassthroughContext {
         file_info: &mut FSP_FSCTL_FILE_INFO,
     ) -> winfsp::Result<IoResult> {
         if constrained_io {
-            let fsize = lfs::lfs_query_file_size(context.handle())?;
+            let fsize = lfs::lfs_get_file_size(context.handle())?;
             if offset >= fsize {
                 return Ok(IoResult {
                     bytes_transferred: 0,
@@ -562,7 +559,7 @@ impl FileSystemContext for NtPassthroughContext {
         descriptor_len: Option<u64>,
     ) -> winfsp::Result<u64> {
         let needed_size = if let Some(descriptor_len) = descriptor_len {
-            lfs::lfs_query_security(
+            lfs::lfs_get_security(
                 context.handle(),
                 (OWNER_SECURITY_INFORMATION
                     | GROUP_SECURITY_INFORMATION
@@ -635,7 +632,7 @@ impl FileSystemContext for NtPassthroughContext {
             lfs::lfs_set_delete(context.handle(), true).unwrap_or(());
             context.invalidate();
         } else if self.set_alloc_size_on_cleanup {
-            if let Ok(fsize) = lfs::lfs_query_file_size(context.handle()) {
+            if let Ok(fsize) = lfs::lfs_get_file_size(context.handle()) {
                 lfs::lfs_set_allocation_size(context.handle(), fsize).unwrap_or(());
             }
         }
@@ -833,9 +830,12 @@ impl FileSystemContext for NtPassthroughContext {
 
     fn get_stream_info(
         &self,
-        _context: &Self::FileContext,
+        context: &Self::FileContext,
         _buffer: &mut [u8],
     ) -> winfsp::Result<u32> {
-        todo!()
+        let mut query_buffer = vec![0u8; 16 * 1024];
+        lfs::lfs_get_stream_info(context.handle(), &mut query_buffer)?;
+
+        Ok(0)
     }
 }

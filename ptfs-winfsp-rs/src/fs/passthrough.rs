@@ -39,7 +39,7 @@ use winfsp::constants::FspCleanupFlags;
 use winfsp::error::{FspError, Result};
 use winfsp::filesystem::{
     DirBuffer, DirInfo, DirMarker, FileSecurity, FileSystemContext, FileSystemHost, IoResult,
-    FSP_FSCTL_FILE_INFO, FSP_FSCTL_VOLUME_INFO, FSP_FSCTL_VOLUME_PARAMS,
+    FSP_FSCTL_FILE_INFO, FSP_FSCTL_VOLUME_INFO, FSP_FSCTL_VOLUME_PARAMS, WideNameInfo
 };
 
 use winfsp::util::Win32SafeHandle;
@@ -524,7 +524,7 @@ impl FileSystemContext for PtfsContext {
                     let file_name = file_name.as_slice();
 
                     unsafe {
-                        dirinfo.set_file_name_raw(file_name)?;
+                        dirinfo.set_name_raw(file_name)?;
                     }
 
                     if let Err(e) = lock.write(&mut dirinfo) {

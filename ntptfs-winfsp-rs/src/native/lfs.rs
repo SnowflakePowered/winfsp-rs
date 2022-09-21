@@ -1,12 +1,4 @@
-use ntapi::ntioapi::{
-    FileAllInformation, FileAllocationInformation, FileAttributeTagInformation,
-    FileBasicInformation, FileDispositionInformation, FileDispositionInformationEx,
-    FileEndOfFileInformation, FileFsSizeInformation, FileNameInformation, FileRenameInformation,
-    FileRenameInformationEx, FileStandardInformation, FILE_ALLOCATION_INFORMATION,
-    FILE_ALL_INFORMATION, FILE_ATTRIBUTE_TAG_INFORMATION, FILE_BASIC_INFORMATION,
-    FILE_DISPOSITION_INFORMATION, FILE_END_OF_FILE_INFORMATION, FILE_FS_SIZE_INFORMATION,
-    FILE_NAME_INFORMATION, FILE_STANDARD_INFORMATION,
-};
+use ntapi::ntioapi::{FileAllInformation, FileAllocationInformation, FileAttributeTagInformation, FileBasicInformation, FileDispositionInformation, FileDispositionInformationEx, FileEndOfFileInformation, FileFsSizeInformation, FileNameInformation, FileRenameInformation, FileRenameInformationEx, FileStandardInformation, FILE_ALLOCATION_INFORMATION, FILE_ALL_INFORMATION, FILE_ATTRIBUTE_TAG_INFORMATION, FILE_BASIC_INFORMATION, FILE_DISPOSITION_INFORMATION, FILE_END_OF_FILE_INFORMATION, FILE_FS_SIZE_INFORMATION, FILE_NAME_INFORMATION, FILE_STANDARD_INFORMATION, FileStreamInformation};
 use ntapi::winapi::um::fileapi::INVALID_FILE_ATTRIBUTES;
 
 use ntapi::winapi::um::winnt::{FILE_ATTRIBUTE_NORMAL, LARGE_INTEGER};
@@ -282,7 +274,7 @@ pub fn lfs_write_file(handle: HANDLE, buffer: &[u8], offset: u64) -> winfsp::Res
     })
 }
 
-pub fn lfs_query_file_attributes(handle: HANDLE) -> winfsp::Result<u32> {
+pub fn lfs_get_file_attributes(handle: HANDLE) -> winfsp::Result<u32> {
     let mut iosb: MaybeUninit<IO_STATUS_BLOCK> = MaybeUninit::uninit();
     let mut file_attr_info = FILE_ATTRIBUTE_TAG_INFORMATION {
         FileAttributes: 0,
@@ -302,7 +294,7 @@ pub fn lfs_query_file_attributes(handle: HANDLE) -> winfsp::Result<u32> {
     r_return!(result, file_attr_info.FileAttributes)
 }
 
-pub fn lfs_query_security(
+pub fn lfs_get_security(
     handle: HANDLE,
     security_information: u32,
     security_descriptor: PSECURITY_DESCRIPTOR,
@@ -331,7 +323,7 @@ pub fn lfs_get_ea_size(ea_size: u32) -> u32 {
     }
 }
 
-pub fn lfs_query_file_name(handle: HANDLE) -> winfsp::Result<Box<[u16]>> {
+pub fn lfs_get_file_name(handle: HANDLE) -> winfsp::Result<Box<[u16]>> {
     let mut iosb: MaybeUninit<IO_STATUS_BLOCK> = MaybeUninit::uninit();
     let mut name_info: VariableSizedBox<FILE_NAME_INFORMATION> = VariableSizedBox::new(
         winfsp::constants::FSP_FSCTL_TRANSACT_PATH_SIZEMAX + size_of::<FILE_NAME_INFORMATION>() + 1,
@@ -466,7 +458,7 @@ pub fn lfs_get_file_info(
     Ok(())
 }
 
-pub fn lfs_query_file_size(handle: HANDLE) -> winfsp::Result<u64> {
+pub fn lfs_get_file_size(handle: HANDLE) -> winfsp::Result<u64> {
     let mut file_std_info: MaybeUninit<FILE_STANDARD_INFORMATION> = MaybeUninit::uninit();
     let result = unsafe {
         let mut iosb: MaybeUninit<IO_STATUS_BLOCK> = MaybeUninit::uninit();
@@ -897,4 +889,24 @@ pub fn lfs_set_ea(handle: HANDLE, buffer: &[u8]) -> winfsp::Result<()> {
         ))
     };
     r_return!(result)
+}
+
+pub fn lfs_get_stream_info(handle: HANDLE, buffer: &mut [u8]) -> winfsp::Result<()> {
+    let mut iosb: MaybeUninit<IO_STATUS_BLOCK> = MaybeUninit::uninit();
+
+    let result = unsafe {
+        NTSTATUS(nt::NtQueryInformationFile(
+            handle.0,
+            iosb.as_mut_ptr(),
+            buffer.as_mut_ptr().cast(),
+            buffer.len() as u32,
+            FileStreamInformation as i32,
+        ))
+    };
+
+    if result.is_err() && result != STATUS_BUFFER_OVERFLOW {
+        return Err(result.into());
+    }
+
+    Ok(())
 }
