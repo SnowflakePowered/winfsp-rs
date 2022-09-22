@@ -3,8 +3,8 @@ mod directory;
 mod host;
 mod interface;
 mod internals;
-mod stream;
 mod notify;
+mod stream;
 
 mod sealed {
     use crate::filesystem::{directory, notify, stream};
@@ -19,5 +19,5 @@ pub use context::*;
 pub use directory::*;
 pub use host::*;
 pub use internals::*;
-pub use stream::*;
 pub use notify::*;
+pub use stream::*;

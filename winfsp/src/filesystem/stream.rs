@@ -1,6 +1,6 @@
-use std::alloc::Layout;
-use winfsp_sys::{FSP_FSCTL_STREAM_INFO, FspFileSystemAddStreamInfo};
 use crate::filesystem::WideNameInfo;
+use std::alloc::Layout;
+use winfsp_sys::{FspFileSystemAddStreamInfo, FSP_FSCTL_STREAM_INFO};
 
 #[repr(C)]
 pub struct StreamInfo<const BUFFER_SIZE: usize> {
@@ -27,6 +27,12 @@ impl<const BUFFER_SIZE: usize> StreamInfo<BUFFER_SIZE> {
     }
 }
 
+impl<const BUFFER_SIZE: usize> Default for StreamInfo<BUFFER_SIZE> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<const BUFFER_SIZE: usize> WideNameInfo<BUFFER_SIZE> for StreamInfo<BUFFER_SIZE> {
     fn name_buffer(&mut self) -> &mut [u16; BUFFER_SIZE] {
         &mut self.stream_name
@@ -48,9 +54,19 @@ impl<const BUFFER_SIZE: usize> WideNameInfo<BUFFER_SIZE> for StreamInfo<BUFFER_S
             // SAFETY: https://github.com/winfsp/winfsp/blob/0a91292e0502d6629f9a968a168c6e89eea69ea1/src/dll/fsop.c#L1500
             // does not mutate entry.
             if let Some(entry) = entry {
-                FspFileSystemAddStreamInfo((entry as *const Self).cast_mut().cast(), buffer.as_mut_ptr().cast(), buffer.len() as u32, cursor) != 0
+                FspFileSystemAddStreamInfo(
+                    (entry as *const Self).cast_mut().cast(),
+                    buffer.as_mut_ptr().cast(),
+                    buffer.len() as u32,
+                    cursor,
+                ) != 0
             } else {
-                FspFileSystemAddStreamInfo(std::ptr::null_mut(), buffer.as_mut_ptr().cast(), buffer.len() as u32, cursor) != 0
+                FspFileSystemAddStreamInfo(
+                    std::ptr::null_mut(),
+                    buffer.as_mut_ptr().cast(),
+                    buffer.len() as u32,
+                    cursor,
+                ) != 0
             }
         }
     }

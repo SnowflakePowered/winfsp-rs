@@ -4,15 +4,13 @@ use std::os::windows::ffi::OsStrExt;
 use windows::Win32::Foundation::STATUS_INSUFFICIENT_RESOURCES;
 // todo: safe wrappers
 pub use winfsp_sys::{
-    FSP_FSCTL_FILE_INFO, FSP_FSCTL_OPEN_FILE_INFO,
-    FSP_FSCTL_VOLUME_INFO, FSP_FSCTL_VOLUME_PARAMS,
+    FSP_FSCTL_FILE_INFO, FSP_FSCTL_OPEN_FILE_INFO, FSP_FSCTL_VOLUME_INFO, FSP_FSCTL_VOLUME_PARAMS,
 };
 
 use crate::{Result, WCStr};
 
 /// A information entry that contains a wide name buffer.
 pub trait WideNameInfo<const BUFFER_SIZE: usize>: super::sealed::Sealed {
-
     #[doc(hidden)]
     /// Return a reference to the name buffer.
     fn name_buffer(&mut self) -> &mut [u16; BUFFER_SIZE];
@@ -67,5 +65,4 @@ pub trait WideNameInfo<const BUFFER_SIZE: usize>: super::sealed::Sealed {
         let file_name = file_name.as_ref();
         unsafe { self.set_name_raw(file_name.as_slice_with_nul()) }
     }
-
 }

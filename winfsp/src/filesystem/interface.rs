@@ -4,14 +4,18 @@ use widestring::U16CStr;
 use windows::core::PWSTR;
 
 use windows::Win32::Foundation::{
-    EXCEPTION_NONCONTINUABLE_EXCEPTION, STATUS_ACCESS_VIOLATION, STATUS_INSUFFICIENT_RESOURCES,
+    EXCEPTION_NONCONTINUABLE_EXCEPTION, STATUS_INSUFFICIENT_RESOURCES,
     STATUS_PENDING, STATUS_REPARSE, STATUS_SUCCESS,
 };
 use windows::Win32::Security::PSECURITY_DESCRIPTOR;
 use windows::Win32::Storage::FileSystem::{FILE_ACCESS_FLAGS, FILE_FLAGS_AND_ATTRIBUTES};
 
 use crate::{error, WCStr};
-use winfsp_sys::{FspFileSystemResolveReparsePoints, BOOLEAN, FSP_FILE_SYSTEM, FSP_FILE_SYSTEM_INTERFACE, FSP_FSCTL_DIR_INFO, FSP_FSCTL_FILE_INFO, FSP_FSCTL_VOLUME_INFO, PFILE_FULL_EA_INFORMATION, PIO_STATUS_BLOCK, PSIZE_T, FspFileSystemFindReparsePoint};
+use winfsp_sys::{
+    FspFileSystemFindReparsePoint, FspFileSystemResolveReparsePoints, BOOLEAN, FSP_FILE_SYSTEM,
+    FSP_FILE_SYSTEM_INTERFACE, FSP_FSCTL_DIR_INFO, FSP_FSCTL_FILE_INFO, FSP_FSCTL_VOLUME_INFO,
+    PFILE_FULL_EA_INFORMATION, PIO_STATUS_BLOCK, PSIZE_T,
+};
 use winfsp_sys::{NTSTATUS as FSP_STATUS, PVOID};
 
 use crate::filesystem::{DirInfo, DirMarker, FileSecurity, FileSystemContext, IoResult};
@@ -34,9 +38,8 @@ macro_rules! assert_ctx {
         if $fs.is_null() {
             panic!("Received null {} context: {}", ::std::stringify!($fs), $tag);
         }
-    }
+    };
 }
-
 
 #[inline(always)]
 fn require_fctx<C: FileSystemContext<DIR_BUF_SIZE>, F, const DIR_BUF_SIZE: usize>(
@@ -142,8 +145,14 @@ unsafe extern "C" fn get_security_by_name<
         let find_reparse_points = |file_name: &WCStr| {
             let mut reparse_index = 0;
             unsafe {
-                if FspFileSystemFindReparsePoint(fs, Some(get_reparse_point_by_name::<T, DIR_BUF_SIZE>),
-                        std::ptr::null_mut(), file_name.as_ptr().cast_mut(), &mut reparse_index) != 0 {
+                if FspFileSystemFindReparsePoint(
+                    fs,
+                    Some(get_reparse_point_by_name::<T, DIR_BUF_SIZE>),
+                    std::ptr::null_mut(),
+                    file_name.as_ptr().cast_mut(),
+                    &mut reparse_index,
+                ) != 0
+                {
                     Some(reparse_index)
                 } else {
                     None
@@ -156,7 +165,7 @@ unsafe extern "C" fn get_security_by_name<
             file_name,
             PSECURITY_DESCRIPTOR(security_descriptor),
             unsafe { sz_security_descriptor.as_ref() }.cloned(),
-            find_reparse_points
+            find_reparse_points,
         ) {
             Ok(FileSecurity {
                 attributes,
@@ -700,12 +709,8 @@ unsafe extern "C" fn get_reparse_point_by_name<
             if !buffer.is_null() {
                 let buffer =
                     unsafe { slice::from_raw_parts_mut(buffer.cast::<u8>(), buffer_len as usize) };
-                let bytes_transferred = T::get_reparse_point_by_name(
-                    context,
-                    file_name,
-                    is_directory != 0,
-                    buffer,
-                )?;
+                let bytes_transferred =
+                    T::get_reparse_point_by_name(context, file_name, is_directory != 0, buffer)?;
                 if !psize.is_null() {
                     unsafe { psize.write(bytes_transferred) };
                 }
@@ -868,7 +873,6 @@ unsafe extern "C" fn get_dir_info_by_name<
             }
 
             let buffer = dir_info.cast::<DirInfo<DIR_BUF_SIZE>>();
-            todo!("verify dirinfo is correct size");
             T::get_dir_info_by_name(context, fctx, file_name, unsafe {
                 buffer.as_mut().unwrap()
             })

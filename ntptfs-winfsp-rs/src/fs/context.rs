@@ -20,7 +20,7 @@ use std::os::windows::fs::MetadataExt;
 use std::path::Path;
 use std::ptr::addr_of;
 
-use widestring::{u16cstr, U16CStr, U16CString};
+use widestring::{u16cstr, U16CString};
 use windows::core::{HSTRING, PCWSTR};
 use windows::Win32::Foundation::{
     GetLastError, INVALID_HANDLE_VALUE, STATUS_ACCESS_DENIED, STATUS_BUFFER_OVERFLOW,

@@ -39,7 +39,7 @@ use winfsp::constants::FspCleanupFlags;
 use winfsp::error::{FspError, Result};
 use winfsp::filesystem::{
     DirBuffer, DirInfo, DirMarker, FileSecurity, FileSystemContext, FileSystemHost, IoResult,
-    FSP_FSCTL_FILE_INFO, FSP_FSCTL_VOLUME_INFO, FSP_FSCTL_VOLUME_PARAMS, WideNameInfo
+    WideNameInfo, FSP_FSCTL_FILE_INFO, FSP_FSCTL_VOLUME_INFO, FSP_FSCTL_VOLUME_PARAMS,
 };
 
 use winfsp::util::Win32SafeHandle;
@@ -123,7 +123,7 @@ impl FileSystemContext for PtfsContext {
         file_name: P,
         security_descriptor: PSECURITY_DESCRIPTOR,
         descriptor_len: Option<u64>,
-        reparse_point_resolver: impl FnOnce(&WCStr) -> Option<u32>,
+        _reparse_point_resolver: impl FnOnce(&WCStr) -> Option<u32>,
     ) -> Result<FileSecurity> {
         let file_name = OsString::from_wide(file_name.as_ref().as_slice());
         let full_path = [self.path.as_os_str(), file_name.as_ref()].join(OsStr::new(""));

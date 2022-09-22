@@ -1,7 +1,7 @@
 use crate::error::Result;
 use crate::filesystem::{DirInfo, DirMarker};
 use crate::WCStr;
-use widestring::U16CStr;
+
 
 use windows::core::PWSTR;
 use windows::Win32::Foundation::STATUS_INVALID_DEVICE_REQUEST;

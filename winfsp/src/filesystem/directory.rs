@@ -1,15 +1,20 @@
 use std::alloc::Layout;
-use std::ffi::OsStr;
-use std::iter;
-use std::os::windows::ffi::OsStrExt;
+
+
+
 
 use widestring::{u16cstr, U16CStr};
-use windows::Win32::Foundation::{STATUS_INSUFFICIENT_RESOURCES, STATUS_SUCCESS};
-use winfsp_sys::{FspFileSystemAcquireDirectoryBufferEx, FspFileSystemDeleteDirectoryBuffer, FspFileSystemFillDirectoryBuffer, FspFileSystemReadDirectoryBuffer, FspFileSystemReleaseDirectoryBuffer, FSP_FSCTL_DIR_INFO, FSP_FSCTL_FILE_INFO, PVOID, FspFileSystemAddDirInfo};
+use windows::Win32::Foundation::{STATUS_SUCCESS};
+use winfsp_sys::{
+    FspFileSystemAcquireDirectoryBufferEx, FspFileSystemAddDirInfo,
+    FspFileSystemDeleteDirectoryBuffer, FspFileSystemFillDirectoryBuffer,
+    FspFileSystemReadDirectoryBuffer, FspFileSystemReleaseDirectoryBuffer, FSP_FSCTL_DIR_INFO,
+    FSP_FSCTL_FILE_INFO, PVOID,
+};
 
 use crate::error::Result;
 use crate::filesystem::WideNameInfo;
-use crate::WCStr;
+
 
 #[derive(Debug)]
 pub struct DirBuffer(PVOID);
@@ -205,9 +210,19 @@ impl<const BUFFER_SIZE: usize> WideNameInfo<BUFFER_SIZE> for DirInfo<BUFFER_SIZE
             // SAFETY: https://github.com/winfsp/winfsp/blob/0a91292e0502d6629f9a968a168c6e89eea69ea1/src/dll/fsop.c#L1500
             // does not mutate entry.
             if let Some(entry) = entry {
-                FspFileSystemAddDirInfo((entry as *const Self).cast_mut().cast(), buffer.as_mut_ptr().cast(), buffer.len() as u32, cursor) != 0
+                FspFileSystemAddDirInfo(
+                    (entry as *const Self).cast_mut().cast(),
+                    buffer.as_mut_ptr().cast(),
+                    buffer.len() as u32,
+                    cursor,
+                ) != 0
             } else {
-                FspFileSystemAddDirInfo(std::ptr::null_mut(), buffer.as_mut_ptr().cast(), buffer.len() as u32, cursor) != 0
+                FspFileSystemAddDirInfo(
+                    std::ptr::null_mut(),
+                    buffer.as_mut_ptr().cast(),
+                    buffer.len() as u32,
+                    cursor,
+                ) != 0
             }
         }
     }

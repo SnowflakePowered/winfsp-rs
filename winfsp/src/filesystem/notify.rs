@@ -1,7 +1,9 @@
-use std::alloc::Layout;
-use winfsp_sys::{FSP_FSCTL_NOTIFY_INFO, FSP_FSCTL_STREAM_INFO, FspFileSystemAddNotifyInfo, FspFileSystemAddStreamInfo};
-use crate::filesystem::sealed::Sealed;
+
 use crate::filesystem::WideNameInfo;
+use std::alloc::Layout;
+use winfsp_sys::{
+    FspFileSystemAddNotifyInfo, FSP_FSCTL_NOTIFY_INFO,
+};
 
 #[repr(C)]
 pub struct NotifyInfo<const BUFFER_SIZE: usize> {
@@ -28,6 +30,12 @@ impl<const BUFFER_SIZE: usize> NotifyInfo<BUFFER_SIZE> {
     }
 }
 
+impl<const BUFFER_SIZE: usize> Default for NotifyInfo<BUFFER_SIZE> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<const BUFFER_SIZE: usize> WideNameInfo<BUFFER_SIZE> for NotifyInfo<BUFFER_SIZE> {
     fn name_buffer(&mut self) -> &mut [u16; BUFFER_SIZE] {
         &mut self.file_name
@@ -49,9 +57,19 @@ impl<const BUFFER_SIZE: usize> WideNameInfo<BUFFER_SIZE> for NotifyInfo<BUFFER_S
             // SAFETY: https://github.com/winfsp/winfsp/blob/0a91292e0502d6629f9a968a168c6e89eea69ea1/src/dll/fsop.c#L1500
             // does not mutate entry.
             if let Some(entry) = entry {
-                FspFileSystemAddNotifyInfo((entry as *const Self).cast_mut().cast(), buffer.as_mut_ptr().cast(), buffer.len() as u32, cursor) != 0
+                FspFileSystemAddNotifyInfo(
+                    (entry as *const Self).cast_mut().cast(),
+                    buffer.as_mut_ptr().cast(),
+                    buffer.len() as u32,
+                    cursor,
+                ) != 0
             } else {
-                FspFileSystemAddNotifyInfo(std::ptr::null_mut(), buffer.as_mut_ptr().cast(), buffer.len() as u32, cursor) != 0
+                FspFileSystemAddNotifyInfo(
+                    std::ptr::null_mut(),
+                    buffer.as_mut_ptr().cast(),
+                    buffer.len() as u32,
+                    cursor,
+                ) != 0
             }
         }
     }
