@@ -13,5 +13,5 @@ winfsp = { path = "../winfsp", features = ["system"] }
 anyhow = "1"
 
 [build-dependencies]
-winfsp = { path = "../winfsp" }
+winfsp = { path = "../winfsp", features = ["delayload"] }
 

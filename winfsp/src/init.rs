@@ -1,15 +1,22 @@
+#[cfg(feature = "system")]
 use registry::{Data, Hive, Security};
 use windows::core::HSTRING;
 use windows::w;
-use windows::Win32::Foundation::{ERROR_DELAY_LOAD_FAILED, ERROR_FILE_NOT_FOUND};
 use windows::Win32::System::LibraryLoader::LoadLibraryW;
+#[allow(unused_imports)]
+use windows::Win32::Foundation::{ERROR_DELAY_LOAD_FAILED, ERROR_FILE_NOT_FOUND};
 
 use crate::Result;
 
+/// WinFSP initialization token.
+///
+/// WinFSP must be initialized with [`winfsp_init`](crate::winfsp_init) or [`winfsp_init_or_die`](crate::winfsp_init_or_die)
+/// by the host process, which yields this token to be used with [`FileSystemServiceBuilder`](crate::service::FileSystemServiceBuilder).
 #[non_exhaustive]
 #[derive(Copy, Clone)]
 pub struct FspInit;
 
+#[cfg(feature = "system")]
 fn get_system_winfsp() -> Option<HSTRING> {
     let winfsp_install = Hive::LocalMachine
         .open("SOFTWARE\\WOW6432Node\\WinFsp", Security::Read)
@@ -54,6 +61,7 @@ fn load_local_winfsp() -> Result<()> {
 }
 
 fn load_system_winfsp() -> Result<()> {
+    #[cfg(feature = "system")]
     unsafe {
         let system = get_system_winfsp().ok_or(ERROR_FILE_NOT_FOUND)?;
         if LoadLibraryW(&system).is_err() {
@@ -62,6 +70,9 @@ fn load_system_winfsp() -> Result<()> {
             Ok(())
         }
     }
+
+    #[cfg(not(feature = "system"))]
+    Err(ERROR_DELAY_LOAD_FAILED.into())
 }
 
 /// Initialize WinFSP.
@@ -73,7 +84,7 @@ pub fn winfsp_init() -> Result<FspInit> {
     }
 }
 
-/// Initialize WinFSP, but shut down if failed.
+/// Initialize WinFSP, shutting down the executing process on failure.
 pub fn winfsp_init_or_die() -> FspInit {
     if winfsp_init().is_err() {
         std::process::exit(ERROR_DELAY_LOAD_FAILED.0 as i32)
@@ -81,6 +92,10 @@ pub fn winfsp_init_or_die() -> FspInit {
     FspInit
 }
 
+
+/// Build-time helper to enable `DELAYLOAD` linking to the system WinFSP.
+///
+/// This function should be called from `build.rs`.
 pub fn winfsp_link_delayload() {
     if cfg!(target(os = "windows", arch = "x86_64", env = "msvc")) {
         println!("cargo:rustc-link-lib=dylib=delayimp");

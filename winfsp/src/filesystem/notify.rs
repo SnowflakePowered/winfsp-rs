@@ -1,6 +1,10 @@
-use crate::filesystem::WideNameInfo;
+//! Helpers to implement filesystem notifications.
+//!
+//! This is currently incomplete, users who wish to implement filesystem notifications
+//! will require the `winfsp-sys`
+use crate::filesystem::{FileSystemContext, WideNameInfo};
 use std::alloc::Layout;
-use winfsp_sys::{FspFileSystemAddNotifyInfo, FSP_FSCTL_NOTIFY_INFO};
+use winfsp_sys::{FspFileSystemAddNotifyInfo, FSP_FSCTL_NOTIFY_INFO, FSP_FILE_SYSTEM};
 
 #[repr(C)]
 pub struct NotifyInfo<const BUFFER_SIZE: usize> {
@@ -69,5 +73,14 @@ impl<const BUFFER_SIZE: usize> WideNameInfo<BUFFER_SIZE> for NotifyInfo<BUFFER_S
                 ) != 0
             }
         }
+    }
+}
+
+/// A notifier used to notify the filesystem of changes.
+pub struct Notifier<const BUFFER_SIZE: usize>(pub(crate)*mut FSP_FILE_SYSTEM);
+impl<const BUFFER_SIZE: usize> Notifier<BUFFER_SIZE> {
+    /// Notify the filesystem of the given change event.
+    pub fn notify(info: NotifyInfo<BUFFER_SIZE>) -> Result<()> {
+        todo!()
     }
 }

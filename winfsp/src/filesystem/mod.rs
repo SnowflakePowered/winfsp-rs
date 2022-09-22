@@ -1,9 +1,9 @@
+//! The main filesystem interfaces and helpers used to implement a WinFSP filesystem.
 mod context;
 mod directory;
 mod host;
 mod interface;
 mod internals;
-mod notify;
 mod stream;
 
 mod sealed {
@@ -15,12 +15,14 @@ mod sealed {
     impl<const BUFFER_SIZE: usize> Sealed for notify::NotifyInfo<BUFFER_SIZE> {}
 
     impl Sealed for host::ReadDirectory {}
-    impl Sealed for host::GetDirectoryByName {}
+    impl Sealed for host::GetDirInfoByName {}
 }
 
 pub use context::*;
 pub use directory::*;
 pub use host::*;
 pub use internals::*;
-pub use notify::*;
 pub use stream::*;
+
+#[cfg(feature = "notify")]
+pub mod notify;

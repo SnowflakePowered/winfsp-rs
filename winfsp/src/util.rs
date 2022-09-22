@@ -1,3 +1,4 @@
+//! Helpful utility wrappers around OS constructs.
 use crate::error::FspError;
 use crate::filesystem::MAX_PATH;
 use std::marker::PhantomData;
@@ -31,12 +32,17 @@ pub struct SafeDropHandle<T>(HANDLE, PhantomData<T>)
 where
     T: HandleCloseHandler;
 
+
+/// Trait that defines a method to close a Windows HANDLE.
 pub trait HandleCloseHandler {
     fn close(handle: HANDLE);
 }
 
+/// Handle drop strategy for Win32 handles.
 #[derive(Debug)]
 pub struct Win32HandleDrop;
+
+/// A Win32 HANDLE that is closed when it goes out of scope.
 pub type Win32SafeHandle = SafeDropHandle<Win32HandleDrop>;
 impl HandleCloseHandler for Win32HandleDrop {
     fn close(handle: HANDLE) {
@@ -46,8 +52,11 @@ impl HandleCloseHandler for Win32HandleDrop {
     }
 }
 
+
+/// Handle drop strategy for NT handles.
 #[derive(Debug)]
 pub struct NtHandleDrop;
+/// An NT HANDLE that is closed when it goes out of scope.
 pub type NtSafeHandle = SafeDropHandle<NtHandleDrop>;
 impl HandleCloseHandler for NtHandleDrop {
     fn close(handle: HANDLE) {

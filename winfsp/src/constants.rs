@@ -1,11 +1,5 @@
+//! Useful constants re-exported from `winfsp-sys`.
 use winfsp_sys::{FSP_FSCTL_TRANSACT_REQ, FSP_FSCTL_TRANSACT_RSP, WCHAR};
-
-pub use winfsp_sys::FSP_FSCTL_DEFAULT_ALIGNMENT;
-pub use winfsp_sys::FSP_FSCTL_DEVICECONTROL_SIZEMAX;
-pub use winfsp_sys::FSP_FSCTL_TRANSACT_BATCH_BUFFER_SIZEMIN;
-pub use winfsp_sys::FSP_FSCTL_TRANSACT_BUFFER_SIZEMIN;
-pub use winfsp_sys::FSP_FSCTL_TRANSACT_REQ_SIZEMAX;
-pub use winfsp_sys::FSP_FSCTL_TRANSACT_RSP_SIZEMAX;
 
 #[repr(u32)]
 #[derive(Copy, Clone)]
@@ -29,3 +23,10 @@ pub const FSP_FSCTL_TRANSACT_REQ_BUFFER_SIZEMAX: usize =
     FSP_FSCTL_TRANSACT_REQ_SIZEMAX as usize - std::mem::size_of::<FSP_FSCTL_TRANSACT_REQ>();
 pub const FSP_FSCTL_TRANSACT_RSP_BUFFER_SIZEMAX: usize =
     FSP_FSCTL_TRANSACT_RSP_SIZEMAX as usize - std::mem::size_of::<FSP_FSCTL_TRANSACT_RSP>();
+
+pub const FSP_FSCTL_DEFAULT_ALIGNMENT: usize = winfsp_sys::FSP_FSCTL_DEFAULT_ALIGNMENT as usize;
+pub const FSP_FSCTL_DEVICECONTROL_SIZEMAX: usize = winfsp_sys::FSP_FSCTL_DEVICECONTROL_SIZEMAX as usize;
+pub const FSP_FSCTL_TRANSACT_BATCH_BUFFER_SIZEMIN: usize = winfsp_sys::FSP_FSCTL_TRANSACT_BATCH_BUFFER_SIZEMIN as usize;
+pub const FSP_FSCTL_TRANSACT_BUFFER_SIZEMIN: usize = winfsp_sys::FSP_FSCTL_TRANSACT_BUFFER_SIZEMIN as usize;
+pub const FSP_FSCTL_TRANSACT_REQ_SIZEMAX: usize = winfsp_sys::FSP_FSCTL_TRANSACT_REQ_SIZEMAX as usize;
+pub const FSP_FSCTL_TRANSACT_RSP_SIZEMAX: usize = winfsp_sys::FSP_FSCTL_TRANSACT_RSP_SIZEMAX as usize;

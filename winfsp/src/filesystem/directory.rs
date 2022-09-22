@@ -12,15 +12,22 @@ use winfsp_sys::{
 use crate::error::Result;
 use crate::filesystem::WideNameInfo;
 
+/// A buffer used to hold directory entries when enumerating directories
+/// with the [`read_directory`](crate::filesystem::FileSystemContext::read_directory)
+/// callback.
 #[derive(Debug)]
 pub struct DirBuffer(PVOID);
+/// A lock into the directory read buffer that must be held while writing, and dropped
+/// as soon as writing of directory entries into the buffer is complete.
 #[derive(Debug)]
 pub struct DirBufferLock<'a>(&'a mut DirBuffer);
+/// A marker into the current position of the directory file when
+/// enumerating directories with [`read_directory`](crate::filesystem::FileSystemContext::read_directory)
 #[derive(Debug)]
 pub struct DirMarker<'a>(pub(crate) Option<&'a U16CStr>);
 
 impl DirMarker<'_> {
-    // reset the marker.
+    /// Reset the marker.
     pub fn reset(&mut self) {
         self.0.take();
     }
@@ -148,6 +155,7 @@ union DirInfoPadding {
 }
 
 #[repr(C)]
+/// A directory information entry.
 pub struct DirInfo<const BUFFER_SIZE: usize> {
     size: u16,
     file_info: FSP_FSCTL_FILE_INFO,

@@ -1,3 +1,4 @@
+//! Interfaces to the WinFSP service API to host a filesystem.
 use crate::error::FspError;
 use crate::FspInit;
 use crate::Result;
@@ -28,6 +29,7 @@ struct AssertThreadSafe<T>(*mut T);
 unsafe impl<T> Send for AssertThreadSafe<T> {}
 unsafe impl<T> Sync for AssertThreadSafe<T> {}
 
+/// A service that runs a filesystem implemented by a [`FileSystemHost`](crate::filesystem::FileSystemHost).
 pub struct FileSystemService<T>(NonNull<FSP_SERVICE>, PhantomData<T>);
 impl<T> FileSystemService<T> {
     /// # Safety
@@ -90,6 +92,7 @@ impl<T> FileSystemService<T> {
     }
 }
 
+/// A builder for [`FileSystemService`](crate::service::FileSystemService).
 pub struct FileSystemServiceBuilder<T> {
     stop: FileSystemStopCallback<T>,
     start: FileSystemStartCallback<T>,
@@ -103,6 +106,7 @@ impl<T> Default for FileSystemServiceBuilder<T> {
 }
 
 impl<T> FileSystemServiceBuilder<T> {
+    /// Create a new instance of the builder.
     pub fn new() -> Self {
         Self {
             stop: None,
@@ -130,6 +134,7 @@ impl<T> FileSystemServiceBuilder<T> {
         self
     }
 
+    /// The control callback handles DeviceIoControl requests.
     pub fn with_control<F>(mut self, control: F) -> Self
     where
         F: Fn(Option<&mut T>, u32, u32, *mut c_void) -> i32 + 'static,
@@ -138,6 +143,8 @@ impl<T> FileSystemServiceBuilder<T> {
         self
     }
 
+    /// Create the [`FileSystemService`](crate::service::FileSystemService) with the provided
+    /// callbacks.
     pub fn build(self, service_name: &HSTRING, _init: FspInit) -> Result<FileSystemService<T>> {
         let mut service = std::ptr::null_mut();
         let result = unsafe {

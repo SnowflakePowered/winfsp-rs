@@ -1,8 +1,10 @@
 [package]
 name = "winfsp"
-version = "0.1.0"
+version = "0.1.0+winfsp-1.11"
 edition = "2021"
-
+readme = "../README.md"
+license = "GPL-3.0"
+description = "Rust bindings to WinFSP"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
@@ -13,10 +15,14 @@ thiserror = "1.0.32"
 registry = "1.2.2"
 
 [features]
+default = ["notify", "delayload"]
 debug = []
 system = ["winfsp-sys/system"]
+notify = []
+build = []
+delayload = ["build"]
 
 [package.metadata.docs.rs]
 default-target = "x86_64-pc-windows-msvc"
 targets = []
-features = []
+features = ["delayload", "notify"]

@@ -156,7 +156,7 @@ impl NtPassthroughContext {
             )
         };
 
-        unsafe { dir_info.set_name_raw(file_name_slice)? }
+        dir_info.set_name_raw(file_name_slice)?
 
         let file_info = dir_info.file_info_mut();
 

@@ -3,10 +3,7 @@ use windows::core::HSTRING;
 use windows::w;
 use windows::Win32::Foundation::NTSTATUS;
 
-use winfsp_sys::{
-    FspFileSystemCreate, FspFileSystemSetMountPoint, FspFileSystemStartDispatcher,
-    FspFileSystemStopDispatcher, FSP_FILE_SYSTEM, FSP_FILE_SYSTEM_INTERFACE,
-};
+use winfsp_sys::{FspFileSystemCreate, FspFileSystemSetMountPoint, FspFileSystemStartDispatcher, FspFileSystemStopDispatcher, FSP_FILE_SYSTEM, FSP_FILE_SYSTEM_INTERFACE, FspFileSystemRemoveMountPoint};
 
 pub use winfsp_sys::{FSP_FSCTL_FILE_INFO, FSP_FSCTL_VOLUME_INFO, FSP_FSCTL_VOLUME_PARAMS};
 
@@ -14,6 +11,7 @@ use crate::filesystem::interface::Interface;
 use crate::filesystem::sealed::Sealed;
 use crate::filesystem::FileSystemContext;
 
+/// The strategy to use when resolving directories with the filesystem context.
 pub trait DirectoryResolveStrategy: Sealed {
     #[doc(hidden)]
     fn create_interface<T: FileSystemContext<DIR_BUFFER_SIZE>, const DIR_BUFFER_SIZE: usize>(
@@ -29,10 +27,10 @@ impl DirectoryResolveStrategy for ReadDirectory {
         Interface::create_with_read_directory::<T, DIR_BUFFER_SIZE>()
     }
 }
-/// Resolve directories with the [`get_directory_by_name`](crate::filesystem::FileSystemContext::get_directory_by_name)
+/// Resolve directories with the [`get_dir_info_by_name`](crate::filesystem::FileSystemContext::get_dir_info_by_name)
 /// function.
-pub struct GetDirectoryByName;
-impl DirectoryResolveStrategy for GetDirectoryByName {
+pub struct GetDirInfoByName;
+impl DirectoryResolveStrategy for GetDirInfoByName {
     fn create_interface<T: FileSystemContext<DIR_BUFFER_SIZE>, const DIR_BUFFER_SIZE: usize>(
     ) -> Interface {
         Interface::create_with_dirinfo_by_name::<T, DIR_BUFFER_SIZE>()
@@ -46,7 +44,9 @@ impl DirectoryResolveStrategy for GetDirectoryByName {
 /// should start within the context of a service.
 pub struct FileSystemHost(pub *mut FSP_FILE_SYSTEM);
 impl FileSystemHost {
-    /// # Safety
+    /// Create a `FileSystemHost` with the default `ReadDirectory` directory strategy
+    /// for the provided context implementation.
+    /// ## Safety
     /// `volume_params` must be valid.
     pub unsafe fn new<T: FileSystemContext<DIR_BUFFER_SIZE>, const DIR_BUFFER_SIZE: usize>(
         volume_params: FSP_FSCTL_VOLUME_PARAMS,
@@ -60,7 +60,9 @@ impl FileSystemHost {
         }
     }
 
-    /// # Safety
+    /// Create a `FileSystemHost` with the provided context implementation and directory
+    /// resolution strategy.
+    /// ## Safety
     /// `volume_params` must be valid.
     pub unsafe fn new_with_directory_strategy<
         T: FileSystemContext<DIR_BUFFER_SIZE>,
@@ -107,21 +109,32 @@ impl FileSystemHost {
         Ok(FileSystemHost(fsp_struct))
     }
 
+    /// Start the filesystem dispatcher for this filesystem.
     pub fn start(&mut self) -> Result<()> {
         let result = unsafe { FspFileSystemStartDispatcher(self.0, 0) };
         let result = NTSTATUS(result);
         result.ok()
     }
 
+    /// Stop the filesystem dispatcher for this filesystem.
     pub fn stop(&mut self) {
         unsafe { FspFileSystemStopDispatcher(self.0) }
     }
 
+    /// Mount the filesystem to the given mount point.
     pub fn mount<S: Into<HSTRING>>(&mut self, mount: S) -> Result<()> {
         let result =
             unsafe { FspFileSystemSetMountPoint(self.0, mount.into().as_ptr().cast_mut()) };
 
         let result = NTSTATUS(result);
         result.ok()
+    }
+
+    /// Unmount the filesystem. It is safe to call this function even if the
+    /// file system is not mounted.
+    pub fn unmount(&mut self) {
+        unsafe {
+            FspFileSystemRemoveMountPoint(self.0)
+        }
     }
 }

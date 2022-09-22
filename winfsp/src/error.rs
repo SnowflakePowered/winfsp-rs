@@ -8,21 +8,32 @@ use windows::Win32::Foundation::{
 };
 use winfsp_sys::FspNtStatusFromWin32;
 
+/// Error type for WinFSP.
+///
+/// WinFSP wraps errors from the [`windows`](https://github.com/microsoft/windows-rs) crate
+/// and can coerces errors into the proper NTSTATUS where necessary.
 #[derive(Error, Debug)]
 pub enum FspError {
     #[error("HRESULT")]
+    /// Wraps a Windows HRESULT.
     HRESULT(HRESULT),
     #[error("WIN32_ERROR")]
+    /// Wraps a Windows error returned from `GetLastError`.
     WIN32(WIN32_ERROR),
     #[error("NTRESULT")]
+    /// Wraps a NTSTATUS error.
     NTSTATUS(NTSTATUS),
     #[error("IO")]
+    /// Wraps a Rust IO [`ErrorKind`](std::io::ErrorKind).
+    /// Only a few, limited IO errors are supported. Unsupported IO
+    /// errors will panic when transformed into an NTSTATUS value.
     IO(ErrorKind),
 }
 
 impl FspError {
+    /// Get the corresponding NTSTATUS for this error.
     #[inline(always)]
-    pub fn as_ntstatus(&self) -> winfsp_sys::NTSTATUS {
+    pub(crate) fn as_ntstatus(&self) -> winfsp_sys::NTSTATUS {
         match self {
             FspError::HRESULT(h) => unsafe { FspNtStatusFromWin32(h.0 as u32) },
             FspError::WIN32(e) => {
@@ -39,7 +50,7 @@ impl FspError {
                     ErrorKind::IsADirectory => ERROR_DIRECTORY_NOT_SUPPORTED,
                     ErrorKind::NotADirectory => ERROR_DIRECTORY,
                     // todo: return something sensible.
-                    _ => panic!("Unsupported IO error"),
+                    _ => panic!("Unsupported IO error {:?}", e),
                 };
                 unsafe { FspNtStatusFromWin32(win32_equiv.0 as u32) }
             }
@@ -48,6 +59,7 @@ impl FspError {
     }
 }
 
+/// Result type for WinFSP.
 pub type Result<T> = std::result::Result<T, FspError>;
 
 impl From<HRESULT> for FspError {

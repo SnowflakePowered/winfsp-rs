@@ -36,7 +36,7 @@ use windows::Win32::System::WindowsProgramming::{FILE_DELETE_ON_CLOSE, FILE_DIRE
 use windows::Win32::System::IO::{OVERLAPPED, OVERLAPPED_0, OVERLAPPED_0_0};
 
 use winfsp::constants::FspCleanupFlags;
-use winfsp::error::{FspError, Result};
+use winfsp::{FspError, Result};
 use winfsp::filesystem::{
     DirBuffer, DirInfo, DirMarker, FileSecurity, FileSystemContext, FileSystemHost, IoResult,
     WideNameInfo, FSP_FSCTL_FILE_INFO, FSP_FSCTL_VOLUME_INFO, FSP_FSCTL_VOLUME_PARAMS,
@@ -524,9 +524,7 @@ impl FileSystemContext for PtfsContext {
                         U16CStr::from_slice_truncate(&find_data.cFileName[..]).map_err(|_| STATUS_INVALID_PARAMETER)?;
                     let file_name = file_name.as_slice();
 
-                    unsafe {
-                        dirinfo.set_name_raw(file_name)?;
-                    }
+                    dirinfo.set_name_raw(file_name)?;
 
                     if let Err(e) = lock.write(&mut dirinfo) {
                         unsafe {
