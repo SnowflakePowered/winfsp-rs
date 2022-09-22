@@ -2,9 +2,9 @@
 use registry::{Data, Hive, Security};
 use windows::core::HSTRING;
 use windows::w;
-use windows::Win32::System::LibraryLoader::LoadLibraryW;
 #[allow(unused_imports)]
 use windows::Win32::Foundation::{ERROR_DELAY_LOAD_FAILED, ERROR_FILE_NOT_FOUND};
+use windows::Win32::System::LibraryLoader::LoadLibraryW;
 
 use crate::Result;
 
@@ -91,7 +91,6 @@ pub fn winfsp_init_or_die() -> FspInit {
     }
     FspInit
 }
-
 
 /// Build-time helper to enable `DELAYLOAD` linking to the system WinFSP.
 ///

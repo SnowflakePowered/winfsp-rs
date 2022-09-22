@@ -32,7 +32,6 @@ pub struct SafeDropHandle<T>(HANDLE, PhantomData<T>)
 where
     T: HandleCloseHandler;
 
-
 /// Trait that defines a method to close a Windows HANDLE.
 pub trait HandleCloseHandler {
     fn close(handle: HANDLE);
@@ -51,7 +50,6 @@ impl HandleCloseHandler for Win32HandleDrop {
         }
     }
 }
-
 
 /// Handle drop strategy for NT handles.
 #[derive(Debug)]

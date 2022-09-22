@@ -2,8 +2,13 @@ use windows::core::Result;
 use windows::core::HSTRING;
 use windows::w;
 use windows::Win32::Foundation::NTSTATUS;
+use windows::Win32::System::Threading::CreateThreadpoolTimer;
 
-use winfsp_sys::{FspFileSystemCreate, FspFileSystemSetMountPoint, FspFileSystemStartDispatcher, FspFileSystemStopDispatcher, FSP_FILE_SYSTEM, FSP_FILE_SYSTEM_INTERFACE, FspFileSystemRemoveMountPoint};
+use winfsp_sys::{
+    FspFileSystemCreate, FspFileSystemRemoveMountPoint, FspFileSystemSetMountPoint,
+    FspFileSystemStartDispatcher, FspFileSystemStopDispatcher, FSP_FILE_SYSTEM,
+    FSP_FILE_SYSTEM_INTERFACE,
+};
 
 pub use winfsp_sys::{FSP_FSCTL_FILE_INFO, FSP_FSCTL_VOLUME_INFO, FSP_FSCTL_VOLUME_PARAMS};
 
@@ -133,8 +138,6 @@ impl FileSystemHost {
     /// Unmount the filesystem. It is safe to call this function even if the
     /// file system is not mounted.
     pub fn unmount(&mut self) {
-        unsafe {
-            FspFileSystemRemoveMountPoint(self.0)
-        }
+        unsafe { FspFileSystemRemoveMountPoint(self.0) }
     }
 }
