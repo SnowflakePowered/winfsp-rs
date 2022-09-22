@@ -2,7 +2,10 @@
 name = "winfsp-sys"
 version = "0.1.0"
 edition = "2021"
-
+license = "GPL-3.0"
+description = "Raw bindings to WinFSP"
+keywords = ["filesystem", "winfsp", "fuse"]
+categories = ["filesystem", "os::windows-apis", "external-ffi-bindings"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [build-dependencies]
@@ -11,3 +14,7 @@ registry = "1.2.2"
 
 [features]
 system = []
+
+[package.metadata.docs.rs]
+default-target = "x86_64-pc-windows-msvc"
+targets = []
