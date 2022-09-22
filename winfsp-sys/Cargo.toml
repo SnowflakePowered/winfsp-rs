@@ -1,19 +1,22 @@
 [package]
 name = "winfsp-sys"
-version = "0.1.0"
+version = "0.1.1+winfsp-1.11"
 edition = "2021"
 license = "GPL-3.0"
 description = "Raw bindings to WinFSP"
 keywords = ["filesystem", "winfsp", "fuse"]
 categories = ["filesystem", "os::windows-apis", "external-ffi-bindings"]
+readme = "./README.md"
+repository = "https://github.com/SnowflakePowered/winfsp-rs"
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [build-dependencies]
 bindgen = "0.60.1"
-registry = "1.2.2"
+registry = { version = "1.2.2", optional = true }
 
 [features]
-system = []
+system = ["registry"]
 
 [package.metadata.docs.rs]
 default-target = "x86_64-pc-windows-msvc"
