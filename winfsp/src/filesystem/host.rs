@@ -2,7 +2,6 @@ use windows::core::Result;
 use windows::core::HSTRING;
 use windows::w;
 use windows::Win32::Foundation::NTSTATUS;
-use windows::Win32::System::Threading::CreateThreadpoolTimer;
 
 use winfsp_sys::{
     FspFileSystemCreate, FspFileSystemRemoveMountPoint, FspFileSystemSetMountPoint,

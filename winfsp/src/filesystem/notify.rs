@@ -2,7 +2,7 @@
 //!
 //! This is currently incomplete, users who wish to implement filesystem notifications
 //! will require the `winfsp-sys`
-use crate::filesystem::{FileSystemContext, WideNameInfo};
+use crate::filesystem::WideNameInfo;
 use std::alloc::Layout;
 use windows::Win32::Foundation::NTSTATUS;
 use winfsp_sys::{

@@ -26,3 +26,5 @@ pub use stream::*;
 
 #[cfg(feature = "notify")]
 pub mod notify;
+#[cfg(feature = "notify")]
+mod timer;
