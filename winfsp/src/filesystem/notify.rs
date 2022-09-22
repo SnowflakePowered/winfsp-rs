@@ -4,7 +4,10 @@
 //! will require the `winfsp-sys`
 use crate::filesystem::{FileSystemContext, WideNameInfo};
 use std::alloc::Layout;
-use winfsp_sys::{FspFileSystemAddNotifyInfo, FSP_FSCTL_NOTIFY_INFO, FSP_FILE_SYSTEM};
+use windows::Win32::Foundation::NTSTATUS;
+use winfsp_sys::{
+    FspFileSystemAddNotifyInfo, FspFileSystemNotify, FSP_FILE_SYSTEM, FSP_FSCTL_NOTIFY_INFO,
+};
 
 #[repr(C)]
 pub struct NotifyInfo<const BUFFER_SIZE: usize> {
@@ -77,10 +80,23 @@ impl<const BUFFER_SIZE: usize> WideNameInfo<BUFFER_SIZE> for NotifyInfo<BUFFER_S
 }
 
 /// A notifier used to notify the filesystem of changes.
-pub struct Notifier<const BUFFER_SIZE: usize>(pub(crate)*mut FSP_FILE_SYSTEM);
+pub struct Notifier<const BUFFER_SIZE: usize>(pub(crate) *mut FSP_FILE_SYSTEM);
 impl<const BUFFER_SIZE: usize> Notifier<BUFFER_SIZE> {
     /// Notify the filesystem of the given change event.
-    pub fn notify(info: NotifyInfo<BUFFER_SIZE>) -> Result<()> {
-        todo!()
+    pub fn notify(&self, info: &NotifyInfo<BUFFER_SIZE>) -> crate::error::Result<()> {
+        let result = unsafe {
+            NTSTATUS(FspFileSystemNotify(
+                self.0,
+                // SAFETY: FspFileSystemNotify calls DeviceIoControl with the buffer specified as [in].
+                (info as *const NotifyInfo<BUFFER_SIZE>).cast_mut().cast(),
+                info.size as u64,
+            ))
+        };
+
+        if result.is_ok() {
+            Ok(())
+        } else {
+            Err(result.into())
+        }
     }
 }
