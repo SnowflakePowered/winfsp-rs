@@ -10,7 +10,7 @@ pub use winfsp_sys::{
 use crate::{Result, WCStr};
 
 /// A information entry that contains a wide name buffer.
-pub trait WideNameInfo<const BUFFER_SIZE: usize>: super::sealed::Sealed {
+pub trait WideNameInfo<const BUFFER_SIZE: usize = 255>: super::sealed::Sealed {
     #[doc(hidden)]
     /// Return a reference to the name buffer.
     fn name_buffer(&mut self) -> &mut [u16; BUFFER_SIZE];

@@ -156,7 +156,7 @@ union DirInfoPadding {
 
 #[repr(C)]
 /// A directory information entry.
-pub struct DirInfo<const BUFFER_SIZE: usize> {
+pub struct DirInfo<const BUFFER_SIZE: usize = 255> {
     size: u16,
     file_info: FSP_FSCTL_FILE_INFO,
     padding: DirInfoPadding,

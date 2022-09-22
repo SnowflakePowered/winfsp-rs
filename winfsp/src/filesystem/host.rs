@@ -20,26 +20,23 @@ use crate::filesystem::FileSystemContext;
 /// The strategy to use when resolving directories with the filesystem context.
 pub trait DirectoryResolveStrategy: Sealed {
     #[doc(hidden)]
-    fn create_interface<T: FileSystemContext<DIR_BUFFER_SIZE>, const DIR_BUFFER_SIZE: usize>(
-    ) -> Interface;
+    fn create_interface<T: FileSystemContext>() -> Interface;
 }
 
 /// Resolve directories with the [`read_directory`](crate::filesystem::FileSystemContext::read_directory)
 /// function.
 pub struct ReadDirectory;
 impl DirectoryResolveStrategy for ReadDirectory {
-    fn create_interface<T: FileSystemContext<DIR_BUFFER_SIZE>, const DIR_BUFFER_SIZE: usize>(
-    ) -> Interface {
-        Interface::create_with_read_directory::<T, DIR_BUFFER_SIZE>()
+    fn create_interface<T: FileSystemContext>() -> Interface {
+        Interface::create_with_read_directory::<T>()
     }
 }
 /// Resolve directories with the [`get_dir_info_by_name`](crate::filesystem::FileSystemContext::get_dir_info_by_name)
 /// function.
 pub struct GetDirInfoByName;
 impl DirectoryResolveStrategy for GetDirInfoByName {
-    fn create_interface<T: FileSystemContext<DIR_BUFFER_SIZE>, const DIR_BUFFER_SIZE: usize>(
-    ) -> Interface {
-        Interface::create_with_dirinfo_by_name::<T, DIR_BUFFER_SIZE>()
+    fn create_interface<T: FileSystemContext>() -> Interface {
+        Interface::create_with_dirinfo_by_name::<T>()
     }
 }
 
@@ -54,33 +51,24 @@ impl FileSystemHost {
     /// for the provided context implementation.
     /// ## Safety
     /// `volume_params` must be valid.
-    pub unsafe fn new<T: FileSystemContext<DIR_BUFFER_SIZE>, const DIR_BUFFER_SIZE: usize>(
+    pub unsafe fn new<T: FileSystemContext>(
         volume_params: FSP_FSCTL_VOLUME_PARAMS,
         context: T,
     ) -> Result<Self> {
-        unsafe {
-            Self::new_with_directory_strategy::<T, ReadDirectory, DIR_BUFFER_SIZE>(
-                volume_params,
-                context,
-            )
-        }
+        unsafe { Self::new_with_directory_strategy::<T, ReadDirectory>(volume_params, context) }
     }
 
     /// Create a `FileSystemHost` with the provided context implementation and directory
     /// resolution strategy.
     /// ## Safety
     /// `volume_params` must be valid.
-    pub unsafe fn new_with_directory_strategy<
-        T: FileSystemContext<DIR_BUFFER_SIZE>,
-        D: DirectoryResolveStrategy,
-        const DIR_BUFFER_SIZE: usize,
-    >(
+    pub unsafe fn new_with_directory_strategy<T: FileSystemContext, D: DirectoryResolveStrategy>(
         volume_params: FSP_FSCTL_VOLUME_PARAMS,
         context: T,
     ) -> Result<Self> {
         let mut fsp_struct = std::ptr::null_mut();
 
-        let interface = D::create_interface::<T, DIR_BUFFER_SIZE>();
+        let interface = D::create_interface::<T>();
         let interface: FSP_FILE_SYSTEM_INTERFACE = interface.into();
         let interface = Box::into_raw(Box::new(interface));
         let result = unsafe {
@@ -121,10 +109,9 @@ impl FileSystemHost {
     /// `volume_params` must be valid.
     #[cfg(feature = "notify")]
     pub unsafe fn new_with_directory_strategy_and_timer<
-        T: FileSystemContext<DIR_BUFFER_SIZE> + NotifyingFileSystemContext<R, DIR_BUFFER_SIZE>,
+        T: FileSystemContext + NotifyingFileSystemContext<R>,
         D: DirectoryResolveStrategy,
         R,
-        const DIR_BUFFER_SIZE: usize,
         const INTERVAL: u32,
     >(
         volume_params: FSP_FSCTL_VOLUME_PARAMS,
@@ -132,7 +119,7 @@ impl FileSystemHost {
     ) -> Result<Self> {
         let mut fsp_struct = std::ptr::null_mut();
 
-        let interface = D::create_interface::<T, DIR_BUFFER_SIZE>();
+        let interface = D::create_interface::<T>();
         let interface: FSP_FILE_SYSTEM_INTERFACE = interface.into();
         let interface = Box::into_raw(Box::new(interface));
         let result = unsafe {
@@ -165,7 +152,7 @@ impl FileSystemHost {
             (*fsp_struct).UserContext = Box::into_raw(Box::new(context)) as *mut _;
         }
 
-        let timer = Timer::create::<R, T, INTERVAL, DIR_BUFFER_SIZE>(fsp_struct);
+        let timer = Timer::create::<R, T, INTERVAL>(fsp_struct);
         Ok(FileSystemHost(fsp_struct, Some(timer)))
     }
 

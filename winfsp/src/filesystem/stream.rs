@@ -3,7 +3,7 @@ use std::alloc::Layout;
 use winfsp_sys::{FspFileSystemAddStreamInfo, FSP_FSCTL_STREAM_INFO};
 
 #[repr(C)]
-pub struct StreamInfo<const BUFFER_SIZE: usize> {
+pub struct StreamInfo<const BUFFER_SIZE: usize = 255> {
     size: u16,
     pub stream_size: u64,
     pub stream_alloc_size: u64,

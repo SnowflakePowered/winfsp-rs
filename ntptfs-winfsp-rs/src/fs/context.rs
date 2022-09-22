@@ -45,12 +45,12 @@ use windows_sys::Win32::System::WindowsProgramming::{
     FILE_SYNCHRONOUS_IO_NONALERT,
 };
 use winfsp::constants::FspCleanupFlags::FspCleanupDelete;
-use winfsp::FspError;
 use winfsp::filesystem::{
     DirInfo, DirMarker, FileSecurity, FileSystemContext, IoResult, StreamInfo, WideNameInfo,
-    FSP_FSCTL_FILE_INFO, FSP_FSCTL_VOLUME_INFO, FSP_FSCTL_VOLUME_PARAMS, MAX_PATH,
+    FSP_FSCTL_FILE_INFO, FSP_FSCTL_VOLUME_INFO, FSP_FSCTL_VOLUME_PARAMS,
 };
 use winfsp::util::Win32SafeHandle;
+use winfsp::FspError;
 use winfsp::WCStr;
 
 #[repr(C)]
@@ -664,7 +664,7 @@ impl FileSystemContext for NtPassthroughContext {
         let dir_size = context.dir_size();
         let handle = context.handle();
         let pattern = pattern.map(|p| PCWSTR(p.as_ref().as_ptr()));
-        let mut dirinfo = DirInfo::<{ MAX_PATH as usize }>::new();
+        let mut dirinfo: DirInfo = DirInfo::new();
         if let Ok(mut dirbuffer) = context
             .dir_buffer()
             .acquire(marker.is_none(), Some(dir_size))
@@ -722,15 +722,6 @@ impl FileSystemContext for NtPassthroughContext {
         out_volume_info.TotalSize = vol_info.total_size;
         out_volume_info.FreeSize = vol_info.free_size;
         Ok(())
-    }
-
-    fn get_dir_info_by_name<P: AsRef<WCStr>>(
-        &self,
-        _context: &Self::FileContext,
-        _file_name: P,
-        _out_dir_info: &mut DirInfo<MAX_PATH>,
-    ) -> winfsp::Result<()> {
-        todo!()
     }
 
     fn set_security(
@@ -844,7 +835,7 @@ impl FileSystemContext for NtPassthroughContext {
     ) -> winfsp::Result<u32> {
         let mut query_buffer = vec![0u8; 16 * 1024];
         let mut buffer_cursor = 0;
-        let mut stream_info = StreamInfo::<{ MAX_PATH as usize }>::new();
+        let mut stream_info: StreamInfo = StreamInfo::new();
         let bytes_transferred = lfs::lfs_get_stream_info(context.handle(), &mut query_buffer)?;
 
         let mut query_buffer_cursor = query_buffer.as_ptr() as *const FILE_STREAM_INFORMATION;
@@ -902,7 +893,7 @@ impl FileSystemContext for NtPassthroughContext {
             }
         }
 
-        StreamInfo::<{ MAX_PATH as usize }>::finalize_buffer(buffer, &mut buffer_cursor);
+        StreamInfo::<255>::finalize_buffer(buffer, &mut buffer_cursor);
         Ok(buffer_cursor)
     }
 }

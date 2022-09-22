@@ -8,20 +8,18 @@ use winfsp_sys::{
     FspFileSystemAddNotifyInfo, FspFileSystemNotify, FSP_FILE_SYSTEM, FSP_FSCTL_NOTIFY_INFO,
 };
 
-pub trait NotifyingFileSystemContext<T, const DIR_INFO_SIZE: usize>:
-    FileSystemContext<DIR_INFO_SIZE>
-{
+pub trait NotifyingFileSystemContext<R>: FileSystemContext {
     /// Calculate a sentinel or context value if the filesystem is ready to notify the
     /// operating system, or return None if the filesystem is not ready.
-    fn should_notify(&self) -> Option<T>;
+    fn should_notify(&self) -> Option<R>;
 
     /// Publish the notification with the given sentinel or context value to the
     /// operating system.
-    fn notify(&self, context: T, notifier: &Notifier);
+    fn notify(&self, context: R, notifier: &Notifier);
 }
 
 #[repr(C)]
-pub struct NotifyInfo<const BUFFER_SIZE: usize> {
+pub struct NotifyInfo<const BUFFER_SIZE: usize = 255> {
     size: u16,
     pub filter: u32,
     pub action: u32,

@@ -44,7 +44,7 @@ pub struct FileInfo {
 pub const MAX_PATH: usize = 260;
 
 #[allow(unused_variables)]
-pub trait FileSystemContext<const DIR_INFO_SIZE: usize = MAX_PATH>: Sized {
+pub trait FileSystemContext: Sized {
     type FileContext: Sized;
     fn get_security_by_name<P: AsRef<WCStr>>(
         &self,
@@ -239,7 +239,7 @@ pub trait FileSystemContext<const DIR_INFO_SIZE: usize = MAX_PATH>: Sized {
         &self,
         context: &Self::FileContext,
         file_name: P,
-        out_dir_info: &mut DirInfo<DIR_INFO_SIZE>,
+        out_dir_info: &mut DirInfo,
     ) -> Result<()> {
         Err(STATUS_INVALID_DEVICE_REQUEST.into())
     }

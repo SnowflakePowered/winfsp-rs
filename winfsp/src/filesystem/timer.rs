@@ -8,18 +8,13 @@ use winfsp_sys::{FspFileSystemNotifyBegin, FspFileSystemNotifyEnd, FSP_FILE_SYST
 pub(crate) struct Timer(*mut TP_TIMER);
 
 impl Timer {
-    pub fn create<
-        R,
-        T: NotifyingFileSystemContext<R, DIR_INFO_SIZE>,
-        const TIMEOUT: u32,
-        const DIR_INFO_SIZE: usize,
-    >(
+    pub fn create<R, T: NotifyingFileSystemContext<R>, const TIMEOUT: u32>(
         fs: *mut FSP_FILE_SYSTEM,
     ) -> Self {
         let mut timer = Self(std::ptr::null_mut());
         timer.0 = unsafe {
             CreateThreadpoolTimer(
-                Some(timer_callback::<R, T, TIMEOUT, DIR_INFO_SIZE>),
+                Some(timer_callback::<R, T, TIMEOUT>),
                 fs.cast(),
                 std::ptr::null_mut(),
             )
@@ -39,12 +34,7 @@ impl Drop for Timer {
     }
 }
 
-extern "system" fn timer_callback<
-    R,
-    T: NotifyingFileSystemContext<R, DIR_INFO_SIZE>,
-    const TIMEOUT: u32,
-    const DIR_INFO_SIZE: usize,
->(
+extern "system" fn timer_callback<R, T: NotifyingFileSystemContext<R>, const TIMEOUT: u32>(
     _instance: *mut TP_CALLBACK_INSTANCE,
     context: *mut core::ffi::c_void,
     _timer: *mut TP_TIMER,

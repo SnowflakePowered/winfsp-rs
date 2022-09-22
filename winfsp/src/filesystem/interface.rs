@@ -42,7 +42,7 @@ macro_rules! assert_ctx {
 }
 
 #[inline(always)]
-fn require_fctx<C: FileSystemContext<DIR_BUF_SIZE>, F, const DIR_BUF_SIZE: usize>(
+fn require_fctx<C: FileSystemContext, F>(
     fs: *mut FSP_FILE_SYSTEM,
     fctx: PVOID,
     inner: F,
@@ -63,10 +63,7 @@ where
 }
 
 #[inline(always)]
-fn require_ctx<C: FileSystemContext<DIR_BUF_SIZE>, F, const DIR_BUF_SIZE: usize>(
-    fs: *mut FSP_FILE_SYSTEM,
-    inner: F,
-) -> FSP_STATUS
+fn require_ctx<C: FileSystemContext, F>(fs: *mut FSP_FILE_SYSTEM, inner: F) -> FSP_STATUS
 where
     F: FnOnce(&C) -> error::Result<()>,
 {
@@ -80,7 +77,7 @@ where
 }
 
 #[inline(always)]
-fn require_fctx_io<C: FileSystemContext<DIR_BUF_SIZE>, F, const DIR_BUF_SIZE: usize>(
+fn require_fctx_io<C: FileSystemContext, F>(
     fs: *mut FSP_FILE_SYSTEM,
     fctx: PVOID,
     inner: F,
@@ -106,10 +103,7 @@ where
     }
 }
 
-unsafe extern "C" fn get_volume_info<
-    T: FileSystemContext<DIR_BUF_SIZE>,
-    const DIR_BUF_SIZE: usize,
->(
+unsafe extern "C" fn get_volume_info<T: FileSystemContext>(
     fs: *mut FSP_FILE_SYSTEM,
     volume_info: *mut FSP_FSCTL_VOLUME_INFO,
 ) -> FSP_STATUS {
@@ -124,10 +118,7 @@ unsafe extern "C" fn get_volume_info<
     })
 }
 
-unsafe extern "C" fn get_security_by_name<
-    T: FileSystemContext<DIR_BUF_SIZE>,
-    const DIR_BUF_SIZE: usize,
->(
+unsafe extern "C" fn get_security_by_name<T: FileSystemContext>(
     fs: *mut FSP_FILE_SYSTEM,
     file_name: *mut u16,
     file_attributes: *mut u32,
@@ -147,7 +138,7 @@ unsafe extern "C" fn get_security_by_name<
             unsafe {
                 if FspFileSystemFindReparsePoint(
                     fs,
-                    Some(get_reparse_point_by_name::<T, DIR_BUF_SIZE>),
+                    Some(get_reparse_point_by_name::<T>),
                     std::ptr::null_mut(),
                     file_name.as_ptr().cast_mut(),
                     &mut reparse_index,
@@ -189,7 +180,7 @@ unsafe extern "C" fn get_security_by_name<
     })
 }
 
-unsafe extern "C" fn open<T: FileSystemContext<DIR_BUF_SIZE>, const DIR_BUF_SIZE: usize>(
+unsafe extern "C" fn open<T: FileSystemContext>(
     fs: *mut FSP_FILE_SYSTEM,
     file_name: winfsp_sys::PWSTR,
     create_options: u32,
@@ -217,7 +208,7 @@ unsafe extern "C" fn open<T: FileSystemContext<DIR_BUF_SIZE>, const DIR_BUF_SIZE
     })
 }
 
-unsafe extern "C" fn create_ex<T: FileSystemContext<DIR_BUF_SIZE>, const DIR_BUF_SIZE: usize>(
+unsafe extern "C" fn create_ex<T: FileSystemContext>(
     fs: *mut FSP_FILE_SYSTEM,
     file_name: *mut u16,
     create_options: u32,
@@ -267,10 +258,7 @@ unsafe extern "C" fn create_ex<T: FileSystemContext<DIR_BUF_SIZE>, const DIR_BUF
     })
 }
 
-unsafe extern "C" fn close<T: FileSystemContext<DIR_BUF_SIZE>, const DIR_BUF_SIZE: usize>(
-    fs: *mut FSP_FILE_SYSTEM,
-    fctx: PVOID,
-) {
+unsafe extern "C" fn close<T: FileSystemContext>(fs: *mut FSP_FILE_SYSTEM, fctx: PVOID) {
     if fctx.is_null() {
         return;
     }
@@ -282,7 +270,7 @@ unsafe extern "C" fn close<T: FileSystemContext<DIR_BUF_SIZE>, const DIR_BUF_SIZ
     });
 }
 
-unsafe extern "C" fn control<T: FileSystemContext<DIR_BUF_SIZE>, const DIR_BUF_SIZE: usize>(
+unsafe extern "C" fn control<T: FileSystemContext>(
     fs: *mut FSP_FILE_SYSTEM,
     fctx: PVOID,
     control_code: u32,
@@ -304,10 +292,7 @@ unsafe extern "C" fn control<T: FileSystemContext<DIR_BUF_SIZE>, const DIR_BUF_S
     })
 }
 
-unsafe extern "C" fn set_volume_label<
-    T: FileSystemContext<DIR_BUF_SIZE>,
-    const DIR_BUF_SIZE: usize,
->(
+unsafe extern "C" fn set_volume_label<T: FileSystemContext>(
     fs: *mut FSP_FILE_SYSTEM,
     volume_label: *mut u16,
     volume_info: *mut FSP_FSCTL_VOLUME_INFO,
@@ -323,7 +308,7 @@ unsafe extern "C" fn set_volume_label<
     })
 }
 
-unsafe extern "C" fn overwrite_ex<T: FileSystemContext<DIR_BUF_SIZE>, const DIR_BUF_SIZE: usize>(
+unsafe extern "C" fn overwrite_ex<T: FileSystemContext>(
     fs: *mut FSP_FILE_SYSTEM,
     fctx: PVOID,
     file_attributes: u32,
@@ -360,10 +345,7 @@ unsafe extern "C" fn overwrite_ex<T: FileSystemContext<DIR_BUF_SIZE>, const DIR_
     })
 }
 
-unsafe extern "C" fn get_file_info<
-    T: FileSystemContext<DIR_BUF_SIZE>,
-    const DIR_BUF_SIZE: usize,
->(
+unsafe extern "C" fn get_file_info<T: FileSystemContext>(
     fs: *mut FSP_FILE_SYSTEM,
     fctx: PVOID,
     out_file_info: *mut FSP_FSCTL_FILE_INFO,
@@ -379,7 +361,7 @@ unsafe extern "C" fn get_file_info<
     })
 }
 
-unsafe extern "C" fn get_security<T: FileSystemContext<DIR_BUF_SIZE>, const DIR_BUF_SIZE: usize>(
+unsafe extern "C" fn get_security<T: FileSystemContext>(
     fs: *mut FSP_FILE_SYSTEM,
     fctx: PVOID,
     security_descriptor: *mut c_void,
@@ -401,10 +383,7 @@ unsafe extern "C" fn get_security<T: FileSystemContext<DIR_BUF_SIZE>, const DIR_
     })
 }
 
-unsafe extern "C" fn read_directory<
-    T: FileSystemContext<DIR_BUF_SIZE>,
-    const DIR_BUF_SIZE: usize,
->(
+unsafe extern "C" fn read_directory<T: FileSystemContext>(
     fs: *mut FSP_FILE_SYSTEM,
     fctx: PVOID,
     pattern: *mut u16,
@@ -444,7 +423,7 @@ unsafe extern "C" fn read_directory<
     })
 }
 
-unsafe extern "C" fn read<T: FileSystemContext<DIR_BUF_SIZE>, const DIR_BUF_SIZE: usize>(
+unsafe extern "C" fn read<T: FileSystemContext>(
     fs: *mut FSP_FILE_SYSTEM,
     fctx: PVOID,
     buffer: PVOID,
@@ -473,7 +452,7 @@ unsafe extern "C" fn read<T: FileSystemContext<DIR_BUF_SIZE>, const DIR_BUF_SIZE
     })
 }
 
-unsafe extern "C" fn write<T: FileSystemContext<DIR_BUF_SIZE>, const DIR_BUF_SIZE: usize>(
+unsafe extern "C" fn write<T: FileSystemContext>(
     fs: *mut FSP_FILE_SYSTEM,
     fctx: PVOID,
     buffer: PVOID,
@@ -517,7 +496,7 @@ unsafe extern "C" fn write<T: FileSystemContext<DIR_BUF_SIZE>, const DIR_BUF_SIZ
     })
 }
 
-unsafe extern "C" fn cleanup<T: FileSystemContext<DIR_BUF_SIZE>, const DIR_BUF_SIZE: usize>(
+unsafe extern "C" fn cleanup<T: FileSystemContext>(
     fs: *mut FSP_FILE_SYSTEM,
     fctx: PVOID,
     file_name: *mut u16,
@@ -536,10 +515,7 @@ unsafe extern "C" fn cleanup<T: FileSystemContext<DIR_BUF_SIZE>, const DIR_BUF_S
     });
 }
 
-unsafe extern "C" fn set_basic_info<
-    T: FileSystemContext<DIR_BUF_SIZE>,
-    const DIR_BUF_SIZE: usize,
->(
+unsafe extern "C" fn set_basic_info<T: FileSystemContext>(
     fs: *mut FSP_FILE_SYSTEM,
     fctx: PVOID,
     file_attributes: u32,
@@ -566,10 +542,7 @@ unsafe extern "C" fn set_basic_info<
     })
 }
 
-unsafe extern "C" fn set_file_size<
-    T: FileSystemContext<DIR_BUF_SIZE>,
-    const DIR_BUF_SIZE: usize,
->(
+unsafe extern "C" fn set_file_size<T: FileSystemContext>(
     fs: *mut FSP_FILE_SYSTEM,
     fctx: PVOID,
     new_size: u64,
@@ -590,7 +563,7 @@ unsafe extern "C" fn set_file_size<
     })
 }
 
-unsafe extern "C" fn set_security<T: FileSystemContext<DIR_BUF_SIZE>, const DIR_BUF_SIZE: usize>(
+unsafe extern "C" fn set_security<T: FileSystemContext>(
     fs: *mut FSP_FILE_SYSTEM,
     fctx: PVOID,
     security_information: u32,
@@ -608,7 +581,7 @@ unsafe extern "C" fn set_security<T: FileSystemContext<DIR_BUF_SIZE>, const DIR_
     })
 }
 
-unsafe extern "C" fn set_delete<T: FileSystemContext<DIR_BUF_SIZE>, const DIR_BUF_SIZE: usize>(
+unsafe extern "C" fn set_delete<T: FileSystemContext>(
     fs: *mut FSP_FILE_SYSTEM,
     fctx: PVOID,
     file_name: *mut u16,
@@ -622,7 +595,7 @@ unsafe extern "C" fn set_delete<T: FileSystemContext<DIR_BUF_SIZE>, const DIR_BU
     })
 }
 
-unsafe extern "C" fn flush<T: FileSystemContext<DIR_BUF_SIZE>, const DIR_BUF_SIZE: usize>(
+unsafe extern "C" fn flush<T: FileSystemContext>(
     fs: *mut FSP_FILE_SYSTEM,
     fctx: PVOID,
     out_file_info: *mut FSP_FSCTL_FILE_INFO,
@@ -635,7 +608,7 @@ unsafe extern "C" fn flush<T: FileSystemContext<DIR_BUF_SIZE>, const DIR_BUF_SIZ
     })
 }
 
-unsafe extern "C" fn rename<T: FileSystemContext<DIR_BUF_SIZE>, const DIR_BUF_SIZE: usize>(
+unsafe extern "C" fn rename<T: FileSystemContext>(
     fs: *mut FSP_FILE_SYSTEM,
     fctx: PVOID,
     file_name: *mut u16,
@@ -657,7 +630,7 @@ unsafe extern "C" fn rename<T: FileSystemContext<DIR_BUF_SIZE>, const DIR_BUF_SI
     })
 }
 
-unsafe extern "C" fn get_ea<T: FileSystemContext<DIR_BUF_SIZE>, const DIR_BUF_SIZE: usize>(
+unsafe extern "C" fn get_ea<T: FileSystemContext>(
     fs: *mut FSP_FILE_SYSTEM,
     fctx: PVOID,
     ea: PFILE_FULL_EA_INFORMATION,
@@ -676,7 +649,7 @@ unsafe extern "C" fn get_ea<T: FileSystemContext<DIR_BUF_SIZE>, const DIR_BUF_SI
     })
 }
 
-unsafe extern "C" fn set_ea<T: FileSystemContext<DIR_BUF_SIZE>, const DIR_BUF_SIZE: usize>(
+unsafe extern "C" fn set_ea<T: FileSystemContext>(
     fs: *mut FSP_FILE_SYSTEM,
     fctx: PVOID,
     ea: PFILE_FULL_EA_INFORMATION,
@@ -691,10 +664,7 @@ unsafe extern "C" fn set_ea<T: FileSystemContext<DIR_BUF_SIZE>, const DIR_BUF_SI
     })
 }
 
-unsafe extern "C" fn get_reparse_point_by_name<
-    T: FileSystemContext<DIR_BUF_SIZE>,
-    const DIR_BUF_SIZE: usize,
->(
+unsafe extern "C" fn get_reparse_point_by_name<T: FileSystemContext>(
     fs: *mut FSP_FILE_SYSTEM,
     _ctx: PVOID,
     file_name: *mut u16,
@@ -734,10 +704,7 @@ unsafe extern "C" fn get_reparse_point_by_name<
     })
 }
 
-unsafe extern "C" fn resolve_reparse_points<
-    T: FileSystemContext<DIR_BUF_SIZE>,
-    const DIR_BUF_SIZE: usize,
->(
+unsafe extern "C" fn resolve_reparse_points<T: FileSystemContext>(
     fs: *mut FSP_FILE_SYSTEM,
     file_name: *mut u16,
     reparse_point_index: u32,
@@ -749,7 +716,7 @@ unsafe extern "C" fn resolve_reparse_points<
     unsafe {
         FspFileSystemResolveReparsePoints(
             fs,
-            Some(get_reparse_point_by_name::<T, DIR_BUF_SIZE>),
+            Some(get_reparse_point_by_name::<T>),
             std::ptr::null_mut(),
             file_name,
             reparse_point_index,
@@ -761,10 +728,7 @@ unsafe extern "C" fn resolve_reparse_points<
     }
 }
 
-unsafe extern "C" fn get_reparse_point<
-    T: FileSystemContext<DIR_BUF_SIZE>,
-    const DIR_BUF_SIZE: usize,
->(
+unsafe extern "C" fn get_reparse_point<T: FileSystemContext>(
     fs: *mut FSP_FILE_SYSTEM,
     fctx: PVOID,
     file_name: *mut u16,
@@ -787,10 +751,7 @@ unsafe extern "C" fn get_reparse_point<
     })
 }
 
-unsafe extern "C" fn set_reparse_point<
-    T: FileSystemContext<DIR_BUF_SIZE>,
-    const DIR_BUF_SIZE: usize,
->(
+unsafe extern "C" fn set_reparse_point<T: FileSystemContext>(
     fs: *mut FSP_FILE_SYSTEM,
     fctx: PVOID,
     file_name: *mut u16,
@@ -808,10 +769,7 @@ unsafe extern "C" fn set_reparse_point<
     })
 }
 
-unsafe extern "C" fn delete_reparse_point<
-    T: FileSystemContext<DIR_BUF_SIZE>,
-    const DIR_BUF_SIZE: usize,
->(
+unsafe extern "C" fn delete_reparse_point<T: FileSystemContext>(
     fs: *mut FSP_FILE_SYSTEM,
     fctx: PVOID,
     file_name: *mut u16,
@@ -829,10 +787,7 @@ unsafe extern "C" fn delete_reparse_point<
     })
 }
 
-unsafe extern "C" fn get_stream_info<
-    T: FileSystemContext<DIR_BUF_SIZE>,
-    const DIR_BUF_SIZE: usize,
->(
+unsafe extern "C" fn get_stream_info<T: FileSystemContext>(
     fs: *mut FSP_FILE_SYSTEM,
     fctx: PVOID,
     buffer: PVOID,
@@ -856,10 +811,7 @@ unsafe extern "C" fn get_stream_info<
     })
 }
 
-unsafe extern "C" fn get_dir_info_by_name<
-    T: FileSystemContext<DIR_BUF_SIZE>,
-    const DIR_BUF_SIZE: usize,
->(
+unsafe extern "C" fn get_dir_info_by_name<T: FileSystemContext>(
     fs: *mut FSP_FILE_SYSTEM,
     fctx: PVOID,
     file_name: *mut u16,
@@ -872,7 +824,7 @@ unsafe extern "C" fn get_dir_info_by_name<
                 panic!("get_dir_info_by_name was passed a null dirinfo buffer.")
             }
 
-            let buffer = dir_info.cast::<DirInfo<DIR_BUF_SIZE>>();
+            let buffer = dir_info.cast::<DirInfo>();
             T::get_dir_info_by_name(context, fctx, file_name, unsafe {
                 buffer.as_mut().unwrap()
             })
@@ -1141,75 +1093,69 @@ pub struct Interface {
 }
 
 impl Interface {
-    pub(crate) fn create_with_read_directory<
-        T: FileSystemContext<DIR_BUF_SIZE>,
-        const DIR_BUF_SIZE: usize,
-    >() -> Self {
+    pub(crate) fn create_with_read_directory<T: FileSystemContext>() -> Self {
         Interface {
-            open: Some(open::<T, DIR_BUF_SIZE>),
-            get_security_by_name: Some(get_security_by_name::<T, DIR_BUF_SIZE>),
-            close: Some(close::<T, DIR_BUF_SIZE>),
-            create_ex: Some(create_ex::<T, DIR_BUF_SIZE>),
-            control: Some(control::<T, DIR_BUF_SIZE>),
-            overwrite_ex: Some(overwrite_ex::<T, DIR_BUF_SIZE>),
-            read_directory: Some(read_directory::<T, DIR_BUF_SIZE>),
-            get_volume_info: Some(get_volume_info::<T, DIR_BUF_SIZE>),
-            set_volume_label: Some(set_volume_label::<T, DIR_BUF_SIZE>),
-            get_security: Some(get_security::<T, DIR_BUF_SIZE>),
-            get_file_info: Some(get_file_info::<T, DIR_BUF_SIZE>),
-            read: Some(read::<T, DIR_BUF_SIZE>),
-            write: Some(write::<T, DIR_BUF_SIZE>),
-            cleanup: Some(cleanup::<T, DIR_BUF_SIZE>),
-            set_basic_info: Some(set_basic_info::<T, DIR_BUF_SIZE>),
-            set_file_size: Some(set_file_size::<T, DIR_BUF_SIZE>),
-            set_security: Some(set_security::<T, DIR_BUF_SIZE>),
-            set_delete: Some(set_delete::<T, DIR_BUF_SIZE>),
-            flush: Some(flush::<T, DIR_BUF_SIZE>),
-            rename: Some(rename::<T, DIR_BUF_SIZE>),
-            get_ea: Some(get_ea::<T, DIR_BUF_SIZE>),
-            set_ea: Some(set_ea::<T, DIR_BUF_SIZE>),
-            get_reparse_point: Some(get_reparse_point::<T, DIR_BUF_SIZE>),
-            set_reparse_point: Some(set_reparse_point::<T, DIR_BUF_SIZE>),
-            delete_reparse_point: Some(delete_reparse_point::<T, DIR_BUF_SIZE>),
-            resolve_reparse_points: Some(resolve_reparse_points::<T, DIR_BUF_SIZE>),
-            get_stream_info: Some(get_stream_info::<T, DIR_BUF_SIZE>),
+            open: Some(open::<T>),
+            get_security_by_name: Some(get_security_by_name::<T>),
+            close: Some(close::<T>),
+            create_ex: Some(create_ex::<T>),
+            control: Some(control::<T>),
+            overwrite_ex: Some(overwrite_ex::<T>),
+            read_directory: Some(read_directory::<T>),
+            get_volume_info: Some(get_volume_info::<T>),
+            set_volume_label: Some(set_volume_label::<T>),
+            get_security: Some(get_security::<T>),
+            get_file_info: Some(get_file_info::<T>),
+            read: Some(read::<T>),
+            write: Some(write::<T>),
+            cleanup: Some(cleanup::<T>),
+            set_basic_info: Some(set_basic_info::<T>),
+            set_file_size: Some(set_file_size::<T>),
+            set_security: Some(set_security::<T>),
+            set_delete: Some(set_delete::<T>),
+            flush: Some(flush::<T>),
+            rename: Some(rename::<T>),
+            get_ea: Some(get_ea::<T>),
+            set_ea: Some(set_ea::<T>),
+            get_reparse_point: Some(get_reparse_point::<T>),
+            set_reparse_point: Some(set_reparse_point::<T>),
+            delete_reparse_point: Some(delete_reparse_point::<T>),
+            resolve_reparse_points: Some(resolve_reparse_points::<T>),
+            get_stream_info: Some(get_stream_info::<T>),
             get_dir_info_by_name: None,
         }
     }
 
-    pub(crate) fn create_with_dirinfo_by_name<
-        T: FileSystemContext<DIR_BUF_SIZE>,
-        const DIR_BUF_SIZE: usize,
-    >() -> Self {
+    pub(crate) fn create_with_dirinfo_by_name<T: FileSystemContext>() -> Self {
         Interface {
-            open: Some(open::<T, DIR_BUF_SIZE>),
-            get_security_by_name: Some(get_security_by_name::<T, DIR_BUF_SIZE>),
-            close: Some(close::<T, DIR_BUF_SIZE>),
-            create_ex: Some(create_ex::<T, DIR_BUF_SIZE>),
-            control: Some(control::<T, DIR_BUF_SIZE>),
-            overwrite_ex: Some(overwrite_ex::<T, DIR_BUF_SIZE>),
+            open: Some(open::<T>),
+            get_security_by_name: Some(get_security_by_name::<T>),
+            close: Some(close::<T>),
+            create_ex: Some(create_ex::<T>),
+            control: Some(control::<T>),
+            overwrite_ex: Some(overwrite_ex::<T>),
             read_directory: None,
-            get_volume_info: Some(get_volume_info::<T, DIR_BUF_SIZE>),
-            set_volume_label: Some(set_volume_label::<T, DIR_BUF_SIZE>),
-            get_security: Some(get_security::<T, DIR_BUF_SIZE>),
-            get_file_info: Some(get_file_info::<T, DIR_BUF_SIZE>),
-            read: Some(read::<T, DIR_BUF_SIZE>),
-            write: Some(write::<T, DIR_BUF_SIZE>),
-            cleanup: Some(cleanup::<T, DIR_BUF_SIZE>),
-            set_basic_info: Some(set_basic_info::<T, DIR_BUF_SIZE>),
-            set_file_size: Some(set_file_size::<T, DIR_BUF_SIZE>),
-            set_security: Some(set_security::<T, DIR_BUF_SIZE>),
-            set_delete: Some(set_delete::<T, DIR_BUF_SIZE>),
-            flush: Some(flush::<T, DIR_BUF_SIZE>),
-            rename: Some(rename::<T, DIR_BUF_SIZE>),
-            get_ea: Some(get_ea::<T, DIR_BUF_SIZE>),
-            set_ea: Some(set_ea::<T, DIR_BUF_SIZE>),
-            get_reparse_point: Some(get_reparse_point::<T, DIR_BUF_SIZE>),
-            set_reparse_point: Some(set_reparse_point::<T, DIR_BUF_SIZE>),
-            delete_reparse_point: Some(delete_reparse_point::<T, DIR_BUF_SIZE>),
-            resolve_reparse_points: Some(resolve_reparse_points::<T, DIR_BUF_SIZE>),
-            get_stream_info: Some(get_stream_info::<T, DIR_BUF_SIZE>),
-            get_dir_info_by_name: Some(get_dir_info_by_name::<T, DIR_BUF_SIZE>),
+            get_volume_info: Some(get_volume_info::<T>),
+            set_volume_label: Some(set_volume_label::<T>),
+            get_security: Some(get_security::<T>),
+            get_file_info: Some(get_file_info::<T>),
+            read: Some(read::<T>),
+            write: Some(write::<T>),
+            cleanup: Some(cleanup::<T>),
+            set_basic_info: Some(set_basic_info::<T>),
+            set_file_size: Some(set_file_size::<T>),
+            set_security: Some(set_security::<T>),
+            set_delete: Some(set_delete::<T>),
+            flush: Some(flush::<T>),
+            rename: Some(rename::<T>),
+            get_ea: Some(get_ea::<T>),
+            set_ea: Some(set_ea::<T>),
+            get_reparse_point: Some(get_reparse_point::<T>),
+            set_reparse_point: Some(set_reparse_point::<T>),
+            delete_reparse_point: Some(delete_reparse_point::<T>),
+            resolve_reparse_points: Some(resolve_reparse_points::<T>),
+            get_stream_info: Some(get_stream_info::<T>),
+            get_dir_info_by_name: Some(get_dir_info_by_name::<T>),
         }
     }
 }

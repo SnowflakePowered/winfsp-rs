@@ -33,9 +33,10 @@ fn system() -> String {
 }
 
 fn main() {
-
-    #[cfg(feature = "system")] let link_include = system();
-    #[cfg(not(feature = "system"))] let link_include = local();
+    #[cfg(feature = "system")]
+    let link_include = system();
+    #[cfg(not(feature = "system"))]
+    let link_include = local();
 
     println!("cargo:rerun-if-changed=wrapper.h");
 
@@ -43,7 +44,8 @@ fn main() {
         println!("cargo:rustc-link-lib=dylib=winfsp-x64");
         println!("cargo:rustc-link-lib=dylib=delayimp");
         println!("cargo:rustc-link-arg=/DELAYLOAD:winfsp-x64.dll");
-    } else if cfg!(target_os = "windows") && cfg!(target_arch = "i686") && cfg!(target_env = "msvc") {
+    } else if cfg!(target_os = "windows") && cfg!(target_arch = "i686") && cfg!(target_env = "msvc")
+    {
         println!("cargo:rustc-link-lib=dylib=winfsp-x86");
         println!("cargo:rustc-link-lib=dylib=delayimp");
         println!("cargo:rustc-link-arg=/DELAYLOAD:winfsp-x86.dll");
@@ -64,9 +66,13 @@ fn main() {
         .clang_arg("-DUNICODE")
         .clang_arg(link_include);
 
-    let bindings = if cfg!(target_os = "windows") && cfg!(target_arch = "x86_64") && cfg!(target_env = "msvc") {
+    let bindings = if cfg!(target_os = "windows")
+        && cfg!(target_arch = "x86_64")
+        && cfg!(target_env = "msvc")
+    {
         bindings.clang_arg("--target=x86_64-pc-windows-msvc")
-    } else if cfg!(target_os = "windows") && cfg!(target_arch = "i686") && cfg!(target_env = "msvc") {
+    } else if cfg!(target_os = "windows") && cfg!(target_arch = "i686") && cfg!(target_env = "msvc")
+    {
         bindings.clang_arg("--target=i686-pc-windows-msvc")
     } else {
         panic!("unsupported triple")
