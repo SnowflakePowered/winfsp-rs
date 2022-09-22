@@ -1134,7 +1134,7 @@ impl Interface {
             create_ex: Some(create_ex::<T>),
             control: Some(control::<T>),
             overwrite_ex: Some(overwrite_ex::<T>),
-            read_directory: None,
+            read_directory: Some(read_directory::<T>),
             get_volume_info: Some(get_volume_info::<T>),
             set_volume_label: Some(set_volume_label::<T>),
             get_security: Some(get_security::<T>),
