@@ -1,9 +1,6 @@
-
 use crate::filesystem::WideNameInfo;
 use std::alloc::Layout;
-use winfsp_sys::{
-    FspFileSystemAddNotifyInfo, FSP_FSCTL_NOTIFY_INFO,
-};
+use winfsp_sys::{FspFileSystemAddNotifyInfo, FSP_FSCTL_NOTIFY_INFO};
 
 #[repr(C)]
 pub struct NotifyInfo<const BUFFER_SIZE: usize> {

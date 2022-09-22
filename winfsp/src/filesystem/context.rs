@@ -2,7 +2,6 @@ use crate::error::Result;
 use crate::filesystem::{DirInfo, DirMarker};
 use crate::WCStr;
 
-
 use windows::core::PWSTR;
 use windows::Win32::Foundation::STATUS_INVALID_DEVICE_REQUEST;
 use windows::Win32::Security::PSECURITY_DESCRIPTOR;

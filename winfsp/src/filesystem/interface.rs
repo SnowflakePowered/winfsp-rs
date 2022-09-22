@@ -4,8 +4,8 @@ use widestring::U16CStr;
 use windows::core::PWSTR;
 
 use windows::Win32::Foundation::{
-    EXCEPTION_NONCONTINUABLE_EXCEPTION, STATUS_INSUFFICIENT_RESOURCES,
-    STATUS_PENDING, STATUS_REPARSE, STATUS_SUCCESS,
+    EXCEPTION_NONCONTINUABLE_EXCEPTION, STATUS_INSUFFICIENT_RESOURCES, STATUS_PENDING,
+    STATUS_REPARSE, STATUS_SUCCESS,
 };
 use windows::Win32::Security::PSECURITY_DESCRIPTOR;
 use windows::Win32::Storage::FileSystem::{FILE_ACCESS_FLAGS, FILE_FLAGS_AND_ATTRIBUTES};
@@ -1141,7 +1141,10 @@ pub struct Interface {
 }
 
 impl Interface {
-    pub(crate) fn create<T: FileSystemContext<DIR_BUF_SIZE>, const DIR_BUF_SIZE: usize>() -> Self {
+    pub(crate) fn create_with_read_directory<
+        T: FileSystemContext<DIR_BUF_SIZE>,
+        const DIR_BUF_SIZE: usize,
+    >() -> Self {
         Interface {
             open: Some(open::<T, DIR_BUF_SIZE>),
             get_security_by_name: Some(get_security_by_name::<T, DIR_BUF_SIZE>),

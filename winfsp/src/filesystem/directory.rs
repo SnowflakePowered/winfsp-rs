@@ -1,10 +1,7 @@
 use std::alloc::Layout;
 
-
-
-
 use widestring::{u16cstr, U16CStr};
-use windows::Win32::Foundation::{STATUS_SUCCESS};
+use windows::Win32::Foundation::STATUS_SUCCESS;
 use winfsp_sys::{
     FspFileSystemAcquireDirectoryBufferEx, FspFileSystemAddDirInfo,
     FspFileSystemDeleteDirectoryBuffer, FspFileSystemFillDirectoryBuffer,
@@ -14,7 +11,6 @@ use winfsp_sys::{
 
 use crate::error::Result;
 use crate::filesystem::WideNameInfo;
-
 
 #[derive(Debug)]
 pub struct DirBuffer(PVOID);
