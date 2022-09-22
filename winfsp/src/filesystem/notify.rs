@@ -2,12 +2,23 @@
 //!
 //! This is currently incomplete, users who wish to implement filesystem notifications
 //! will require the `winfsp-sys`
-use crate::filesystem::WideNameInfo;
+use crate::filesystem::{FileSystemContext, WideNameInfo};
 use std::alloc::Layout;
-use windows::Win32::Foundation::NTSTATUS;
 use winfsp_sys::{
     FspFileSystemAddNotifyInfo, FspFileSystemNotify, FSP_FILE_SYSTEM, FSP_FSCTL_NOTIFY_INFO,
 };
+
+pub trait NotifyingFileSystemContext<T, const DIR_INFO_SIZE: usize>:
+    FileSystemContext<DIR_INFO_SIZE>
+{
+    /// Calculate a sentinel or context value if the filesystem is ready to notify the
+    /// operating system, or return None if the filesystem is not ready.
+    fn should_notify(&self) -> Option<T>;
+
+    /// Publish the notification with the given sentinel or context value to the
+    /// operating system.
+    fn notify(&self, context: T, notifier: &Notifier);
+}
 
 #[repr(C)]
 pub struct NotifyInfo<const BUFFER_SIZE: usize> {
@@ -80,23 +91,17 @@ impl<const BUFFER_SIZE: usize> WideNameInfo<BUFFER_SIZE> for NotifyInfo<BUFFER_S
 }
 
 /// A notifier used to notify the filesystem of changes.
-pub struct Notifier<const BUFFER_SIZE: usize>(pub(crate) *mut FSP_FILE_SYSTEM);
-impl<const BUFFER_SIZE: usize> Notifier<BUFFER_SIZE> {
+pub struct Notifier(pub(crate) *mut FSP_FILE_SYSTEM);
+impl Notifier {
     /// Notify the filesystem of the given change event.
-    pub fn notify(&self, info: &NotifyInfo<BUFFER_SIZE>) -> crate::error::Result<()> {
-        let result = unsafe {
-            NTSTATUS(FspFileSystemNotify(
+    pub fn notify<const BUFFER_SIZE: usize>(&self, info: &NotifyInfo<BUFFER_SIZE>) {
+        unsafe {
+            FspFileSystemNotify(
                 self.0,
                 // SAFETY: FspFileSystemNotify calls DeviceIoControl with the buffer specified as [in].
                 (info as *const NotifyInfo<BUFFER_SIZE>).cast_mut().cast(),
                 info.size as u64,
-            ))
+            )
         };
-
-        if result.is_ok() {
-            Ok(())
-        } else {
-            Err(result.into())
-        }
     }
 }
