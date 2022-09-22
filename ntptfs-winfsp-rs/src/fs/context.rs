@@ -45,7 +45,7 @@ use windows_sys::Win32::System::WindowsProgramming::{
     FILE_SYNCHRONOUS_IO_NONALERT,
 };
 use winfsp::constants::FspCleanupFlags::FspCleanupDelete;
-use winfsp::error::FspError;
+use winfsp::FspError;
 use winfsp::filesystem::{
     DirInfo, DirMarker, FileSecurity, FileSystemContext, IoResult, StreamInfo, WideNameInfo,
     FSP_FSCTL_FILE_INFO, FSP_FSCTL_VOLUME_INFO, FSP_FSCTL_VOLUME_PARAMS, MAX_PATH,
@@ -156,7 +156,7 @@ impl NtPassthroughContext {
             )
         };
 
-        dir_info.set_name_raw(file_name_slice)?
+        dir_info.set_name_raw(file_name_slice)?;
 
         let file_info = dir_info.file_info_mut();
 
