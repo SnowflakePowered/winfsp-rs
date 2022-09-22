@@ -11,7 +11,33 @@ use winfsp_sys::{
 pub use winfsp_sys::{FSP_FSCTL_FILE_INFO, FSP_FSCTL_VOLUME_INFO, FSP_FSCTL_VOLUME_PARAMS};
 
 use crate::filesystem::interface::Interface;
+use crate::filesystem::sealed::Sealed;
 use crate::filesystem::FileSystemContext;
+
+pub trait DirectoryResolveStrategy: Sealed {
+    #[doc(hidden)]
+    fn create_interface<T: FileSystemContext<DIR_BUFFER_SIZE>, const DIR_BUFFER_SIZE: usize>(
+    ) -> Interface;
+}
+
+/// Resolve directories with the [`read_directory`](crate::filesystem::FileSystemContext::read_directory)
+/// function.
+pub struct ReadDirectory;
+impl DirectoryResolveStrategy for ReadDirectory {
+    fn create_interface<T: FileSystemContext<DIR_BUFFER_SIZE>, const DIR_BUFFER_SIZE: usize>(
+    ) -> Interface {
+        Interface::create_with_read_directory::<T, DIR_BUFFER_SIZE>()
+    }
+}
+/// Resolve directories with the [`get_directory_by_name`](crate::filesystem::FileSystemContext::get_directory_by_name)
+/// function.
+pub struct GetDirectoryByName;
+impl DirectoryResolveStrategy for GetDirectoryByName {
+    fn create_interface<T: FileSystemContext<DIR_BUFFER_SIZE>, const DIR_BUFFER_SIZE: usize>(
+    ) -> Interface {
+        Interface::create_with_dirinfo_by_name::<T, DIR_BUFFER_SIZE>()
+    }
+}
 
 /// The user-mode filesystem host that manages the lifetime of the mounted filesystem.
 ///
@@ -26,9 +52,27 @@ impl FileSystemHost {
         volume_params: FSP_FSCTL_VOLUME_PARAMS,
         context: T,
     ) -> Result<Self> {
+        unsafe {
+            Self::new_with_directory_strategy::<T, ReadDirectory, DIR_BUFFER_SIZE>(
+                volume_params,
+                context,
+            )
+        }
+    }
+
+    /// # Safety
+    /// `volume_params` must be valid.
+    pub unsafe fn new_with_directory_strategy<
+        T: FileSystemContext<DIR_BUFFER_SIZE>,
+        D: DirectoryResolveStrategy,
+        const DIR_BUFFER_SIZE: usize,
+    >(
+        volume_params: FSP_FSCTL_VOLUME_PARAMS,
+        context: T,
+    ) -> Result<Self> {
         let mut fsp_struct = std::ptr::null_mut();
 
-        let interface = Interface::create::<T, DIR_BUFFER_SIZE>();
+        let interface = D::create_interface::<T, DIR_BUFFER_SIZE>();
         let interface: FSP_FILE_SYSTEM_INTERFACE = interface.into();
         let interface = Box::into_raw(Box::new(interface));
         let result = unsafe {
