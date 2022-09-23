@@ -45,10 +45,7 @@ use windows_sys::Win32::System::WindowsProgramming::{
     FILE_SYNCHRONOUS_IO_NONALERT,
 };
 use winfsp::constants::FspCleanupFlags::FspCleanupDelete;
-use winfsp::filesystem::{
-    DirInfo, DirMarker, FileSecurity, FileSystemContext, IoResult, StreamInfo, WideNameInfo,
-    FSP_FSCTL_FILE_INFO, FSP_FSCTL_VOLUME_INFO, FSP_FSCTL_VOLUME_PARAMS,
-};
+use winfsp::filesystem::{DirInfo, DirMarker, FileSecurity, FileSystemContext, IoResult, StreamInfo, WideNameInfo, FSP_FSCTL_FILE_INFO, FSP_FSCTL_VOLUME_INFO, VolumeParams};
 use winfsp::util::Win32SafeHandle;
 use winfsp::FspError;
 use winfsp::WCStr;
@@ -105,36 +102,33 @@ impl NtPassthroughContext {
 
     pub fn new_with_volume_params(
         root: impl AsRef<Path>,
-        volume_params: &mut FSP_FSCTL_VOLUME_PARAMS,
+        volume_params: &mut VolumeParams,
     ) -> winfsp::Result<Self> {
-        volume_params.VolumeCreationTime = {
+        volume_params.volume_creation_time({
             let metadata = std::fs::metadata(&root)?;
             if !metadata.is_dir() {
                 return Err(STATUS_NOT_A_DIRECTORY.into());
             }
             metadata.creation_time()
-        };
+        });
 
         let context = Self::new(root)?;
         let fs_attr = volume::get_attr(*context.root_handle)?;
         let fs_sz = volume::get_size(*context.root_handle)?;
 
-        volume_params.SectorSize = fs_sz.BytesPerSector as u16;
-        volume_params.SectorsPerAllocationUnit = fs_sz.SectorsPerAllocationUnit as u16;
-        volume_params.MaxComponentLength =
-            unsafe { fs_attr.as_ref().MaximumComponentNameLength } as u16;
-        volume_params.set_CaseSensitiveSearch(0);
-        volume_params.set_CasePreservedNames(1);
-        volume_params.set_UnicodeOnDisk(1);
-        volume_params.set_PersistentAcls(1);
-        volume_params.set_PostCleanupWhenModifiedOnly(1);
-        volume_params.set_PassQueryDirectoryPattern(1);
-        volume_params.set_FlushAndPurgeOnCleanup(1);
-        volume_params.set_RejectIrpPriorToTransact0(1);
-        volume_params.set_UmFileContextIsUserContext2(1);
-        volume_params.set_FlushAndPurgeOnCleanup(1);
-        volume_params.set_WslFeatures(1);
-        volume_params.FileInfoTimeout = 1000;
+        volume_params.sector_size(fs_sz.BytesPerSector as u16)
+            .sectors_per_allocation_unit(fs_sz.SectorsPerAllocationUnit as u16)
+            .max_component_length(unsafe { fs_attr.as_ref().MaximumComponentNameLength } as u16)
+            .case_sensitive_search(false)
+            .case_preserved_names(true)
+            .unicode_on_disk(true)
+            .persistent_acls(true)
+            .post_cleanup_when_modified_only(true)
+            .pass_query_directory_pattern(true)
+            .flush_and_purge_on_cleanup(true)
+            .wsl_features(true)
+            .file_info_timeout(1000);
+
         Ok(context)
     }
 

@@ -1,9 +1,9 @@
+use crate::notify::{Notifier, NotifyingFileSystemContext};
 use windows::Win32::Foundation::{NTSTATUS, STATUS_SUCCESS};
 use windows::Win32::System::Threading::{
     CloseThreadpoolTimer, CreateThreadpoolTimer, SetThreadpoolTimer, TP_CALLBACK_INSTANCE, TP_TIMER,
 };
 use winfsp_sys::{FspFileSystemNotifyBegin, FspFileSystemNotifyEnd, FSP_FILE_SYSTEM};
-use crate::notify::{Notifier, NotifyingFileSystemContext};
 
 pub struct Timer(*mut TP_TIMER);
 

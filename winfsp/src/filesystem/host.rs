@@ -1,6 +1,5 @@
 use windows::core::Result;
 use windows::core::HSTRING;
-use windows::w;
 use windows::Win32::Foundation::NTSTATUS;
 
 use winfsp_sys::{
@@ -9,37 +8,13 @@ use winfsp_sys::{
     FSP_FILE_SYSTEM_INTERFACE,
 };
 
-pub use winfsp_sys::{FSP_FSCTL_FILE_INFO, FSP_FSCTL_VOLUME_INFO, FSP_FSCTL_VOLUME_PARAMS};
+pub use winfsp_sys::{FSP_FSCTL_FILE_INFO, FSP_FSCTL_VOLUME_INFO};
 
 use crate::filesystem::interface::Interface;
-use crate::filesystem::sealed::Sealed;
-use crate::filesystem::FileSystemContext;
+use crate::filesystem::{FileSystemContext, VolumeParams};
 
-use crate::notify::Timer;
 use crate::notify::NotifyingFileSystemContext;
-
-/// The strategy to use when resolving directories with the filesystem context.
-pub trait DirectoryResolveStrategy: Sealed {
-    #[doc(hidden)]
-    fn create_interface<T: FileSystemContext>() -> Interface;
-}
-
-/// Resolve directories with the [`read_directory`](crate::filesystem::FileSystemContext::read_directory)
-/// function.
-pub struct ReadDirectory;
-impl DirectoryResolveStrategy for ReadDirectory {
-    fn create_interface<T: FileSystemContext>() -> Interface {
-        Interface::create_with_read_directory::<T>()
-    }
-}
-/// Resolve directories with the [`get_dir_info_by_name`](crate::filesystem::FileSystemContext::get_dir_info_by_name)
-/// function.
-pub struct GetDirInfoByName;
-impl DirectoryResolveStrategy for GetDirInfoByName {
-    fn create_interface<T: FileSystemContext>() -> Interface {
-        Interface::create_with_dirinfo_by_name::<T>()
-    }
-}
+use crate::notify::Timer;
 
 /// The user-mode filesystem host that manages the lifetime of the mounted filesystem.
 ///
@@ -48,38 +23,25 @@ impl DirectoryResolveStrategy for GetDirInfoByName {
 /// should start within the context of a service.
 pub struct FileSystemHost(pub *mut FSP_FILE_SYSTEM, Option<Timer>);
 impl FileSystemHost {
-    /// Create a `FileSystemHost` with the default `ReadDirectory` directory strategy
-    /// for the provided context implementation.
-    /// ## Safety
-    /// `volume_params` must be valid.
-    pub unsafe fn new<T: FileSystemContext>(
-        volume_params: FSP_FSCTL_VOLUME_PARAMS,
+    fn new_filesystem_inner<T: FileSystemContext>(
+        volume_params: VolumeParams,
         context: T,
-    ) -> Result<Self> {
-        unsafe { Self::new_with_directory_strategy::<T, ReadDirectory>(volume_params, context) }
-    }
-
-    /// Create a `FileSystemHost` with the provided context implementation and directory
-    /// resolution strategy.
-    /// ## Safety
-    /// `volume_params` must be valid.
-    pub unsafe fn new_with_directory_strategy<T: FileSystemContext, D: DirectoryResolveStrategy>(
-        volume_params: FSP_FSCTL_VOLUME_PARAMS,
-        context: T,
-    ) -> Result<Self> {
+        use_directory_by_name: bool,
+    ) -> Result<*mut FSP_FILE_SYSTEM> {
         let mut fsp_struct = std::ptr::null_mut();
 
-        let interface = D::create_interface::<T>();
+        let interface = if use_directory_by_name {
+            Interface::create_with_dirinfo_by_name::<T>()
+        } else {
+            Interface::create_with_read_directory::<T>()
+        };
+
         let interface: FSP_FILE_SYSTEM_INTERFACE = interface.into();
         let interface = Box::into_raw(Box::new(interface));
         let result = unsafe {
             FspFileSystemCreate(
-                if volume_params.Prefix[0] != 0 {
-                    w!("WinFsp.Net").as_ptr().cast_mut()
-                } else {
-                    w!("WinFsp.Disk").as_ptr().cast_mut()
-                },
-                &volume_params,
+                volume_params.get_winfsp_device_name(),
+                &volume_params.0,
                 interface,
                 &mut fsp_struct,
             )
@@ -101,58 +63,39 @@ impl FileSystemHost {
         unsafe {
             (*fsp_struct).UserContext = Box::into_raw(Box::new(context)) as *mut _;
         }
+        Ok(fsp_struct)
+    }
+
+    /// Create a `FileSystemHost` with the default `ReadDirectory` directory strategy
+    /// for the provided context implementation.
+    pub fn new<T: FileSystemContext>(volume_params: VolumeParams, context: T) -> Result<Self> {
+        Self::new_with_directory_by_name::<T>(volume_params, context, false)
+    }
+
+    /// Create a `FileSystemHost` with the provided context implementation and directory
+    /// resolution strategy.
+    pub fn new_with_directory_by_name<T: FileSystemContext>(
+        volume_params: VolumeParams,
+        context: T,
+        use_directory_by_name: bool,
+    ) -> Result<Self> {
+        let fsp_struct = Self::new_filesystem_inner(volume_params, context, use_directory_by_name)?;
         Ok(FileSystemHost(fsp_struct, None))
     }
 
     /// Create a `FileSystemHost` with the provided context implementation,
     /// resolution strategy, and filesystem notification support.
-    /// ## Safety
-    /// `volume_params` must be valid.
     #[cfg(feature = "notify")]
-    pub unsafe fn new_with_directory_strategy_and_timer<
+    pub fn new_with_directory_strategy_and_timer<
         T: FileSystemContext + NotifyingFileSystemContext<R>,
-        D: DirectoryResolveStrategy,
         R,
         const INTERVAL: u32,
     >(
-        volume_params: FSP_FSCTL_VOLUME_PARAMS,
+        volume_params: VolumeParams,
         context: T,
+        use_directory_by_name: bool,
     ) -> Result<Self> {
-        let mut fsp_struct = std::ptr::null_mut();
-
-        let interface = D::create_interface::<T>();
-        let interface: FSP_FILE_SYSTEM_INTERFACE = interface.into();
-        let interface = Box::into_raw(Box::new(interface));
-        let result = unsafe {
-            FspFileSystemCreate(
-                if volume_params.Prefix[0] != 0 {
-                    w!("WinFsp.Net").as_ptr().cast_mut()
-                } else {
-                    w!("WinFsp.Disk").as_ptr().cast_mut()
-                },
-                &volume_params,
-                interface,
-                &mut fsp_struct,
-            )
-        };
-
-        let result = NTSTATUS(result);
-        result.ok()?;
-
-        #[cfg(feature = "debug")]
-        unsafe {
-            use windows::Win32::System::Console::{GetStdHandle, STD_ERROR_HANDLE};
-            // pointer crimes
-            winfsp_sys::FspDebugLogSetHandle(
-                GetStdHandle(STD_ERROR_HANDLE).unwrap().0 as *mut std::ffi::c_void,
-            );
-            winfsp_sys::FspFileSystemSetDebugLogF(fsp_struct, u32::MAX);
-        }
-
-        unsafe {
-            (*fsp_struct).UserContext = Box::into_raw(Box::new(context)) as *mut _;
-        }
-
+        let fsp_struct = Self::new_filesystem_inner(volume_params, context, use_directory_by_name)?;
         let timer = Timer::create::<R, T, INTERVAL>(fsp_struct);
         Ok(FileSystemHost(fsp_struct, Some(timer)))
     }

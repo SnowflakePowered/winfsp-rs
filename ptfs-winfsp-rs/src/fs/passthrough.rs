@@ -36,10 +36,7 @@ use windows::Win32::System::WindowsProgramming::{FILE_DELETE_ON_CLOSE, FILE_DIRE
 use windows::Win32::System::IO::{OVERLAPPED, OVERLAPPED_0, OVERLAPPED_0_0};
 
 use winfsp::constants::FspCleanupFlags;
-use winfsp::filesystem::{
-    DirBuffer, DirInfo, DirMarker, FileSecurity, FileSystemContext, FileSystemHost, IoResult,
-    WideNameInfo, FSP_FSCTL_FILE_INFO, FSP_FSCTL_VOLUME_INFO, FSP_FSCTL_VOLUME_PARAMS,
-};
+use winfsp::filesystem::{DirBuffer, DirInfo, DirMarker, FileSecurity, FileSystemContext, FileSystemHost, IoResult, WideNameInfo, FSP_FSCTL_FILE_INFO, FSP_FSCTL_VOLUME_INFO, VolumeParams, FileContextMode};
 use winfsp::{FspError, Result};
 
 use winfsp::util::Win32SafeHandle;
@@ -744,44 +741,30 @@ impl Ptfs {
         }
 
         let canonical_path = fs::canonicalize(&path)?;
-        let mut volume_params = FSP_FSCTL_VOLUME_PARAMS {
-            SectorSize: ALLOCATION_UNIT,
-            SectorsPerAllocationUnit: 1,
-            VolumeCreationTime: metadata.creation_time(),
-            VolumeSerialNumber: 0,
-            FileInfoTimeout: 1000,
-            ..Default::default()
-        };
-        volume_params.set_CaseSensitiveSearch(0);
-        volume_params.set_CasePreservedNames(1);
-        volume_params.set_UnicodeOnDisk(1);
-        volume_params.set_PersistentAcls(1);
-        volume_params.set_PostCleanupWhenModifiedOnly(1);
-        volume_params.set_PassQueryDirectoryPattern(1);
-        volume_params.set_FlushAndPurgeOnCleanup(1);
-        volume_params.set_UmFileContextIsUserContext2(1);
+        let mut volume_params = VolumeParams::new(FileContextMode::Descriptor);
 
-        let prefix = HSTRING::from(volume_prefix);
-        let fs_name = w!("ptfs-winfsp-rs");
-
-        volume_params.Prefix[..std::cmp::min(prefix.len(), 192)]
-            .copy_from_slice(&prefix.as_wide()[..std::cmp::min(prefix.len(), 192)]);
-
-        volume_params.FileSystemName[..std::cmp::min(fs_name.len(), 192)]
-            .copy_from_slice(&fs_name.as_wide()[..std::cmp::min(fs_name.len(), 192)]);
-
-        dbg!(HSTRING::from_wide(&volume_params.FileSystemName), fs_name);
-        dbg!(HSTRING::from_wide(&volume_params.Prefix), prefix);
+        volume_params.sector_size(ALLOCATION_UNIT)
+            .sectors_per_allocation_unit(1)
+            .volume_creation_time(metadata.creation_time())
+            .volume_serial_number(0)
+            .file_info_timeout(100)
+            .case_sensitive_search(false)
+            .case_preserved_names(true)
+            .unicode_on_disk(true)
+            .persistent_acls(true)
+            .post_cleanup_when_modified_only(true)
+            .pass_query_directory_pattern(true)
+            .flush_and_purge_on_cleanup(true)
+            .prefix(volume_prefix)
+            .filesystem_name("ptfs-winfsp-rs");
 
         // let context = NtPassthroughContext::new(canonical_path);
         let context = PtfsContext {
             path: canonical_path.into_os_string(),
         };
 
-        unsafe {
-            Ok(Ptfs {
-                fs: FileSystemHost::new(volume_params, context)?,
-            })
-        }
+        Ok(Ptfs {
+            fs: FileSystemHost::new(volume_params, context)?,
+        })
     }
 }

@@ -3,12 +3,12 @@
 //! This is currently incomplete, users who wish to implement filesystem notifications
 //! will require the `winfsp-sys`
 //!
-mod timer;
-mod notifyinfo;
-mod notifier;
 mod context;
+mod notifier;
+mod notifyinfo;
+mod timer;
 
-pub use timer::*;
-pub use notifyinfo::*;
-pub use notifier::*;
 pub use context::*;
+pub use notifier::*;
+pub use notifyinfo::*;
+pub use timer::*;

@@ -4,7 +4,7 @@ use std::os::windows::ffi::OsStrExt;
 use windows::Win32::Foundation::STATUS_INSUFFICIENT_RESOURCES;
 // todo: safe wrappers
 pub use winfsp_sys::{
-    FSP_FSCTL_FILE_INFO, FSP_FSCTL_OPEN_FILE_INFO, FSP_FSCTL_VOLUME_INFO, FSP_FSCTL_VOLUME_PARAMS,
+    FSP_FSCTL_FILE_INFO, FSP_FSCTL_OPEN_FILE_INFO, FSP_FSCTL_VOLUME_INFO
 };
 
 use crate::{Result, WCStr};

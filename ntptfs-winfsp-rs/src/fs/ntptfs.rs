@@ -2,9 +2,7 @@ use crate::fs::context::NtPassthroughContext;
 use std::io::ErrorKind;
 
 use std::path::Path;
-use windows::core::HSTRING;
-use windows::w;
-use winfsp::filesystem::{FileSystemHost, FSP_FSCTL_VOLUME_PARAMS};
+use winfsp::filesystem::{FileContextMode, FileSystemHost, VolumeParams};
 
 pub struct NtPassthroughFilesystem {
     pub fs: FileSystemHost,
@@ -18,33 +16,15 @@ impl NtPassthroughFilesystem {
         }
         let canonical_path = std::fs::canonicalize(&path)?;
 
-        let mut volume_params = FSP_FSCTL_VOLUME_PARAMS {
-            // SectorSize: 4096,
-            // SectorsPerAllocationUnit: 1,
-            // VolumeCreationTime: metadata.creation_time(),
-            // VolumeSerialNumber: 0,
-            // FileInfoTimeout: 1000,
-            ..Default::default()
-        };
-
-        let prefix = HSTRING::from(volume_prefix);
-        let fs_name = w!("ntptfs");
-
-        volume_params.Prefix[..std::cmp::min(prefix.len(), 192)]
-            .copy_from_slice(&prefix.as_wide()[..std::cmp::min(prefix.len(), 192)]);
-
-        volume_params.FileSystemName[..std::cmp::min(fs_name.len(), 192)]
-            .copy_from_slice(&fs_name.as_wide()[..std::cmp::min(fs_name.len(), 192)]);
+        let mut volume_params = VolumeParams::new(FileContextMode::Descriptor);
+        volume_params.prefix(volume_prefix)
+            .filesystem_name("ntptfs");
 
         let context =
             NtPassthroughContext::new_with_volume_params(canonical_path, &mut volume_params)?;
 
-        dbg!(HSTRING::from_wide(&volume_params.FileSystemName), fs_name);
-
-        unsafe {
-            Ok(NtPassthroughFilesystem {
-                fs: FileSystemHost::new(volume_params, context)?,
-            })
-        }
+        Ok(NtPassthroughFilesystem {
+            fs: FileSystemHost::new(volume_params, context)?,
+        })
     }
 }

@@ -10,4 +10,3 @@ pub trait NotifyingFileSystemContext<R>: FileSystemContext {
     /// operating system.
     fn notify(&self, context: R, notifier: &Notifier);
 }
-
