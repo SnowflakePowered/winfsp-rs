@@ -12,10 +12,11 @@ use winfsp_sys::{
 pub use winfsp_sys::{FSP_FSCTL_FILE_INFO, FSP_FSCTL_VOLUME_INFO, FSP_FSCTL_VOLUME_PARAMS};
 
 use crate::filesystem::interface::Interface;
-use crate::filesystem::notify::NotifyingFileSystemContext;
 use crate::filesystem::sealed::Sealed;
-use crate::filesystem::timer::Timer;
 use crate::filesystem::FileSystemContext;
+
+use crate::notify::Timer;
+use crate::notify::NotifyingFileSystemContext;
 
 /// The strategy to use when resolving directories with the filesystem context.
 pub trait DirectoryResolveStrategy: Sealed {

@@ -10,6 +10,9 @@ pub mod service;
 pub mod util;
 mod vsb;
 
+#[cfg(feature = "notify")]
+mod notify;
+
 pub use error::FspError;
 pub use error::Result;
 

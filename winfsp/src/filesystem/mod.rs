@@ -7,12 +7,12 @@ mod internals;
 mod stream;
 
 mod sealed {
-    use crate::filesystem::{directory, host, notify, stream};
+    use crate::filesystem::{directory, host, stream};
     #[doc(hidden)]
     pub trait Sealed {}
     impl<const BUFFER_SIZE: usize> Sealed for directory::DirInfo<BUFFER_SIZE> {}
     impl<const BUFFER_SIZE: usize> Sealed for stream::StreamInfo<BUFFER_SIZE> {}
-    impl<const BUFFER_SIZE: usize> Sealed for notify::NotifyInfo<BUFFER_SIZE> {}
+    impl<const BUFFER_SIZE: usize> Sealed for crate::notify::NotifyInfo<BUFFER_SIZE> {}
 
     impl Sealed for host::ReadDirectory {}
     impl Sealed for host::GetDirInfoByName {}
@@ -26,5 +26,3 @@ pub use stream::*;
 
 #[cfg(feature = "notify")]
 pub mod notify;
-#[cfg(feature = "notify")]
-mod timer;
