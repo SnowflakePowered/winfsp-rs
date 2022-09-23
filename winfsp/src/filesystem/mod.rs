@@ -22,6 +22,3 @@ pub use host::*;
 pub use internals::*;
 pub use stream::*;
 pub use volume::*;
-
-#[cfg(feature = "notify")]
-pub mod notify;
