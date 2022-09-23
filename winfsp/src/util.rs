@@ -178,7 +178,7 @@ pub fn get_process_security(
             PCWSTR(path.as_ptr()),
             FILE_READ_ATTRIBUTES | READ_CONTROL,
             FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
-            std::ptr::null(),
+            None,
             OPEN_EXISTING,
             FILE_FLAG_BACKUP_SEMANTICS,
             None,

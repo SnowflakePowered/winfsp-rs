@@ -15,14 +15,14 @@ impl Timer {
         timer.0 = unsafe {
             CreateThreadpoolTimer(
                 Some(timer_callback::<R, T, TIMEOUT>),
-                fs.cast(),
-                std::ptr::null_mut(),
+                Some(fs.cast()),
+                None,
             )
         };
 
         let timer_due = TIMEOUT as i64 * -1;
         unsafe {
-            SetThreadpoolTimer(timer.0, &timer_due as *const i64 as *const _, TIMEOUT, 0);
+            SetThreadpoolTimer(timer.0, Some(&timer_due as *const i64 as *const _), TIMEOUT, 0);
         }
         timer
     }

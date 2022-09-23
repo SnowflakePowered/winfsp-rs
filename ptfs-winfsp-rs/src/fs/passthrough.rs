@@ -130,7 +130,7 @@ impl FileSystemContext for PtfsContext {
                 &HSTRING::from(full_path.as_os_str()),
                 FILE_READ_ATTRIBUTES | READ_CONTROL,
                 FILE_SHARE_MODE(0),
-                std::ptr::null(),
+                None,
                 OPEN_EXISTING,
                 FILE_FLAG_BACKUP_SEMANTICS,
                 None,
@@ -197,7 +197,7 @@ impl FileSystemContext for PtfsContext {
                 PCWSTR(full_path.as_ptr()),
                 granted_access,
                 FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
-                std::ptr::null(),
+                None,
                 OPEN_EXISTING,
                 create_flags,
                 None,
@@ -280,7 +280,7 @@ impl FileSystemContext for PtfsContext {
                 PCWSTR(full_path.as_ptr()),
                 granted_access,
                 FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
-                &security_attributes,
+                Some(&security_attributes),
                 CREATE_NEW,
                 create_flags | file_attributes,
                 None,
@@ -356,9 +356,9 @@ impl FileSystemContext for PtfsContext {
         win32_try!(unsafe GetVolumePathNameW(PCWSTR(fname.as_ptr()), &mut root[..]));
         win32_try!(unsafe GetDiskFreeSpaceExW(
             PCWSTR(U16CStr::from_slice_truncate(&root).unwrap().as_ptr()),
-            std::ptr::null_mut(),
-            &mut total_size,
-            &mut free_size,
+            None,
+            Some(&mut total_size),
+            Some(&mut free_size),
         ));
 
         out_volume_info.TotalSize = total_size;
@@ -447,10 +447,10 @@ impl FileSystemContext for PtfsContext {
         let mut bytes_read = 0;
         win32_try!(unsafe ReadFile(
             *context.handle,
-            buffer.as_mut_ptr() as *mut _,
+            Some(buffer.as_mut_ptr() as *mut _),
             buffer.len() as u32,
-            &mut bytes_read,
-            &mut overlapped,
+            Some(&mut bytes_read),
+            Some(&mut overlapped),
         ));
 
         Ok(IoResult {
@@ -531,7 +531,7 @@ impl FileSystemContext for PtfsContext {
                         return Err(e);
                     }
                     if unsafe {
-                        !FindNextFileW(HANDLE(find_handle.0), &mut find_data).as_bool()
+                        !FindNextFileW(find_handle, &mut find_data).as_bool()
                     } {
                         break;
                     }
@@ -625,7 +625,7 @@ impl FileSystemContext for PtfsContext {
         delete_file: bool,
     ) -> Result<()> {
         let disposition_info = FILE_DISPOSITION_INFO {
-            DeleteFileA: BOOLEAN(if delete_file { 1 } else { 0 }),
+            DeleteFile: BOOLEAN(if delete_file { 1 } else { 0 }),
         };
 
         win32_try!(unsafe SetFileInformationByHandle(*context.handle,
@@ -719,10 +719,10 @@ impl FileSystemContext for PtfsContext {
         let mut bytes_transferred = 0;
         win32_try!(unsafe WriteFile(
             *context.handle,
-            buffer.as_ptr().cast(),
+            Some(buffer.as_ptr().cast()),
             buffer.len() as u32,
-            &mut bytes_transferred,
-            &mut overlapped,
+            Some(&mut bytes_transferred),
+            Some(&mut overlapped),
         ));
 
         self.get_file_info_internal(*context.handle, file_info)?;

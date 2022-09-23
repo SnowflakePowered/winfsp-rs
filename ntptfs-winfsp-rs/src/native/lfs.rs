@@ -95,7 +95,7 @@ thread_local! {
 }
 
 fn new_thread_event() -> windows::core::Result<HANDLE> {
-    unsafe { CreateEventW(std::ptr::null(), true, false, PCWSTR::null()) }
+    unsafe { CreateEventW(None, true, false, PCWSTR::null()) }
 }
 
 pub fn lfs_create_file<P: AsRef<WCStr>>(
