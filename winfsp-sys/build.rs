@@ -41,9 +41,18 @@ fn system() -> String {
 }
 
 fn main() {
+    let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
+
     // host needs to be windows
+    if cfg!(feature="docsrs") {
+        println!("cargo:warning=WinFSP does not build on any operating system but Windows. This feature is meant for docs.rs only. It will not link when compiled into a binary.");
+        File::create(out_dir.join("bindings.rs"))
+            .unwrap();
+        return;
+    }
+
     if !cfg!(windows) {
-        panic!("Compilation requires windows hosts");
+        panic!("WinFSP is only supported on Windows.");
     }
 
     #[cfg(feature = "system")]
@@ -61,10 +70,9 @@ fn main() {
         println!("cargo:rustc-link-lib=dylib=winfsp-x86");
         println!("cargo:rustc-link-arg=/DELAYLOAD:winfsp-x86.dll");
     } else {
-        panic!("unsupported triple")
+        panic!("unsupported triple {}", env::var("TARGET").unwrap())
     }
 
-    let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
     let bindings_path_str = out_dir.join("bindings.rs");
 
     if !Path::new(&bindings_path_str).exists() {
@@ -92,7 +100,7 @@ fn main() {
         } else if cfg!(target_os = "windows") && cfg!(target_arch = "i686") && cfg!(target_env = "msvc") {
             bindings.clang_arg("--target=i686-pc-windows-msvc")
         } else {
-            panic!("unsupported triple")
+            panic!("unsupported triple {}", env::var("TARGET").unwrap())
         };
 
         let bindings = bindings

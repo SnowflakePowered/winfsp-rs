@@ -1,5 +1,6 @@
 #![feature(cfg_target_compact)]
 #![feature(io_error_more)]
+#![feature(ptr_const_cast)]
 #![deny(unsafe_op_in_unsafe_fn)]
 
 pub mod constants;
