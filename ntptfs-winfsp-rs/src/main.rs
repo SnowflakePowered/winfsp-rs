@@ -1,5 +1,6 @@
 #![feature(io_error_more)]
 #![feature(let_chains)]
+#![feature(strict_provenance)]
 #![deny(unsafe_op_in_unsafe_fn)]
 
 pub mod fs;

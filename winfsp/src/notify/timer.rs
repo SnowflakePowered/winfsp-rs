@@ -13,16 +13,17 @@ impl Timer {
     ) -> Self {
         let mut timer = Self(std::ptr::null_mut());
         timer.0 = unsafe {
-            CreateThreadpoolTimer(
-                Some(timer_callback::<R, T, TIMEOUT>),
-                Some(fs.cast()),
-                None,
-            )
+            CreateThreadpoolTimer(Some(timer_callback::<R, T, TIMEOUT>), Some(fs.cast()), None)
         };
 
         let timer_due = TIMEOUT as i64 * -1;
         unsafe {
-            SetThreadpoolTimer(timer.0, Some(&timer_due as *const i64 as *const _), TIMEOUT, 0);
+            SetThreadpoolTimer(
+                timer.0,
+                Some(&timer_due as *const i64 as *const _),
+                TIMEOUT,
+                0,
+            );
         }
         timer
     }

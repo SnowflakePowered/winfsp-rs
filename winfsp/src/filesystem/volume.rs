@@ -85,7 +85,6 @@ impl VolumeParams {
         self.0.Prefix[..std::cmp::min(prefix.len(), 192)]
             .copy_from_slice(&prefix[..std::cmp::min(prefix.len(), 192)]);
         self
-
     }
 
     pub fn filesystem_name<P: AsRef<OsStr>>(&mut self, filesystem_name: P) -> &mut Self {

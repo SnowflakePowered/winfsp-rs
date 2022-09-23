@@ -682,9 +682,9 @@ impl FileSystemContext for NtPassthroughContext {
                     'inner: loop {
                         // SAFETY: FILE_ID_BOTH_DIR_INFO has FileName as the last VST array member, so it's offset is size_of - 1.
                         // bounds check to ensure we don't go past the edge of the buffer.
-                        if query_buffer.as_ptr().wrapping_add(bytes_transferred)
+                        if query_buffer.as_ptr().map_addr(|addr| addr.wrapping_add(bytes_transferred))
                             < (query_buffer_cursor as *const _ as *const u8)
-                                .wrapping_add(size_of::<FILE_ID_BOTH_DIR_INFO>() - 1)
+                                .map_addr(|addr| addr.wrapping_add(size_of::<FILE_ID_BOTH_DIR_INFO>() - 1))
                         {
                             break 'once;
                         }
@@ -698,7 +698,7 @@ impl FileSystemContext for NtPassthroughContext {
                                 break 'inner;
                             }
                             query_buffer_cursor = (query_buffer_cursor as *const _ as *const u8)
-                                .wrapping_add(query_next as usize)
+                                .map_addr(|addr| addr.wrapping_add(query_next as usize))
                                 .cast();
                         }
                     }
@@ -836,9 +836,9 @@ impl FileSystemContext for NtPassthroughContext {
         loop {
             // SAFETY: FILE_STREAM_INFORMATION has StreamName as the last VST array member, so it's offset is size_of - 1.
             // bounds check to ensure we don't go past the edge of the buffer.
-            if query_buffer.as_ptr().wrapping_add(bytes_transferred)
+            if query_buffer.as_ptr().map_addr(|addr| addr.wrapping_add(bytes_transferred))
                 < (query_buffer_cursor as *const _ as *const u8)
-                    .wrapping_add(size_of::<FILE_STREAM_INFORMATION>() - 1)
+                .map_addr(|addr| addr.wrapping_add(size_of::<FILE_STREAM_INFORMATION>() - 1))
             {
                 break;
             }
@@ -882,7 +882,7 @@ impl FileSystemContext for NtPassthroughContext {
                     break;
                 }
                 query_buffer_cursor = (query_buffer_cursor as *const _ as *const u8)
-                    .wrapping_add(query_next as usize)
+                    .map_addr(|addr| addr.wrapping_add(query_next as usize))
                     .cast();
             }
         }
