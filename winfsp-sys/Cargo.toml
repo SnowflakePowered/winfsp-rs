@@ -1,6 +1,6 @@
 [package]
 name = "winfsp-sys"
-version = "0.1.3+winfsp-1.11"
+version = "0.1.4+winfsp-1.11"
 edition = "2021"
 license = "GPL-3.0"
 description = "Raw bindings to WinFSP"
@@ -20,4 +20,4 @@ docsrs = []
 [package.metadata.docs.rs]
 default-target = "x86_64-pc-windows-msvc"
 targets = []
-rustdoc-args = ["--cfg", "docsrs"]
+features = ["docsrs"]
