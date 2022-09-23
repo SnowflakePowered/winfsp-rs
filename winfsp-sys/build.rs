@@ -1,7 +1,15 @@
 #[cfg(feature = "system")]
 use registry::{Data, Hive, Security};
 use std::env;
-use std::path::PathBuf;
+use std::fs::File;
+use std::io::Write;
+use std::path::{Path, PathBuf};
+
+static HEADER: &str = r#"
+#include <winfsp/winfsp.h>
+#include <winfsp/fsctl.h>
+#include <winfsp/launch.h>
+"#;
 
 #[cfg(not(feature = "system"))]
 fn local() -> String {
@@ -33,59 +41,67 @@ fn system() -> String {
 }
 
 fn main() {
+    // host needs to be windows
+    if !cfg!(windows) {
+        panic!("Compilation requires windows hosts");
+    }
+
     #[cfg(feature = "system")]
     let link_include = system();
     #[cfg(not(feature = "system"))]
     let link_include = local();
 
-    println!("cargo:rerun-if-changed=wrapper.h");
+    println!("cargo:rustc-link-lib=dylib=delayimp");
 
     if cfg!(target_os = "windows") && cfg!(target_arch = "x86_64") && cfg!(target_env = "msvc") {
         println!("cargo:rustc-link-lib=dylib=winfsp-x64");
-        println!("cargo:rustc-link-lib=dylib=delayimp");
         println!("cargo:rustc-link-arg=/DELAYLOAD:winfsp-x64.dll");
     } else if cfg!(target_os = "windows") && cfg!(target_arch = "i686") && cfg!(target_env = "msvc")
     {
         println!("cargo:rustc-link-lib=dylib=winfsp-x86");
-        println!("cargo:rustc-link-lib=dylib=delayimp");
         println!("cargo:rustc-link-arg=/DELAYLOAD:winfsp-x86.dll");
     } else {
         panic!("unsupported triple")
     }
 
-    let bindings = bindgen::Builder::default()
-        .header("wrapper.h")
-        .derive_default(true)
-        .blocklist_type("_?P?IMAGE_TLS_DIRECTORY.*")
-        .allowlist_function("Fsp.*")
-        .allowlist_type("FSP.*")
-        .allowlist_type("Fsp.*")
-        .allowlist_var("FSP_.*")
-        .allowlist_var("Fsp.*")
-        .allowlist_var("CTL_CODE")
-        .clang_arg("-DUNICODE")
-        .clang_arg(link_include);
+    let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
+    let bindings_path_str = out_dir.join("bindings.rs");
 
-    let bindings = if cfg!(target_os = "windows")
-        && cfg!(target_arch = "x86_64")
-        && cfg!(target_env = "msvc")
-    {
-        bindings.clang_arg("--target=x86_64-pc-windows-msvc")
-    } else if cfg!(target_os = "windows") && cfg!(target_arch = "i686") && cfg!(target_env = "msvc")
-    {
-        bindings.clang_arg("--target=i686-pc-windows-msvc")
-    } else {
-        panic!("unsupported triple")
-    };
+    if !Path::new(&bindings_path_str).exists() {
+        let gen_h_path = out_dir.join("gen.h");
+        let mut gen_h = File::create(&gen_h_path).expect("could not create file");
+        gen_h
+            .write_all(HEADER.as_bytes())
+            .expect("could not write header file");
 
-    let bindings = bindings
-        .parse_callbacks(Box::new(bindgen::CargoCallbacks))
-        .generate()
-        .expect("Unable to generate bindings");
+        let bindings = bindgen::Builder::default()
+            .header(gen_h_path.to_str().unwrap())
+            .derive_default(true)
+            .blocklist_type("_?P?IMAGE_TLS_DIRECTORY.*")
+            .allowlist_function("Fsp.*")
+            .allowlist_type("FSP.*")
+            .allowlist_type("Fsp.*")
+            .allowlist_var("FSP_.*")
+            .allowlist_var("Fsp.*")
+            .allowlist_var("CTL_CODE")
+            .clang_arg("-DUNICODE")
+            .clang_arg(link_include);
 
-    // Write the bindings to the $OUT_DIR/bindings.rs file.
-    let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
-    bindings
-        .write_to_file(out_path.join("bindings.rs"))
-        .expect("Couldn't write bindings!");
+        let bindings = if cfg!(target_os = "windows") && cfg!(target_arch = "x86_64") && cfg!(target_env = "msvc") {
+            bindings.clang_arg("--target=x86_64-pc-windows-msvc")
+        } else if cfg!(target_os = "windows") && cfg!(target_arch = "i686") && cfg!(target_env = "msvc") {
+            bindings.clang_arg("--target=i686-pc-windows-msvc")
+        } else {
+            panic!("unsupported triple")
+        };
+
+        let bindings = bindings
+            .parse_callbacks(Box::new(bindgen::CargoCallbacks))
+            .generate()
+            .expect("Unable to generate bindings");
+
+        bindings
+            .write_to_file(out_dir.join("bindings.rs"))
+            .expect("Couldn't write bindings!");
+    }
 }
