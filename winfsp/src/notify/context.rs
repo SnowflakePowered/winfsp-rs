@@ -1,6 +1,7 @@
 use crate::filesystem::FileSystemContext;
 use crate::notify::Notifier;
 
+/// A filesystem that supports operating system notifications.
 pub trait NotifyingFileSystemContext<R>: FileSystemContext {
     /// Calculate a sentinel or context value if the filesystem is ready to notify the
     /// operating system, or return None if the filesystem is not ready.
