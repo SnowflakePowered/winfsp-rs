@@ -103,3 +103,5 @@ impl Notifier {
         };
     }
 }
+
+pub use super::timer::Timer;
