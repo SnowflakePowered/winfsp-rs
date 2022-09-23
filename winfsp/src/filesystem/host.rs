@@ -21,7 +21,7 @@ use crate::notify::Timer;
 /// This is separate from the lifetime of the service which is managed by
 /// [`FileSystemService`](crate::service::FileSystemService). A `FileSystemHost`
 /// should start within the context of a service.
-pub struct FileSystemHost(pub *mut FSP_FILE_SYSTEM, Option<Timer>);
+pub struct FileSystemHost(*mut FSP_FILE_SYSTEM, Option<Timer>);
 impl FileSystemHost {
     fn new_filesystem_inner<T: FileSystemContext>(
         volume_params: VolumeParams,

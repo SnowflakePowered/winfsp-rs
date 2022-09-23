@@ -2,13 +2,10 @@ use std::ffi::OsStr;
 use std::iter;
 use std::os::windows::ffi::OsStrExt;
 use windows::Win32::Foundation::STATUS_INSUFFICIENT_RESOURCES;
-// todo: safe wrappers
-pub use winfsp_sys::{FSP_FSCTL_FILE_INFO, FSP_FSCTL_OPEN_FILE_INFO, FSP_FSCTL_VOLUME_INFO};
-
-use crate::{Result, WCStr};
+use crate::{Result, U16CStr};
 
 /// A information entry that contains a wide name buffer.
-pub trait WideNameInfo<const BUFFER_SIZE: usize = 255>: super::sealed::Sealed {
+pub trait WideNameInfo<const BUFFER_SIZE: usize = 255>: crate::filesystem::sealed::Sealed {
     #[doc(hidden)]
     /// Return a reference to the name buffer.
     fn name_buffer(&mut self) -> &mut [u16; BUFFER_SIZE];
@@ -71,7 +68,7 @@ pub trait WideNameInfo<const BUFFER_SIZE: usize = 255>: super::sealed::Sealed {
     }
 
     /// Write the name of the entry into the name buffer with an input wide CStr.
-    fn set_name_cstr<P: AsRef<WCStr>>(&mut self, file_name: P) -> Result<()> {
+    fn set_name_cstr<P: AsRef<U16CStr>>(&mut self, file_name: P) -> Result<()> {
         let file_name = file_name.as_ref();
         self.set_name_raw(file_name.as_slice_with_nul())
     }

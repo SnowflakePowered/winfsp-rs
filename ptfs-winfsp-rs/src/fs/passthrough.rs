@@ -40,7 +40,6 @@ use winfsp::filesystem::{DirBuffer, DirInfo, DirMarker, FileSecurity, FileSystem
 use winfsp::{FspError, Result};
 
 use winfsp::util::Win32SafeHandle;
-use winfsp::WCStr;
 
 const ALLOCATION_UNIT: u16 = 4096;
 const VOLUME_LABEL: &HSTRING = w!("Snowflake");
@@ -115,12 +114,12 @@ impl PtfsContext {
 impl FileSystemContext for PtfsContext {
     type FileContext = PtfsFileContext;
 
-    fn get_security_by_name<P: AsRef<WCStr>>(
+    fn get_security_by_name<P: AsRef<U16CStr>>(
         &self,
         file_name: P,
         security_descriptor: PSECURITY_DESCRIPTOR,
         descriptor_len: Option<u64>,
-        _reparse_point_resolver: impl FnOnce(&WCStr) -> Option<u32>,
+        _reparse_point_resolver: impl FnOnce(&U16CStr) -> Option<u32>,
     ) -> Result<FileSecurity> {
         let file_name = OsString::from_wide(file_name.as_ref().as_slice());
         let full_path = [self.path.as_os_str(), file_name.as_ref()].join(OsStr::new(""));
@@ -173,7 +172,7 @@ impl FileSystemContext for PtfsContext {
         })
     }
 
-    fn open<P: AsRef<WCStr>>(
+    fn open<P: AsRef<U16CStr>>(
         &self,
         file_name: P,
         create_options: u32,
@@ -223,7 +222,7 @@ impl FileSystemContext for PtfsContext {
         drop(context)
     }
 
-    fn cleanup<P: AsRef<WCStr>>(
+    fn cleanup<P: AsRef<U16CStr>>(
         &self,
         context: &mut Self::FileContext,
         _file_name: Option<P>,
@@ -234,7 +233,7 @@ impl FileSystemContext for PtfsContext {
         }
     }
 
-    fn create<P: AsRef<WCStr>>(
+    fn create<P: AsRef<U16CStr>>(
         &self,
         file_name: P,
         create_options: u32,
@@ -459,7 +458,7 @@ impl FileSystemContext for PtfsContext {
         })
     }
 
-    fn read_directory<P: AsRef<WCStr>>(
+    fn read_directory<P: AsRef<U16CStr>>(
         &self,
         context: &mut Self::FileContext,
         pattern: Option<P>,
@@ -546,7 +545,7 @@ impl FileSystemContext for PtfsContext {
         Ok(context.dir_buffer.read(marker, buffer))
     }
 
-    fn rename<P: AsRef<WCStr>>(
+    fn rename<P: AsRef<U16CStr>>(
         &self,
         _context: &Self::FileContext,
         file_name: P,
@@ -618,7 +617,7 @@ impl FileSystemContext for PtfsContext {
         self.get_file_info_internal(*context.handle, file_info)
     }
 
-    fn set_delete<P: AsRef<WCStr>>(
+    fn set_delete<P: AsRef<U16CStr>>(
         &self,
         context: &Self::FileContext,
         _file_name: P,

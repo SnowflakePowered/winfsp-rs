@@ -41,7 +41,7 @@ use windows_sys::Win32::System::WindowsProgramming::{
 };
 use winfsp::filesystem::{FSP_FSCTL_FILE_INFO, FSP_FSCTL_OPEN_FILE_INFO};
 use winfsp::util::{NtSafeHandle, VariableSizedBox};
-use winfsp::WCStr;
+use winfsp::U16CStr;
 
 macro_rules! r_return {
     ($res:expr) => {
@@ -98,7 +98,7 @@ fn new_thread_event() -> windows::core::Result<HANDLE> {
     unsafe { CreateEventW(None, true, false, PCWSTR::null()) }
 }
 
-pub fn lfs_create_file<P: AsRef<WCStr>>(
+pub fn lfs_create_file<P: AsRef<U16CStr>>(
     root_handle: HANDLE,
     file_name: P,
     desired_access: u32,
@@ -178,7 +178,7 @@ pub fn lfs_create_file<P: AsRef<WCStr>>(
     r_return!(result, handle)
 }
 
-pub fn lfs_open_file<P: AsRef<WCStr>>(
+pub fn lfs_open_file<P: AsRef<U16CStr>>(
     root_handle: HANDLE,
     file_name: P,
     desired_access: u32,

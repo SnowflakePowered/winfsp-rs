@@ -1,6 +1,6 @@
 use crate::error::Result;
 use crate::filesystem::{DirInfo, DirMarker};
-use crate::WCStr;
+use crate::U16CStr;
 
 use windows::core::PWSTR;
 use windows::Win32::Foundation::STATUS_INVALID_DEVICE_REQUEST;
@@ -46,15 +46,15 @@ pub const MAX_PATH: usize = 260;
 #[allow(unused_variables)]
 pub trait FileSystemContext: Sized {
     type FileContext: Sized;
-    fn get_security_by_name<P: AsRef<WCStr>>(
+    fn get_security_by_name<P: AsRef<U16CStr>>(
         &self,
         file_name: P,
         security_descriptor: PSECURITY_DESCRIPTOR,
         descriptor_len: Option<u64>,
-        reparse_point_resolver: impl FnOnce(&WCStr) -> Option<u32>,
+        reparse_point_resolver: impl FnOnce(&U16CStr) -> Option<u32>,
     ) -> Result<FileSecurity>;
 
-    fn open<P: AsRef<WCStr>>(
+    fn open<P: AsRef<U16CStr>>(
         &self,
         file_name: P,
         create_options: u32,
@@ -64,7 +64,7 @@ pub trait FileSystemContext: Sized {
 
     fn close(&self, context: Self::FileContext);
 
-    fn cleanup<P: AsRef<WCStr>>(
+    fn cleanup<P: AsRef<U16CStr>>(
         &self,
         context: &mut Self::FileContext,
         file_name: Option<P>,
@@ -83,7 +83,7 @@ pub trait FileSystemContext: Sized {
     }
 
     #[allow(clippy::too_many_arguments)]
-    fn create<P: AsRef<WCStr>>(
+    fn create<P: AsRef<U16CStr>>(
         &self,
         file_name: P,
         create_options: u32,
@@ -153,7 +153,7 @@ pub trait FileSystemContext: Sized {
         Err(STATUS_INVALID_DEVICE_REQUEST.into())
     }
 
-    fn read_directory<P: AsRef<WCStr>>(
+    fn read_directory<P: AsRef<U16CStr>>(
         &self,
         context: &mut Self::FileContext,
         pattern: Option<P>,
@@ -163,7 +163,7 @@ pub trait FileSystemContext: Sized {
         Err(STATUS_INVALID_DEVICE_REQUEST.into())
     }
 
-    fn rename<P: AsRef<WCStr>>(
+    fn rename<P: AsRef<U16CStr>>(
         &self,
         context: &Self::FileContext,
         file_name: P,
@@ -187,7 +187,7 @@ pub trait FileSystemContext: Sized {
         Err(STATUS_INVALID_DEVICE_REQUEST.into())
     }
 
-    fn set_delete<P: AsRef<WCStr>>(
+    fn set_delete<P: AsRef<U16CStr>>(
         &self,
         context: &Self::FileContext,
         file_name: P,
@@ -235,7 +235,7 @@ pub trait FileSystemContext: Sized {
         Err(STATUS_INVALID_DEVICE_REQUEST.into())
     }
 
-    fn get_dir_info_by_name<P: AsRef<WCStr>>(
+    fn get_dir_info_by_name<P: AsRef<U16CStr>>(
         &self,
         context: &Self::FileContext,
         file_name: P,
@@ -244,7 +244,7 @@ pub trait FileSystemContext: Sized {
         Err(STATUS_INVALID_DEVICE_REQUEST.into())
     }
 
-    fn resolve_reparse_points<P: AsRef<WCStr>>(
+    fn resolve_reparse_points<P: AsRef<U16CStr>>(
         &self,
         context: &Self::FileContext,
         file_name: P,
@@ -259,7 +259,7 @@ pub trait FileSystemContext: Sized {
     /// Get reparse point information by its name.
     ///
     /// Unlike WinFSP, you may assume that `buffer` is always valid and never null.
-    fn get_reparse_point_by_name<P: AsRef<WCStr>>(
+    fn get_reparse_point_by_name<P: AsRef<U16CStr>>(
         &self,
         file_name: P,
         is_directory: bool,
@@ -268,7 +268,7 @@ pub trait FileSystemContext: Sized {
         Err(STATUS_INVALID_DEVICE_REQUEST.into())
     }
 
-    fn get_reparse_point<P: AsRef<WCStr>>(
+    fn get_reparse_point<P: AsRef<U16CStr>>(
         &self,
         context: &Self::FileContext,
         file_name: P,
@@ -277,7 +277,7 @@ pub trait FileSystemContext: Sized {
         Err(STATUS_INVALID_DEVICE_REQUEST.into())
     }
 
-    fn set_reparse_point<P: AsRef<WCStr>>(
+    fn set_reparse_point<P: AsRef<U16CStr>>(
         &self,
         context: &Self::FileContext,
         file_name: P,
@@ -286,7 +286,7 @@ pub trait FileSystemContext: Sized {
         Err(STATUS_INVALID_DEVICE_REQUEST.into())
     }
 
-    fn delete_reparse_point<P: AsRef<WCStr>>(
+    fn delete_reparse_point<P: AsRef<U16CStr>>(
         &self,
         context: &Self::FileContext,
         file_name: P,

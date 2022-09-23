@@ -1,6 +1,5 @@
 use std::ffi::c_void;
 use std::slice;
-use widestring::U16CStr;
 use windows::core::PWSTR;
 
 use windows::Win32::Foundation::{
@@ -10,7 +9,7 @@ use windows::Win32::Foundation::{
 use windows::Win32::Security::PSECURITY_DESCRIPTOR;
 use windows::Win32::Storage::FileSystem::{FILE_ACCESS_FLAGS, FILE_FLAGS_AND_ATTRIBUTES};
 
-use crate::{error, WCStr};
+use crate::{error, U16CStr};
 use winfsp_sys::{
     FspFileSystemFindReparsePoint, FspFileSystemResolveReparsePoints, BOOLEAN, FSP_FILE_SYSTEM,
     FSP_FILE_SYSTEM_INTERFACE, FSP_FSCTL_DIR_INFO, FSP_FSCTL_FILE_INFO, FSP_FSCTL_VOLUME_INFO,
@@ -133,7 +132,7 @@ unsafe extern "C" fn get_security_by_name<T: FileSystemContext>(
         let file_name = unsafe { U16CStr::from_ptr_str_mut(file_name) };
 
         // pass reparse point resolver into function
-        let find_reparse_points = |file_name: &WCStr| {
+        let find_reparse_points = |file_name: &U16CStr| {
             let mut reparse_index = 0;
             unsafe {
                 if FspFileSystemFindReparsePoint(

@@ -1,3 +1,4 @@
+#![allow(stable_features)]
 #![feature(cfg_target_compact)]
 #![feature(io_error_more)]
 #![feature(ptr_const_cast)]
@@ -19,7 +20,7 @@ pub use error::Result;
 
 pub use init::{winfsp_init, winfsp_init_or_die, FspInit};
 
-pub use widestring::{U16CStr as WCStr, U16CString as WCString};
+pub use widestring::{U16CStr, U16CString};
 
 #[cfg(feature = "delayload")]
 pub mod build {

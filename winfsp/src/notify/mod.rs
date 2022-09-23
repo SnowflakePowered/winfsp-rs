@@ -11,4 +11,4 @@ mod timer;
 pub use context::*;
 pub use notifier::*;
 pub use notifyinfo::*;
-pub use timer::*;
+pub(crate) use timer::*;

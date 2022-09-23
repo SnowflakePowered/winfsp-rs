@@ -48,7 +48,7 @@ use winfsp::constants::FspCleanupFlags::FspCleanupDelete;
 use winfsp::filesystem::{DirInfo, DirMarker, FileSecurity, FileSystemContext, IoResult, StreamInfo, WideNameInfo, FSP_FSCTL_FILE_INFO, FSP_FSCTL_VOLUME_INFO, VolumeParams};
 use winfsp::util::Win32SafeHandle;
 use winfsp::FspError;
-use winfsp::WCStr;
+use winfsp::U16CStr;
 
 #[repr(C)]
 #[derive(Debug)]
@@ -182,12 +182,12 @@ impl NtPassthroughContext {
 impl FileSystemContext for NtPassthroughContext {
     type FileContext = NtPassthroughFile;
 
-    fn get_security_by_name<P: AsRef<WCStr>>(
+    fn get_security_by_name<P: AsRef<U16CStr>>(
         &self,
         file_name: P,
         security_descriptor: PSECURITY_DESCRIPTOR,
         descriptor_len: Option<u64>,
-        resolve_reparse_points: impl FnOnce(&WCStr) -> Option<u32>,
+        resolve_reparse_points: impl FnOnce(&U16CStr) -> Option<u32>,
     ) -> winfsp::Result<FileSecurity> {
         if let Some(reparse_index) = resolve_reparse_points(file_name.as_ref()) {
             return Ok(FileSecurity {
@@ -234,7 +234,7 @@ impl FileSystemContext for NtPassthroughContext {
         })
     }
 
-    fn open<P: AsRef<WCStr>>(
+    fn open<P: AsRef<U16CStr>>(
         &self,
         file_name: P,
         create_options: u32,
@@ -308,7 +308,7 @@ impl FileSystemContext for NtPassthroughContext {
         ))
     }
 
-    fn create<P: AsRef<WCStr>>(
+    fn create<P: AsRef<U16CStr>>(
         &self,
         file_name: P,
         create_options: u32,
@@ -524,7 +524,7 @@ impl FileSystemContext for NtPassthroughContext {
         lfs::lfs_get_file_info(context.handle(), None, file_info)
     }
 
-    fn rename<P: AsRef<WCStr>>(
+    fn rename<P: AsRef<U16CStr>>(
         &self,
         context: &Self::FileContext,
         _file_name: P,
@@ -580,7 +580,7 @@ impl FileSystemContext for NtPassthroughContext {
         Ok(needed_size as u64)
     }
 
-    fn set_delete<P: AsRef<WCStr>>(
+    fn set_delete<P: AsRef<U16CStr>>(
         &self,
         context: &Self::FileContext,
         _file_name: P,
@@ -626,7 +626,7 @@ impl FileSystemContext for NtPassthroughContext {
         lfs::lfs_get_file_info(context.handle(), None, file_info)
     }
 
-    fn cleanup<P: AsRef<WCStr>>(
+    fn cleanup<P: AsRef<U16CStr>>(
         &self,
         context: &mut Self::FileContext,
         _file_name: Option<P>,
@@ -643,7 +643,7 @@ impl FileSystemContext for NtPassthroughContext {
         }
     }
 
-    fn read_directory<P: AsRef<WCStr>>(
+    fn read_directory<P: AsRef<U16CStr>>(
         &self,
         context: &mut Self::FileContext,
         pattern: Option<P>,
@@ -749,7 +749,7 @@ impl FileSystemContext for NtPassthroughContext {
         lfs::lfs_get_file_info(context.handle(), None, file_info)
     }
 
-    fn get_reparse_point_by_name<P: AsRef<WCStr>>(
+    fn get_reparse_point_by_name<P: AsRef<U16CStr>>(
         &self,
         file_name: P,
         is_directory: bool,
@@ -773,7 +773,7 @@ impl FileSystemContext for NtPassthroughContext {
         }
     }
 
-    fn get_reparse_point<P: AsRef<WCStr>>(
+    fn get_reparse_point<P: AsRef<U16CStr>>(
         &self,
         context: &Self::FileContext,
         _file_name: P,
@@ -792,7 +792,7 @@ impl FileSystemContext for NtPassthroughContext {
         }
     }
 
-    fn set_reparse_point<P: AsRef<WCStr>>(
+    fn set_reparse_point<P: AsRef<U16CStr>>(
         &self,
         context: &Self::FileContext,
         _file_name: P,
@@ -807,7 +807,7 @@ impl FileSystemContext for NtPassthroughContext {
         Ok(())
     }
 
-    fn delete_reparse_point<P: AsRef<WCStr>>(
+    fn delete_reparse_point<P: AsRef<U16CStr>>(
         &self,
         context: &Self::FileContext,
         _file_name: P,
