@@ -1,5 +1,5 @@
 use crate::error::Result;
-use crate::filesystem::{DirInfo, DirMarker};
+use crate::filesystem::{DirInfo, DirMarker, FileInfo, OpenFileInfo, VolumeInfo};
 use crate::U16CStr;
 
 use windows::core::PWSTR;
@@ -9,7 +9,7 @@ use windows::Win32::Storage::FileSystem::{FILE_ACCESS_FLAGS, FILE_FLAGS_AND_ATTR
 use windows::Win32::System::WindowsProgramming::IO_STATUS_BLOCK;
 
 use winfsp_sys::{
-    FSP_FSCTL_FILE_INFO, FSP_FSCTL_TRANSACT_REQ, FSP_FSCTL_TRANSACT_RSP, FSP_FSCTL_VOLUME_INFO,
+    FSP_FSCTL_TRANSACT_REQ, FSP_FSCTL_TRANSACT_RSP,
 };
 
 #[derive(Debug)]
@@ -23,22 +23,6 @@ pub struct FileSecurity {
 pub struct IoResult {
     pub bytes_transferred: u32,
     pub io_pending: bool,
-}
-
-#[repr(C)]
-#[derive(Default, Copy, Clone, Debug)]
-pub struct FileInfo {
-    pub file_attributes: u32,
-    pub reparse_tag: u32,
-    pub allocation_size: u64,
-    pub file_size: u64,
-    pub creation_time: u64,
-    pub last_access_time: u64,
-    pub last_write_time: u64,
-    pub change_time: u64,
-    pub index_number: u64,
-    pub hard_links: u32,
-    pub ea_size: u32,
 }
 
 pub const MAX_PATH: usize = 260;
@@ -59,7 +43,7 @@ pub trait FileSystemContext: Sized {
         file_name: P,
         create_options: u32,
         granted_access: FILE_ACCESS_FLAGS,
-        file_info: &mut FSP_FSCTL_FILE_INFO,
+        file_info: &mut OpenFileInfo,
     ) -> Result<Self::FileContext>;
 
     fn close(&self, context: Self::FileContext);
@@ -93,7 +77,7 @@ pub trait FileSystemContext: Sized {
         allocation_size: u64,
         extra_buffer: Option<&[u8]>,
         extra_buffer_is_reparse_point: bool,
-        file_info: &mut FSP_FSCTL_FILE_INFO,
+        file_info: &mut OpenFileInfo,
     ) -> Result<Self::FileContext> {
         Err(STATUS_INVALID_DEVICE_REQUEST.into())
     }
@@ -101,7 +85,7 @@ pub trait FileSystemContext: Sized {
     fn flush(
         &self,
         context: Option<&Self::FileContext>,
-        file_info: &mut FSP_FSCTL_FILE_INFO,
+        file_info: &mut FileInfo,
     ) -> Result<()> {
         Err(STATUS_INVALID_DEVICE_REQUEST.into())
     }
@@ -109,7 +93,7 @@ pub trait FileSystemContext: Sized {
     fn get_file_info(
         &self,
         context: &Self::FileContext,
-        file_info: &mut FSP_FSCTL_FILE_INFO,
+        file_info: &mut FileInfo,
     ) -> Result<()> {
         Err(STATUS_INVALID_DEVICE_REQUEST.into())
     }
@@ -127,8 +111,7 @@ pub trait FileSystemContext: Sized {
         Err(STATUS_INVALID_DEVICE_REQUEST.into())
     }
 
-    // todo: wrap FSP_FSCTL_VOLUME_INFO
-    fn get_volume_info(&self, out_volume_info: &mut FSP_FSCTL_VOLUME_INFO) -> Result<()> {
+    fn get_volume_info(&self, out_volume_info: &mut VolumeInfo) -> Result<()> {
         Err(STATUS_INVALID_DEVICE_REQUEST.into())
     }
 
@@ -139,7 +122,7 @@ pub trait FileSystemContext: Sized {
         replace_file_attributes: bool,
         allocation_size: u64,
         extra_buffer: Option<&[u8]>,
-        file_info: &mut FSP_FSCTL_FILE_INFO,
+        file_info: &mut FileInfo,
     ) -> Result<()> {
         Err(STATUS_INVALID_DEVICE_REQUEST.into())
     }
@@ -182,7 +165,7 @@ pub trait FileSystemContext: Sized {
         last_access_time: u64,
         last_write_time: u64,
         last_change_time: u64,
-        file_info: &mut FSP_FSCTL_FILE_INFO,
+        file_info: &mut FileInfo,
     ) -> Result<()> {
         Err(STATUS_INVALID_DEVICE_REQUEST.into())
     }
@@ -201,7 +184,7 @@ pub trait FileSystemContext: Sized {
         context: &Self::FileContext,
         new_size: u64,
         set_allocation_size: bool,
-        file_info: &mut FSP_FSCTL_FILE_INFO,
+        file_info: &mut FileInfo,
     ) -> Result<()> {
         Err(STATUS_INVALID_DEVICE_REQUEST.into())
     }
@@ -218,7 +201,7 @@ pub trait FileSystemContext: Sized {
     fn set_volume_label<P: Into<PWSTR>>(
         &self,
         volume_label: P,
-        volume_info: &mut FSP_FSCTL_VOLUME_INFO,
+        volume_info: &mut VolumeInfo,
     ) -> Result<()> {
         Err(STATUS_INVALID_DEVICE_REQUEST.into())
     }
@@ -230,7 +213,7 @@ pub trait FileSystemContext: Sized {
         offset: u64,
         write_to_eof: bool,
         constrained_io: bool,
-        file_info: &mut FSP_FSCTL_FILE_INFO,
+        file_info: &mut FileInfo,
     ) -> Result<IoResult> {
         Err(STATUS_INVALID_DEVICE_REQUEST.into())
     }
@@ -307,7 +290,7 @@ pub trait FileSystemContext: Sized {
         &self,
         context: &Self::FileContext,
         buffer: &[u8],
-        file_info: &mut FSP_FSCTL_FILE_INFO,
+        file_info: &mut FileInfo,
     ) -> Result<()> {
         Err(STATUS_INVALID_DEVICE_REQUEST.into())
     }

@@ -39,7 +39,7 @@ use crate::native::nt::NtQueryInformationFile;
 use windows_sys::Win32::System::WindowsProgramming::{
     NtOpenFile, RtlInitUnicodeString, FILE_DISPOSITION_INFO_EX, IO_STATUS_BLOCK, OBJECT_ATTRIBUTES,
 };
-use winfsp::filesystem::{FSP_FSCTL_FILE_INFO, FSP_FSCTL_OPEN_FILE_INFO};
+use winfsp::filesystem::{FileInfo, OpenFileInfo};
 use winfsp::util::{NtSafeHandle, VariableSizedBox};
 use winfsp::U16CStr;
 
@@ -358,11 +358,49 @@ pub fn lfs_get_file_name(handle: HANDLE) -> winfsp::Result<Box<[u16]>> {
     r_return!(result, slice)
 }
 
-pub fn lfs_get_file_info(
+// quick hack to be polymorphic for lfs_get_file_info
+pub enum MaybeOpenFileInfo<'a> {
+    FileInfo(&'a mut FileInfo),
+    OpenFileInfo(&'a mut OpenFileInfo)
+}
+
+impl AsRef<FileInfo> for MaybeOpenFileInfo<'_> {
+    fn as_ref(&self) -> &FileInfo {
+        match self {
+            MaybeOpenFileInfo::FileInfo(f) => f,
+            MaybeOpenFileInfo::OpenFileInfo(f) => f.as_ref()
+        }
+    }
+}
+
+impl AsMut<FileInfo> for MaybeOpenFileInfo<'_> {
+    fn as_mut(&mut self) -> &mut FileInfo {
+        match self {
+            MaybeOpenFileInfo::FileInfo(f) => f,
+            MaybeOpenFileInfo::OpenFileInfo(f) => f.as_mut()
+        }
+    }
+}
+
+impl<'a> From<&'a mut FileInfo> for MaybeOpenFileInfo<'a> {
+    fn from(f: &'a mut FileInfo) -> Self {
+        MaybeOpenFileInfo::FileInfo(f)
+    }
+}
+
+impl<'a> From<&'a mut OpenFileInfo> for MaybeOpenFileInfo<'a> {
+    fn from(f: &'a mut OpenFileInfo) -> Self {
+        MaybeOpenFileInfo::OpenFileInfo(f)
+    }
+}
+
+pub fn lfs_get_file_info<'a, P: Into<MaybeOpenFileInfo<'a>>>(
     handle: HANDLE,
     root_prefix_length: Option<u32>,
-    file_info: &mut FSP_FSCTL_FILE_INFO,
+    file_info: P,
 ) -> winfsp::Result<()> {
+    let mut maybe_file_info = file_info.into();
+
     let mut iosb: MaybeUninit<IO_STATUS_BLOCK> = MaybeUninit::uninit();
     let mut file_all_info: VariableSizedBox<FILE_ALL_INFORMATION> = VariableSizedBox::new(
         winfsp::constants::FSP_FSCTL_TRANSACT_PATH_SIZEMAX + size_of::<FILE_ALL_INFORMATION>() + 1,
@@ -407,37 +445,36 @@ pub fn lfs_get_file_info(
         }
     }
 
-    file_info.FileAttributes = file_all_info.BasicInformation.FileAttributes;
-    file_info.ReparseTag = if is_reparse_point {
-        file_attr_info.ReparseTag
-    } else {
-        0
-    };
-    file_info.AllocationSize =
-        unsafe { *(file_all_info.StandardInformation.AllocationSize.QuadPart()) as u64 };
-    file_info.FileSize =
-        unsafe { *(file_all_info.StandardInformation.EndOfFile.QuadPart()) as u64 };
-    file_info.CreationTime =
-        unsafe { *(file_all_info.BasicInformation.CreationTime.QuadPart()) as u64 };
-    file_info.LastAccessTime =
-        unsafe { *(file_all_info.BasicInformation.LastAccessTime.QuadPart()) as u64 };
-    file_info.LastWriteTime =
-        unsafe { *(file_all_info.BasicInformation.LastWriteTime.QuadPart()) as u64 };
-    file_info.ChangeTime =
-        unsafe { *(file_all_info.BasicInformation.ChangeTime.QuadPart()) as u64 };
-    file_info.IndexNumber =
-        unsafe { *(file_all_info.InternalInformation.IndexNumber.QuadPart()) as u64 };
-    file_info.HardLinks = 0;
-    file_info.EaSize = lfs_get_ea_size(file_all_info.EaInformation.EaSize);
+    {
+        let mut file_info = maybe_file_info.as_mut();
+        file_info.file_attributes = file_all_info.BasicInformation.FileAttributes;
+        file_info.reparse_tag = if is_reparse_point {
+            file_attr_info.ReparseTag
+        } else {
+            0
+        };
+        file_info.allocation_size =
+            unsafe { *(file_all_info.StandardInformation.AllocationSize.QuadPart()) as u64 };
+        file_info.file_size =
+            unsafe { *(file_all_info.StandardInformation.EndOfFile.QuadPart()) as u64 };
+        file_info.creation_time =
+            unsafe { *(file_all_info.BasicInformation.CreationTime.QuadPart()) as u64 };
+        file_info.last_access_time =
+            unsafe { *(file_all_info.BasicInformation.LastAccessTime.QuadPart()) as u64 };
+        file_info.last_write_time =
+            unsafe { *(file_all_info.BasicInformation.LastWriteTime.QuadPart()) as u64 };
+        file_info.change_time =
+            unsafe { *(file_all_info.BasicInformation.ChangeTime.QuadPart()) as u64 };
+        file_info.index_number =
+            unsafe { *(file_all_info.InternalInformation.IndexNumber.QuadPart()) as u64 };
+        file_info.hard_links = 0;
+        file_info.ea_size = lfs_get_ea_size(file_all_info.EaInformation.EaSize);
+    }
 
-    if let Some(root_prefix_length_bytes) = root_prefix_length && result != STATUS_BUFFER_OVERFLOW && root_prefix_length_bytes != u32::MAX {
-        // SAFETY: if root_prefix_length_bytes is not a 1-bit pattern, then FILE_INFO is really an OPEN_FILE_INFO.
-        // type pun takes ownership of mut reference so it is still exclusive.
-        let open_file = unsafe { &mut *(file_info as *mut FSP_FSCTL_FILE_INFO as *mut FSP_FSCTL_OPEN_FILE_INFO) };
-
-        if open_file.NormalizedNameSize > (size_of::<u16>() as u32 + file_all_info.NameInformation.FileNameLength as u32) as u16
-            && root_prefix_length_bytes <= file_all_info.NameInformation.FileNameLength {
-            let first_letter = file_all_info.NameInformation.FileName[0];
+    if let (Some(root_prefix_length_bytes), MaybeOpenFileInfo::OpenFileInfo(open_file))
+            = (root_prefix_length, maybe_file_info) && result != STATUS_BUFFER_OVERFLOW && root_prefix_length_bytes != u32::MAX {
+        if  open_file.normalized_name_size() > (size_of::<u16>() as u32 + file_all_info.NameInformation.FileNameLength as u32) as u16
+                && root_prefix_length_bytes <= file_all_info.NameInformation.FileNameLength {
 
             // get the file_name without root prefix
             let file_name = unsafe {
@@ -446,20 +483,8 @@ pub fn lfs_get_file_info(
             };
 
             let file_name = &file_name[(root_prefix_length_bytes as usize)..];
-
-            if first_letter == b'\\' as u16 {
-                unsafe {
-                    open_file.NormalizedName.cast::<u8>().copy_from_nonoverlapping(file_name.as_ptr(), file_name.len());
-                    open_file.NormalizedNameSize = file_name.len() as u16;
-                }
-            } else {
-                unsafe {
-                    open_file.NormalizedName.write(b'\\' as u16);
-                    open_file.NormalizedName.wrapping_add(1).cast::<u8>().
-                        copy_from_nonoverlapping(file_name.as_ptr(), file_name.len());
-                    open_file.NormalizedNameSize = file_name.len() as u16 + size_of::<u16>() as u16;
-                }
-            }
+            let file_name: &[u16] = bytemuck::cast_slice(file_name);
+            open_file.set_normalized_name(file_name, Some(b'\\' as u16));
         }
     }
 

@@ -36,13 +36,13 @@ use windows::Win32::System::WindowsProgramming::{FILE_DELETE_ON_CLOSE, FILE_DIRE
 use windows::Win32::System::IO::{OVERLAPPED, OVERLAPPED_0, OVERLAPPED_0_0};
 
 use winfsp::constants::FspCleanupFlags;
-use winfsp::filesystem::{DirBuffer, DirInfo, DirMarker, FileSecurity, FileSystemContext, FileSystemHost, IoResult, WideNameInfo, FSP_FSCTL_FILE_INFO, FSP_FSCTL_VOLUME_INFO, VolumeParams, FileContextMode};
+use winfsp::filesystem::{DirBuffer, DirInfo, DirMarker, FileSecurity, FileSystemContext, FileSystemHost, IoResult, WideNameInfo, FileInfo, VolumeParams, FileContextMode, VolumeInfo, OpenFileInfo};
 use winfsp::{FspError, Result};
 
 use winfsp::util::Win32SafeHandle;
 
 const ALLOCATION_UNIT: u16 = 4096;
-const VOLUME_LABEL: &HSTRING = w!("Snowflake");
+const VOLUME_LABEL: &'static str = "Snowflake";
 const FULLPATH_SIZE: usize = MAX_PATH as usize
     + (winfsp::constants::FSP_FSCTL_TRANSACT_PATH_SIZEMAX / std::mem::size_of::<u16>());
 
@@ -78,35 +78,35 @@ impl PtfsContext {
     fn get_file_info_internal(
         &self,
         file_handle: HANDLE,
-        file_info: &mut FSP_FSCTL_FILE_INFO,
+        file_info: &mut FileInfo,
     ) -> Result<()> {
         let mut os_file_info: BY_HANDLE_FILE_INFORMATION = Default::default();
         win32_try!(unsafe GetFileInformationByHandle(file_handle, &mut os_file_info));
 
-        file_info.FileAttributes = os_file_info.dwFileAttributes;
+        file_info.file_attributes = os_file_info.dwFileAttributes;
 
         // todo: reparse
-        file_info.ReparseTag = 0;
-        file_info.IndexNumber = 0;
-        file_info.HardLinks = 0;
+        file_info.reparse_tag = 0;
+        file_info.index_number = 0;
+        file_info.hard_links = 0;
 
-        file_info.FileSize = quadpart(os_file_info.nFileSizeHigh, os_file_info.nFileSizeLow);
-        file_info.AllocationSize = (file_info.FileSize + ALLOCATION_UNIT as u64 - 1)
+        file_info.file_size = quadpart(os_file_info.nFileSizeHigh, os_file_info.nFileSizeLow);
+        file_info.allocation_size = (file_info.file_size + ALLOCATION_UNIT as u64 - 1)
             / ALLOCATION_UNIT as u64
             * ALLOCATION_UNIT as u64;
-        file_info.CreationTime = quadpart(
+        file_info.creation_time = quadpart(
             os_file_info.ftCreationTime.dwHighDateTime,
             os_file_info.ftCreationTime.dwLowDateTime,
         );
-        file_info.LastAccessTime = quadpart(
+        file_info.last_access_time = quadpart(
             os_file_info.ftLastAccessTime.dwHighDateTime,
             os_file_info.ftLastAccessTime.dwLowDateTime,
         );
-        file_info.LastWriteTime = quadpart(
+        file_info.last_write_time = quadpart(
             os_file_info.ftLastWriteTime.dwHighDateTime,
             os_file_info.ftLastWriteTime.dwLowDateTime,
         );
-        file_info.ChangeTime = file_info.LastWriteTime;
+        file_info.change_time = file_info.last_write_time;
         Ok(())
     }
 }
@@ -177,7 +177,7 @@ impl FileSystemContext for PtfsContext {
         file_name: P,
         create_options: u32,
         granted_access: FILE_ACCESS_FLAGS,
-        file_info: &mut FSP_FSCTL_FILE_INFO,
+        file_info: &mut OpenFileInfo,
     ) -> Result<Self::FileContext> {
         let file_name = OsString::from_wide(file_name.as_ref().as_slice());
         let full_path = [self.path.as_os_str(), file_name.as_ref()].join(OsStr::new(""));
@@ -211,7 +211,7 @@ impl FileSystemContext for PtfsContext {
             return Err(unsafe { GetLastError().into() });
         }
 
-        self.get_file_info_internal(handle, file_info)?;
+        self.get_file_info_internal(handle, file_info.as_mut())?;
         Ok(Self::FileContext {
             handle: Win32SafeHandle::from(handle),
             dir_buffer: DirBuffer::new(),
@@ -243,7 +243,7 @@ impl FileSystemContext for PtfsContext {
         _allocation_size: u64,
         _extra_buffer: Option<&[u8]>,
         _extra_buffer_is_reparse_point: bool,
-        file_info: &mut FSP_FSCTL_FILE_INFO,
+        file_info: &mut OpenFileInfo,
     ) -> Result<Self::FileContext> {
         let file_name = OsString::from_wide(file_name.as_ref().as_slice());
 
@@ -290,7 +290,7 @@ impl FileSystemContext for PtfsContext {
             handle
         };
 
-        self.get_file_info_internal(handle, file_info)?;
+        self.get_file_info_internal(handle, file_info.as_mut())?;
 
         Ok(Self::FileContext {
             handle: Win32SafeHandle::from(handle),
@@ -301,7 +301,7 @@ impl FileSystemContext for PtfsContext {
     fn flush(
         &self,
         context: Option<&Self::FileContext>,
-        file_info: &mut FSP_FSCTL_FILE_INFO,
+        file_info: &mut FileInfo,
     ) -> Result<()> {
         if context.is_none() {
             return Ok(());
@@ -320,7 +320,7 @@ impl FileSystemContext for PtfsContext {
     fn get_file_info(
         &self,
         context: &Self::FileContext,
-        file_info: &mut FSP_FSCTL_FILE_INFO,
+        file_info: &mut FileInfo,
     ) -> Result<()> {
         self.get_file_info_internal(*context.handle, file_info)
     }
@@ -347,7 +347,7 @@ impl FileSystemContext for PtfsContext {
         Ok(descriptor_size_needed as u64)
     }
 
-    fn get_volume_info(&self, out_volume_info: &mut FSP_FSCTL_VOLUME_INFO) -> Result<()> {
+    fn get_volume_info(&self, out_volume_info: &mut VolumeInfo) -> Result<()> {
         let mut root = [0u16; MAX_PATH as usize];
         let mut total_size = 0u64;
         let mut free_size = 0u64;
@@ -360,11 +360,10 @@ impl FileSystemContext for PtfsContext {
             Some(&mut free_size),
         ));
 
-        out_volume_info.TotalSize = total_size;
-        out_volume_info.FreeSize = free_size;
-        out_volume_info.VolumeLabel[0..VOLUME_LABEL.len()].copy_from_slice(VOLUME_LABEL.as_wide());
-        out_volume_info.VolumeLabelLength =
-            (VOLUME_LABEL.len() * std::mem::size_of::<u16>()) as u16;
+        out_volume_info.total_size = total_size;
+        out_volume_info.free_size = free_size;
+        out_volume_info.set_volume_label(VOLUME_LABEL);
+
         Ok(())
     }
 
@@ -375,7 +374,7 @@ impl FileSystemContext for PtfsContext {
         replace_file_attributes: bool,
         _allocation_size: u64,
         _extra_buffer: Option<&[u8]>,
-        file_info: &mut FSP_FSCTL_FILE_INFO,
+        file_info: &mut FileInfo,
     ) -> Result<()> {
         // todo: preserve allocation size
         let mut attribute_tag_info = FILE_ATTRIBUTE_TAG_INFO::default();
@@ -504,16 +503,16 @@ impl FileSystemContext for PtfsContext {
                 loop {
                     dirinfo.reset();
                     let finfo = dirinfo.file_info_mut();
-                    finfo.FileAttributes = find_data.dwFileAttributes;
-                    finfo.ReparseTag = 0;
-                    finfo.FileSize = quadpart(find_data.nFileSizeHigh, find_data.nFileSizeLow);
-                    finfo.AllocationSize = ((finfo.FileSize + ALLOCATION_UNIT as u64 - 1) / ALLOCATION_UNIT as u64) * ALLOCATION_UNIT as u64;
-                    finfo.CreationTime = quadpart(find_data.ftCreationTime.dwHighDateTime, find_data.ftCreationTime.dwLowDateTime);
-                    finfo.LastAccessTime = quadpart(find_data.ftLastAccessTime.dwHighDateTime, find_data.ftLastAccessTime.dwLowDateTime);
-                    finfo.LastWriteTime = quadpart(find_data.ftLastWriteTime.dwHighDateTime, find_data.ftLastWriteTime.dwLowDateTime);
-                    finfo.ChangeTime = finfo.LastWriteTime;
-                    finfo.HardLinks = 0;
-                    finfo.IndexNumber = 0;
+                    finfo.file_attributes = find_data.dwFileAttributes;
+                    finfo.reparse_tag = 0;
+                    finfo.file_size = quadpart(find_data.nFileSizeHigh, find_data.nFileSizeLow);
+                    finfo.allocation_size = ((finfo.file_size + ALLOCATION_UNIT as u64 - 1) / ALLOCATION_UNIT as u64) * ALLOCATION_UNIT as u64;
+                    finfo.creation_time = quadpart(find_data.ftCreationTime.dwHighDateTime, find_data.ftCreationTime.dwLowDateTime);
+                    finfo.last_access_time = quadpart(find_data.ftLastAccessTime.dwHighDateTime, find_data.ftLastAccessTime.dwLowDateTime);
+                    finfo.last_write_time = quadpart(find_data.ftLastWriteTime.dwHighDateTime, find_data.ftLastWriteTime.dwLowDateTime);
+                    finfo.change_time = finfo.last_write_time;
+                    finfo.hard_links = 0;
+                    finfo.index_number = 0;
 
                     // find null ptr
                     let file_name =
@@ -592,7 +591,7 @@ impl FileSystemContext for PtfsContext {
         last_access_time: u64,
         last_write_time: u64,
         last_change_time: u64,
-        file_info: &mut FSP_FSCTL_FILE_INFO,
+        file_info: &mut FileInfo,
     ) -> Result<()> {
         let basic_info = FILE_BASIC_INFO {
             FileAttributes: if file_attributes == INVALID_FILE_ATTRIBUTES {
@@ -638,7 +637,7 @@ impl FileSystemContext for PtfsContext {
         context: &Self::FileContext,
         new_size: u64,
         set_allocation_size: bool,
-        file_info: &mut FSP_FSCTL_FILE_INFO,
+        file_info: &mut FileInfo,
     ) -> Result<()> {
         if set_allocation_size {
             let allocation_info = FILE_ALLOCATION_INFO {
@@ -687,7 +686,7 @@ impl FileSystemContext for PtfsContext {
         offset: u64,
         _write_to_eof: bool,
         constrained_io: bool,
-        file_info: &mut FSP_FSCTL_FILE_INFO,
+        file_info: &mut FileInfo,
     ) -> Result<IoResult> {
         if constrained_io {
             let mut fsize = 0;

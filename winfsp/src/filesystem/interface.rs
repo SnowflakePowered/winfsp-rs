@@ -17,7 +17,7 @@ use winfsp_sys::{
 };
 use winfsp_sys::{NTSTATUS as FSP_STATUS, PVOID};
 
-use crate::filesystem::{DirInfo, DirMarker, FileSecurity, FileSystemContext, IoResult};
+use crate::filesystem::{DirInfo, DirMarker, FileInfo, FileSecurity, FileSystemContext, IoResult, OpenFileInfo, VolumeInfo};
 
 /// Catch panic and return EXECPTION_NONCONTINUABLE_EXCEPTION
 macro_rules! catch_panic {
@@ -108,7 +108,8 @@ unsafe extern "C" fn get_volume_info<T: FileSystemContext>(
 ) -> FSP_STATUS {
     catch_panic!({
         require_ctx(fs, |context| {
-            if let Some(volume_info) = unsafe { volume_info.as_mut() } {
+            // SAFETY: VolumeInfo has the same layout (align, size) as FSP_FSCTL_VOLUME_INFO
+            if let Some(volume_info) = unsafe { volume_info.cast::<VolumeInfo>().as_mut() } {
                 T::get_volume_info(context, volume_info)
             } else {
                 Err(EXCEPTION_NONCONTINUABLE_EXCEPTION.into())
@@ -198,7 +199,10 @@ unsafe extern "C" fn open<T: FileSystemContext>(
                 file_name,
                 create_options,
                 FILE_ACCESS_FLAGS(granted_access),
-                unsafe { out_file_info.as_mut() }
+                // SAFETY: https://winfsp.dev/doc/WinFsp-API-winfsp.h/
+                // The FileInfo parameter to Create and Open is typed as pointer to FSP_FSCTL_FILE_INFO.
+                // The true type of this parameter is pointer to FSP_FSCTL_OPEN_FILE_INFO.
+                unsafe { out_file_info.cast::<OpenFileInfo>().as_mut() }
                     .expect("FSP_FSCTL_FILE_INFO buffer was not allocated."),
             )?;
             unsafe { *out_file_context = Box::into_raw(Box::new(fctx)) as *mut _ };
@@ -248,7 +252,10 @@ unsafe extern "C" fn create_ex<T: FileSystemContext>(
                 allocation_size,
                 extra_buffer,
                 extra_buffer_is_reparse_point != 0,
-                unsafe { out_file_info.as_mut() }
+                // SAFETY: https://winfsp.dev/doc/WinFsp-API-winfsp.h/
+                // The FileInfo parameter to Create and Open is typed as pointer to FSP_FSCTL_FILE_INFO.
+                // The true type of this parameter is pointer to FSP_FSCTL_OPEN_FILE_INFO.
+                unsafe { out_file_info.cast::<OpenFileInfo>().as_mut() }
                     .expect("FSP_FSCTL_FILE_INFO buffer was not allocated."),
             )?;
             unsafe { *out_fctx = Box::into_raw(Box::new(fctx)) as *mut _ };
@@ -297,7 +304,7 @@ unsafe extern "C" fn set_volume_label<T: FileSystemContext>(
     volume_info: *mut FSP_FSCTL_VOLUME_INFO,
 ) -> FSP_STATUS {
     catch_panic!({
-        if let Some(volume_info) = unsafe { volume_info.as_mut() } {
+        if let Some(volume_info) = unsafe { volume_info.cast::<VolumeInfo>().as_mut() } {
             require_ctx(fs, |context| {
                 T::set_volume_label(context, PWSTR::from_raw(volume_label), volume_info)
             })
@@ -319,7 +326,7 @@ unsafe extern "C" fn overwrite_ex<T: FileSystemContext>(
 ) -> FSP_STATUS {
     catch_panic!({
         require_fctx(fs, fctx, |context, fctx| {
-            let out_file_info = unsafe { &mut *out_file_info };
+            let out_file_info = unsafe { &mut *out_file_info.cast::<FileInfo>() };
             let extra_buffer = if !extra_buffer.is_null() {
                 unsafe {
                     Some(slice::from_raw_parts(
@@ -353,6 +360,7 @@ unsafe extern "C" fn get_file_info<T: FileSystemContext>(
         require_fctx(fs, fctx, |context, fctx| {
             T::get_file_info(context, fctx, unsafe {
                 out_file_info
+                    .cast::<FileInfo>()
                     .as_mut()
                     .expect("FSP_FSCTL_FILE_INFO buffer was not allocated.")
             })
@@ -481,7 +489,7 @@ unsafe extern "C" fn write<T: FileSystemContext>(
                     offset,
                     write_to_eof != 0,
                     constrained_io != 0,
-                    unsafe { out_file_info.as_mut() }
+                    unsafe { out_file_info.cast::<FileInfo>().as_mut() }
                         .expect("FSP_FSCTL_FILE_INFO buffer was not allocated."),
                 )?;
                 if !bytes_transferred.is_null() {
@@ -534,7 +542,7 @@ unsafe extern "C" fn set_basic_info<T: FileSystemContext>(
                 last_access_time,
                 last_write_time,
                 change_time,
-                unsafe { out_file_info.as_mut() }
+                unsafe { out_file_info.cast::<FileInfo>().as_mut() }
                     .expect("FSP_FSCTL_FILE_INFO buffer was not allocated."),
             )
         })
@@ -555,7 +563,7 @@ unsafe extern "C" fn set_file_size<T: FileSystemContext>(
                 fctx,
                 new_size,
                 set_allocation_size != 0,
-                unsafe { out_file_info.as_mut() }
+                unsafe { out_file_info.cast::<FileInfo>().as_mut() }
                     .expect("FSP_FSCTL_FILE_INFO buffer was not allocated."),
             )
         })
@@ -602,7 +610,7 @@ unsafe extern "C" fn flush<T: FileSystemContext>(
     catch_panic!({
         require_ctx(fs, |context| {
             let fctx = fctx.cast::<T::FileContext>();
-            unsafe { T::flush(context, fctx.as_ref(), &mut *out_file_info) }
+            unsafe { T::flush(context, fctx.as_ref(), &mut *out_file_info.cast::<FileInfo>()) }
         })
     })
 }
@@ -658,7 +666,7 @@ unsafe extern "C" fn set_ea<T: FileSystemContext>(
     catch_panic!({
         require_fctx(fs, fctx, |context, fctx| {
             let buffer = unsafe { slice::from_raw_parts(ea.cast::<u8>(), ea_len as usize) };
-            unsafe { T::set_extended_attributes(context, fctx, buffer, &mut *out_file_info) }
+            unsafe { T::set_extended_attributes(context, fctx, buffer, &mut *out_file_info.cast::<FileInfo>()) }
         })
     })
 }

@@ -1,6 +1,6 @@
 [package]
 name = "winfsp"
-version = "0.2.1+winfsp-1.11"
+version = "0.3.0+winfsp-1.11"
 edition = "2021"
 readme = "../README.md"
 license = "GPL-3.0"
@@ -16,6 +16,8 @@ widestring = "1"
 thiserror = "1.0.32"
 registry = { version = "1.2.2", optional = true }
 paste = "1.0.9"
+static_assertions = "1.1.0"
+bytemuck = "1.12.1"
 
 [features]
 default = ["notify", "delayload"]

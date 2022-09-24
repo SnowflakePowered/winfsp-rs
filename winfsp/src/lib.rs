@@ -2,6 +2,7 @@
 #![feature(cfg_target_compact)]
 #![feature(io_error_more)]
 #![feature(ptr_const_cast)]
+#![feature(strict_provenance)]
 #![deny(unsafe_op_in_unsafe_fn)]
 
 pub mod constants;

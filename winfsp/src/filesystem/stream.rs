@@ -1,8 +1,8 @@
-use crate::filesystem::WideNameInfo;
-use std::alloc::Layout;
+use crate::filesystem::{ensure_layout, WideNameInfo};
 use winfsp_sys::{FspFileSystemAddStreamInfo, FSP_FSCTL_STREAM_INFO};
 
 #[repr(C)]
+#[derive(Debug, Clone)]
 pub struct StreamInfo<const BUFFER_SIZE: usize = 255> {
     size: u16,
     pub stream_size: u64,
@@ -10,13 +10,9 @@ pub struct StreamInfo<const BUFFER_SIZE: usize = 255> {
     stream_name: [u16; BUFFER_SIZE],
 }
 
+ensure_layout!(FSP_FSCTL_STREAM_INFO, StreamInfo<0>);
 impl<const BUFFER_SIZE: usize> StreamInfo<BUFFER_SIZE> {
     pub fn new() -> Self {
-        const _: () = assert!(24 == std::mem::size_of::<StreamInfo<0>>());
-        assert_eq!(
-            Layout::new::<FSP_FSCTL_STREAM_INFO>(),
-            Layout::new::<StreamInfo<0>>()
-        );
         Self {
             // begin with initially no file_name
             size: std::mem::size_of::<StreamInfo<0>>() as u16,

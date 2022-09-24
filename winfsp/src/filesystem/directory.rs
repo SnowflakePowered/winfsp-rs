@@ -1,16 +1,14 @@
-use std::alloc::Layout;
-
 use widestring::{u16cstr, U16CStr};
 use windows::Win32::Foundation::STATUS_SUCCESS;
 use winfsp_sys::{
     FspFileSystemAcquireDirectoryBufferEx, FspFileSystemAddDirInfo,
     FspFileSystemDeleteDirectoryBuffer, FspFileSystemFillDirectoryBuffer,
     FspFileSystemReadDirectoryBuffer, FspFileSystemReleaseDirectoryBuffer, FSP_FSCTL_DIR_INFO,
-    FSP_FSCTL_FILE_INFO, PVOID,
+    PVOID,
 };
 
 use crate::error::Result;
-use crate::filesystem::WideNameInfo;
+use crate::filesystem::{ensure_layout, FileInfo, WideNameInfo};
 
 /// A buffer used to hold directory entries when enumerating directories
 /// with the [`read_directory`](crate::filesystem::FileSystemContext::read_directory)
@@ -158,29 +156,25 @@ union DirInfoPadding {
 /// A directory information entry.
 pub struct DirInfo<const BUFFER_SIZE: usize = 255> {
     size: u16,
-    file_info: FSP_FSCTL_FILE_INFO,
+    file_info: FileInfo,
     padding: DirInfoPadding,
     file_name: [u16; BUFFER_SIZE],
 }
 
+ensure_layout!(FSP_FSCTL_DIR_INFO, DirInfo<0>);
 impl<const BUFFER_SIZE: usize> DirInfo<BUFFER_SIZE> {
     pub fn new() -> Self {
-        const _: () = assert!(104 == std::mem::size_of::<DirInfo<0>>());
-        assert_eq!(
-            Layout::new::<FSP_FSCTL_DIR_INFO>(),
-            Layout::new::<DirInfo<0>>()
-        );
         Self {
             // begin with initially no file_name
             size: std::mem::size_of::<DirInfo<0>>() as u16,
-            file_info: FSP_FSCTL_FILE_INFO::default(),
+            file_info: FileInfo::default(),
             padding: DirInfoPadding { padding: [0; 24] },
             file_name: [0; BUFFER_SIZE],
         }
     }
 
     /// Get a mutable reference to the file information of this directory entry.
-    pub fn file_info_mut(&mut self) -> &mut FSP_FSCTL_FILE_INFO {
+    pub fn file_info_mut(&mut self) -> &mut FileInfo {
         &mut self.file_info
     }
 }
@@ -203,7 +197,7 @@ impl<const BUFFER_SIZE: usize> WideNameInfo<BUFFER_SIZE> for DirInfo<BUFFER_SIZE
     /// Reset the directory entry.
     fn reset(&mut self) {
         self.size = std::mem::size_of::<DirInfo<0>>() as u16;
-        self.file_info = FSP_FSCTL_FILE_INFO::default();
+        self.file_info = FileInfo::default();
         self.padding.next_offset = 0;
         self.padding.padding = [0; 24];
         self.file_name = [0; BUFFER_SIZE]

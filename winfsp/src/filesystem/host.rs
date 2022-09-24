@@ -8,8 +8,6 @@ use winfsp_sys::{
     FSP_FILE_SYSTEM_INTERFACE,
 };
 
-pub use winfsp_sys::{FSP_FSCTL_FILE_INFO, FSP_FSCTL_VOLUME_INFO};
-
 use crate::filesystem::interface::Interface;
 use crate::filesystem::{FileSystemContext, VolumeParams};
 

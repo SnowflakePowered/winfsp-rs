@@ -1,8 +1,9 @@
-use crate::filesystem::WideNameInfo;
-use std::alloc::Layout;
+use crate::filesystem::{ensure_layout, WideNameInfo};
 use winfsp_sys::{FspFileSystemAddNotifyInfo, FSP_FSCTL_NOTIFY_INFO};
 
 #[repr(C)]
+#[derive(Debug, Clone)]
+/// Information about a filesystem event.
 pub struct NotifyInfo<const BUFFER_SIZE: usize = 255> {
     pub(crate) size: u16,
     pub filter: u32,
@@ -10,13 +11,9 @@ pub struct NotifyInfo<const BUFFER_SIZE: usize = 255> {
     file_name: [u16; BUFFER_SIZE],
 }
 
+ensure_layout!(FSP_FSCTL_NOTIFY_INFO, NotifyInfo<0>);
 impl<const BUFFER_SIZE: usize> NotifyInfo<BUFFER_SIZE> {
     pub fn new() -> Self {
-        const _: () = assert!(12 == std::mem::size_of::<NotifyInfo<0>>());
-        assert_eq!(
-            Layout::new::<FSP_FSCTL_NOTIFY_INFO>(),
-            Layout::new::<NotifyInfo<0>>()
-        );
         Self {
             // begin with initially no file_name
             size: std::mem::size_of::<NotifyInfo<0>>() as u16,

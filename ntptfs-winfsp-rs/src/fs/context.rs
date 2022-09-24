@@ -45,7 +45,7 @@ use windows_sys::Win32::System::WindowsProgramming::{
     FILE_SYNCHRONOUS_IO_NONALERT,
 };
 use winfsp::constants::FspCleanupFlags::FspCleanupDelete;
-use winfsp::filesystem::{DirInfo, DirMarker, FileSecurity, FileSystemContext, IoResult, StreamInfo, WideNameInfo, FSP_FSCTL_FILE_INFO, FSP_FSCTL_VOLUME_INFO, VolumeParams};
+use winfsp::filesystem::{DirInfo, DirMarker, FileSecurity, FileSystemContext, IoResult, StreamInfo, WideNameInfo, FileInfo, VolumeParams, VolumeInfo, OpenFileInfo};
 use winfsp::util::Win32SafeHandle;
 use winfsp::FspError;
 use winfsp::U16CStr;
@@ -154,22 +154,22 @@ impl NtPassthroughContext {
 
         let file_info = dir_info.file_info_mut();
 
-        file_info.FileAttributes = unsafe { addr_of!((*query_info).FileAttributes).read() };
-        file_info.ReparseTag = if FILE_ATTRIBUTE_REPARSE_POINT & file_info.FileAttributes != 0 {
+        file_info.file_attributes = unsafe { addr_of!((*query_info).FileAttributes).read() };
+        file_info.reparse_tag = if FILE_ATTRIBUTE_REPARSE_POINT & file_info.file_attributes != 0 {
             unsafe { addr_of!((*query_info).EaSize).read() }
         } else {
             0
         };
 
-        file_info.AllocationSize = unsafe { addr_of!((*query_info).AllocationSize).read() } as u64;
-        file_info.FileSize = unsafe { addr_of!((*query_info).EndOfFile).read() } as u64;
-        file_info.CreationTime = unsafe { addr_of!((*query_info).CreationTime).read() } as u64;
-        file_info.LastAccessTime = unsafe { addr_of!((*query_info).LastAccessTime).read() } as u64;
-        file_info.LastWriteTime = unsafe { addr_of!((*query_info).LastWriteTime).read() } as u64;
-        file_info.ChangeTime = unsafe { addr_of!((*query_info).ChangeTime).read() } as u64;
-        file_info.IndexNumber = unsafe { addr_of!((*query_info).FileId).read() } as u64;
-        file_info.HardLinks = 0;
-        file_info.EaSize = if FILE_ATTRIBUTE_REPARSE_POINT & file_info.FileAttributes != 0 {
+        file_info.allocation_size = unsafe { addr_of!((*query_info).AllocationSize).read() } as u64;
+        file_info.file_size = unsafe { addr_of!((*query_info).EndOfFile).read() } as u64;
+        file_info.creation_time = unsafe { addr_of!((*query_info).CreationTime).read() } as u64;
+        file_info.last_access_time = unsafe { addr_of!((*query_info).LastAccessTime).read() } as u64;
+        file_info.last_write_time = unsafe { addr_of!((*query_info).LastWriteTime).read() } as u64;
+        file_info.change_time = unsafe { addr_of!((*query_info).ChangeTime).read() } as u64;
+        file_info.index_number = unsafe { addr_of!((*query_info).FileId).read() } as u64;
+        file_info.hard_links = 0;
+        file_info.ea_size = if FILE_ATTRIBUTE_REPARSE_POINT & file_info.file_attributes != 0 {
             lfs::lfs_get_ea_size(unsafe { addr_of!((*query_info).EaSize).read() })
         } else {
             0
@@ -239,7 +239,7 @@ impl FileSystemContext for NtPassthroughContext {
         file_name: P,
         create_options: u32,
         granted_access: FILE_ACCESS_FLAGS,
-        file_info: &mut FSP_FSCTL_FILE_INFO,
+        file_info: &mut OpenFileInfo,
     ) -> winfsp::Result<Self::FileContext> {
         let backup_access = granted_access.0;
 
@@ -299,11 +299,12 @@ impl FileSystemContext for NtPassthroughContext {
             Err(e) => Err(e),
         }?;
 
+        let file_size = file_info.as_ref().file_size;
         lfs::lfs_get_file_info(*handle, Some(self.root_prefix_len), file_info)?;
 
         Ok(Self::FileContext::new(
             handle,
-            file_info.FileSize,
+            file_size,
             is_directory,
         ))
     }
@@ -318,7 +319,7 @@ impl FileSystemContext for NtPassthroughContext {
         allocation_size: u64,
         extra_buffer: Option<&[u8]>,
         extra_buffer_is_reparse_point: bool,
-        file_info: &mut FSP_FSCTL_FILE_INFO,
+        file_info: &mut OpenFileInfo,
     ) -> winfsp::Result<Self::FileContext> {
         let is_directory = create_options & FILE_DIRECTORY_FILE != 0;
 
@@ -396,11 +397,12 @@ impl FileSystemContext for NtPassthroughContext {
             lfs::lfs_fs_control_file(*handle, FSCTL_SET_REPARSE_POINT, Some(extra_buffer), None)?;
         }
 
+        let file_size = file_info.as_ref().file_size;
         lfs::lfs_get_file_info(*handle, Some(self.root_prefix_len), file_info)?;
 
         Ok(Self::FileContext::new(
             handle,
-            file_info.FileSize,
+            file_size,
             is_directory,
         ))
     }
@@ -416,7 +418,7 @@ impl FileSystemContext for NtPassthroughContext {
         replace_file_attributes: bool,
         allocation_size: u64,
         extra_buffer: Option<&[u8]>,
-        file_info: &mut FSP_FSCTL_FILE_INFO,
+        file_info: &mut FileInfo,
     ) -> winfsp::Result<()> {
         let mut allocation_size = if allocation_size != 0 {
             Some(allocation_size as i64)
@@ -479,7 +481,7 @@ impl FileSystemContext for NtPassthroughContext {
         offset: u64,
         _write_to_eof: bool,
         constrained_io: bool,
-        file_info: &mut FSP_FSCTL_FILE_INFO,
+        file_info: &mut FileInfo,
     ) -> winfsp::Result<IoResult> {
         if constrained_io {
             let fsize = lfs::lfs_get_file_size(context.handle())?;
@@ -506,7 +508,7 @@ impl FileSystemContext for NtPassthroughContext {
     fn flush(
         &self,
         context: Option<&Self::FileContext>,
-        file_info: &mut FSP_FSCTL_FILE_INFO,
+        file_info: &mut FileInfo,
     ) -> winfsp::Result<()> {
         if context.is_none() {
             return Ok(());
@@ -519,7 +521,7 @@ impl FileSystemContext for NtPassthroughContext {
     fn get_file_info(
         &self,
         context: &Self::FileContext,
-        file_info: &mut FSP_FSCTL_FILE_INFO,
+        file_info: &mut FileInfo,
     ) -> winfsp::Result<()> {
         lfs::lfs_get_file_info(context.handle(), None, file_info)
     }
@@ -594,7 +596,7 @@ impl FileSystemContext for NtPassthroughContext {
         context: &Self::FileContext,
         new_size: u64,
         set_allocation_size: bool,
-        file_info: &mut FSP_FSCTL_FILE_INFO,
+        file_info: &mut FileInfo,
     ) -> winfsp::Result<()> {
         if set_allocation_size {
             lfs::lfs_set_allocation_size(context.handle(), new_size)?;
@@ -613,7 +615,7 @@ impl FileSystemContext for NtPassthroughContext {
         last_access_time: u64,
         last_write_time: u64,
         last_change_time: u64,
-        file_info: &mut FSP_FSCTL_FILE_INFO,
+        file_info: &mut FileInfo,
     ) -> winfsp::Result<()> {
         lfs::lfs_set_basic_info(
             context.handle(),
@@ -711,10 +713,10 @@ impl FileSystemContext for NtPassthroughContext {
         Ok(context.dir_buffer().read(marker, buffer))
     }
 
-    fn get_volume_info(&self, out_volume_info: &mut FSP_FSCTL_VOLUME_INFO) -> winfsp::Result<()> {
+    fn get_volume_info(&self, out_volume_info: &mut VolumeInfo) -> winfsp::Result<()> {
         let vol_info = lfs::lfs_get_volume_info(*self.root_handle)?;
-        out_volume_info.TotalSize = vol_info.total_size;
-        out_volume_info.FreeSize = vol_info.free_size;
+        out_volume_info.total_size = vol_info.total_size;
+        out_volume_info.free_size = vol_info.free_size;
         Ok(())
     }
 
@@ -743,7 +745,7 @@ impl FileSystemContext for NtPassthroughContext {
         &self,
         context: &Self::FileContext,
         buffer: &[u8],
-        file_info: &mut FSP_FSCTL_FILE_INFO,
+        file_info: &mut FileInfo,
     ) -> winfsp::Result<()> {
         lfs::lfs_set_ea(context.handle(), buffer)?;
         lfs::lfs_get_file_info(context.handle(), None, file_info)
