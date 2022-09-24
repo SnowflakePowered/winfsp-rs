@@ -7,7 +7,7 @@ use std::ffi::c_void;
 use std::mem::MaybeUninit;
 use windows::Win32::Foundation::{HANDLE, NTSTATUS};
 use windows_sys::Win32::System::WindowsProgramming::IO_STATUS_BLOCK;
-use winfsp::filesystem::MAX_PATH;
+use winfsp::constants::MAX_PATH;
 use winfsp::util::VariableSizedBox;
 
 pub fn get_attr(handle: HANDLE) -> winfsp::Result<VariableSizedBox<FILE_FS_ATTRIBUTE_INFORMATION>> {

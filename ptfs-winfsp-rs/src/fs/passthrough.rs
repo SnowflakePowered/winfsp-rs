@@ -119,7 +119,7 @@ impl FileSystemContext for PtfsContext {
         file_name: P,
         security_descriptor: PSECURITY_DESCRIPTOR,
         descriptor_len: Option<u64>,
-        _reparse_point_resolver: impl FnOnce(&U16CStr) -> Option<u32>,
+        _reparse_point_resolver: impl FnOnce(&U16CStr) -> Option<FileSecurity>,
     ) -> Result<FileSecurity> {
         let file_name = OsString::from_wide(file_name.as_ref().as_slice());
         let full_path = [self.path.as_os_str(), file_name.as_ref()].join(OsStr::new(""));
@@ -222,17 +222,6 @@ impl FileSystemContext for PtfsContext {
         drop(context)
     }
 
-    fn cleanup<P: AsRef<U16CStr>>(
-        &self,
-        context: &mut Self::FileContext,
-        _file_name: Option<P>,
-        flags: u32,
-    ) {
-        if flags & FspCleanupFlags::FspCleanupDelete as u32 != 0 {
-            context.handle.invalidate();
-        }
-    }
-
     fn create<P: AsRef<U16CStr>>(
         &self,
         file_name: P,
@@ -298,6 +287,17 @@ impl FileSystemContext for PtfsContext {
         })
     }
 
+    fn cleanup<P: AsRef<U16CStr>>(
+        &self,
+        context: &mut Self::FileContext,
+        _file_name: Option<P>,
+        flags: u32,
+    ) {
+        if flags & FspCleanupFlags::FspCleanupDelete as u32 != 0 {
+            context.handle.invalidate();
+        }
+    }
+
     fn flush(
         &self,
         context: Option<&Self::FileContext>,
@@ -347,23 +347,17 @@ impl FileSystemContext for PtfsContext {
         Ok(descriptor_size_needed as u64)
     }
 
-    fn get_volume_info(&self, out_volume_info: &mut VolumeInfo) -> Result<()> {
-        let mut root = [0u16; MAX_PATH as usize];
-        let mut total_size = 0u64;
-        let mut free_size = 0u64;
-        let fname = U16CString::from_os_str_truncate(self.path.as_os_str());
-        win32_try!(unsafe GetVolumePathNameW(PCWSTR(fname.as_ptr()), &mut root[..]));
-        win32_try!(unsafe GetDiskFreeSpaceExW(
-            PCWSTR(U16CStr::from_slice_truncate(&root).unwrap().as_ptr()),
-            None,
-            Some(&mut total_size),
-            Some(&mut free_size),
+    fn set_security(
+        &self,
+        context: &Self::FileContext,
+        security_information: u32,
+        modification_descriptor: PSECURITY_DESCRIPTOR,
+    ) -> Result<()> {
+        win32_try!(unsafe SetKernelObjectSecurity(
+            *context.handle,
+            security_information,
+            modification_descriptor
         ));
-
-        out_volume_info.total_size = total_size;
-        out_volume_info.free_size = free_size;
-        out_volume_info.set_volume_label(VOLUME_LABEL);
-
         Ok(())
     }
 
@@ -665,20 +659,6 @@ impl FileSystemContext for PtfsContext {
         self.get_file_info_internal(*context.handle, file_info)
     }
 
-    fn set_security(
-        &self,
-        context: &Self::FileContext,
-        security_information: u32,
-        modification_descriptor: PSECURITY_DESCRIPTOR,
-    ) -> Result<()> {
-        win32_try!(unsafe SetKernelObjectSecurity(
-            *context.handle,
-            security_information,
-            modification_descriptor
-        ));
-        Ok(())
-    }
-
     fn write(
         &self,
         context: &Self::FileContext,
@@ -728,6 +708,26 @@ impl FileSystemContext for PtfsContext {
             bytes_transferred,
             io_pending: false,
         })
+    }
+
+    fn get_volume_info(&self, out_volume_info: &mut VolumeInfo) -> Result<()> {
+        let mut root = [0u16; MAX_PATH as usize];
+        let mut total_size = 0u64;
+        let mut free_size = 0u64;
+        let fname = U16CString::from_os_str_truncate(self.path.as_os_str());
+        win32_try!(unsafe GetVolumePathNameW(PCWSTR(fname.as_ptr()), &mut root[..]));
+        win32_try!(unsafe GetDiskFreeSpaceExW(
+            PCWSTR(U16CStr::from_slice_truncate(&root).unwrap().as_ptr()),
+            None,
+            Some(&mut total_size),
+            Some(&mut free_size),
+        ));
+
+        out_volume_info.total_size = total_size;
+        out_volume_info.free_size = free_size;
+        out_volume_info.set_volume_label(VOLUME_LABEL);
+
+        Ok(())
     }
 }
 

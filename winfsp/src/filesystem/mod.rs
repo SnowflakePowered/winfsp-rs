@@ -14,6 +14,8 @@ mod sealed {
     impl<const BUFFER_SIZE: usize> Sealed for directory::DirInfo<BUFFER_SIZE> {}
     impl<const BUFFER_SIZE: usize> Sealed for stream::StreamInfo<BUFFER_SIZE> {}
     impl<const BUFFER_SIZE: usize> Sealed for crate::notify::NotifyInfo<BUFFER_SIZE> {}
+
+    pub use super::internals::widenameinfo::WideNameInfoInternal;
 }
 
 pub use context::*;

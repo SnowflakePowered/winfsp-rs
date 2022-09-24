@@ -1,6 +1,6 @@
-use winfsp_sys::{FSP_FSCTL_FILE_INFO, FSP_FSCTL_OPEN_FILE_INFO};
 use crate::constants::FSP_FSCTL_TRANSACT_RSP_BUFFER_SIZEMAX;
 use crate::filesystem::ensure_layout;
+use winfsp_sys::{FSP_FSCTL_FILE_INFO, FSP_FSCTL_OPEN_FILE_INFO};
 
 #[repr(C)]
 #[derive(Default, Clone, Debug)]
@@ -26,18 +26,19 @@ pub struct FileInfo {
 /// `OpenFileInfo` implements [`AsRef`](core::convert::AsRef) and [`AsMut`](core::convert::AsMut)
 /// for [`FileInfo`](crate::filesystem::FileInfo), which should be used to access the fields
 /// that store the file information.
-///
-/// For case-sensitive filesystems,
 pub struct OpenFileInfo {
     file_info: FileInfo,
     normalized_name: winfsp_sys::PWSTR,
     /// normalized name length in BYTES.
-    normalized_name_len: u16
+    normalized_name_len: u16,
 }
 
 impl OpenFileInfo {
     /// Sets the normalized name of the FileInfo. An optional prefix can be added to ensure that
     /// the prefix is written before the FileName.
+    ///
+    /// For case-sensitive filesystems, this functionality should be ignored. WinFSP will always assume
+    /// that the normalized file name is the same as the file name used to open the file.
     ///
     /// ## Safety
     /// The size of the buffer **in bytes** can not exceed
@@ -52,7 +53,8 @@ impl OpenFileInfo {
         if let (Some(prefix), false) = (prefix, first_letter == prefix) {
             unsafe {
                 self.normalized_name.write(prefix);
-                self.normalized_name.map_addr(|addr| addr.wrapping_add(1))
+                self.normalized_name
+                    .map_addr(|addr| addr.wrapping_add(1))
                     .cast::<u8>()
                     .copy_from_nonoverlapping(file_name.as_ptr(), file_name.len());
             }
@@ -60,7 +62,9 @@ impl OpenFileInfo {
         } else {
             // either no prefix, or starts with prefix
             unsafe {
-                self.normalized_name.cast::<u8>().copy_from_nonoverlapping(file_name.as_ptr(), file_name.len())
+                self.normalized_name
+                    .cast::<u8>()
+                    .copy_from_nonoverlapping(file_name.as_ptr(), file_name.len())
             }
             self.normalized_name_len = file_name.len() as u16;
         }

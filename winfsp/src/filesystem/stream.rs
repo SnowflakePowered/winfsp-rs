@@ -1,17 +1,27 @@
 use crate::filesystem::{ensure_layout, WideNameInfo};
 use winfsp_sys::{FspFileSystemAddStreamInfo, FSP_FSCTL_STREAM_INFO};
+use crate::filesystem::sealed::WideNameInfoInternal;
 
 #[repr(C)]
 #[derive(Debug, Clone)]
+/// A named stream information entry.
+///
+/// ## Safety
+/// Note that `BUFFER_SIZE` is the size of the name buffer in characters, not bytes.
+/// In most cases, the default is sufficient. A buffer size that is too large
+/// may not be copyable to the request buffer.
 pub struct StreamInfo<const BUFFER_SIZE: usize = 255> {
     size: u16,
+    /// The size of the named stream in bytes.
     pub stream_size: u64,
+    /// The allocation size of the named stream.
     pub stream_alloc_size: u64,
     stream_name: [u16; BUFFER_SIZE],
 }
 
 ensure_layout!(FSP_FSCTL_STREAM_INFO, StreamInfo<0>);
 impl<const BUFFER_SIZE: usize> StreamInfo<BUFFER_SIZE> {
+    /// Create a new, empty stream info.
     pub fn new() -> Self {
         Self {
             // begin with initially no file_name
@@ -29,20 +39,13 @@ impl<const BUFFER_SIZE: usize> Default for StreamInfo<BUFFER_SIZE> {
     }
 }
 
-impl<const BUFFER_SIZE: usize> WideNameInfo<BUFFER_SIZE> for StreamInfo<BUFFER_SIZE> {
+impl<const BUFFER_SIZE: usize> WideNameInfoInternal<BUFFER_SIZE> for StreamInfo<BUFFER_SIZE> {
     fn name_buffer(&mut self) -> &mut [u16; BUFFER_SIZE] {
         &mut self.stream_name
     }
 
     fn set_size(&mut self, buffer_size: u16) {
         self.size = std::mem::size_of::<StreamInfo<0>>() as u16 + buffer_size;
-    }
-
-    fn reset(&mut self) {
-        self.size = std::mem::size_of::<StreamInfo<0>>() as u16;
-        self.stream_size = 0;
-        self.stream_alloc_size = 0;
-        self.stream_name = [0; BUFFER_SIZE];
     }
 
     fn add_to_buffer_internal(entry: Option<&Self>, buffer: &mut [u8], cursor: &mut u32) -> bool {
@@ -65,5 +68,14 @@ impl<const BUFFER_SIZE: usize> WideNameInfo<BUFFER_SIZE> for StreamInfo<BUFFER_S
                 ) != 0
             }
         }
+    }
+}
+
+impl<const BUFFER_SIZE: usize> WideNameInfo<BUFFER_SIZE> for StreamInfo<BUFFER_SIZE> {
+    fn reset(&mut self) {
+        self.size = std::mem::size_of::<StreamInfo<0>>() as u16;
+        self.stream_size = 0;
+        self.stream_alloc_size = 0;
+        self.stream_name = [0; BUFFER_SIZE];
     }
 }

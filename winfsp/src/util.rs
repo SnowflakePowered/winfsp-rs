@@ -1,10 +1,10 @@
 //! Helpful utility wrappers around OS constructs.
 use crate::error::FspError;
-use crate::filesystem::MAX_PATH;
 use std::marker::PhantomData;
 
 use std::ops::{Deref, DerefMut};
 
+use crate::constants::MAX_PATH;
 use windows::core::PCWSTR;
 use windows::Win32::Foundation::{CloseHandle, GetLastError, HANDLE, INVALID_HANDLE_VALUE};
 use windows::Win32::Security::{

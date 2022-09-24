@@ -1,12 +1,12 @@
 use std::alloc::Layout;
 
-mod widenameinfo;
-mod volumeinfo;
 mod fileinfo;
+mod volumeinfo;
+pub(crate) mod widenameinfo;
 
-pub use widenameinfo::*;
-pub use volumeinfo::*;
 pub use fileinfo::*;
+pub use volumeinfo::*;
+pub use widenameinfo::WideNameInfo;
 
 #[allow(dead_code)]
 pub(crate) const fn assert_layout<T, J>() -> bool {
@@ -20,7 +20,7 @@ macro_rules! ensure_layout {
         static_assertions::assert_eq_align!($t, $j);
         static_assertions::assert_eq_size!($t, $j);
         static_assertions::const_assert!(crate::filesystem::assert_layout::<$t, $j>());
-    }
+    };
 }
 
 pub(crate) use ensure_layout;

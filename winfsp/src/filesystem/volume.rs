@@ -5,6 +5,7 @@ use winfsp_sys::FSP_FSCTL_VOLUME_PARAMS;
 
 #[repr(transparent)]
 #[derive(Debug, Clone)]
+/// Parameters that control how the WinFSP volume is mounted and processes requests.
 pub struct VolumeParams(pub(in crate::filesystem) FSP_FSCTL_VOLUME_PARAMS);
 
 /// Sets whether the FileContext represents a file node, or a file descriptor.
@@ -17,7 +18,9 @@ pub struct VolumeParams(pub(in crate::filesystem) FSP_FSCTL_VOLUME_PARAMS);
 ///
 /// WinFSP's `UmFileContextIsFullContext` mode is not supported.
 pub enum FileContextMode {
+    /// The file context is a node, and opening the same file name will always yield the same value.
     Node,
+    /// The file context is a descriptor, and opening the same file name may yield a different value.
     Descriptor,
 }
 

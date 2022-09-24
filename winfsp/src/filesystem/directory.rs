@@ -9,6 +9,7 @@ use winfsp_sys::{
 
 use crate::error::Result;
 use crate::filesystem::{ensure_layout, FileInfo, WideNameInfo};
+use crate::filesystem::sealed::WideNameInfoInternal;
 
 /// A buffer used to hold directory entries when enumerating directories
 /// with the [`read_directory`](crate::filesystem::FileSystemContext::read_directory)
@@ -30,12 +31,12 @@ impl DirMarker<'_> {
         self.0.take();
     }
 
-    /// If this marker exists.
+    /// Returns whether this marker exists.
     pub fn is_none(&self) -> bool {
         self.0.is_none()
     }
 
-    // If this marker is the parent directory '..'.
+    /// Returns whether this marker is the parent directory '..'.
     pub fn is_parent(&self) -> bool {
         if let Some(marker) = self.0 {
             return marker == u16cstr!("..");
@@ -43,7 +44,7 @@ impl DirMarker<'_> {
         false
     }
 
-    // If this marker is the current directory '.'.
+    /// Returns whether this marker is the current directory '.'.
     pub fn is_current(&self) -> bool {
         if let Some(marker) = self.0 {
             return marker == u16cstr!(".");
@@ -51,13 +52,14 @@ impl DirMarker<'_> {
         false
     }
 
-    // Returns the inner contents of the marker.
+    /// Returns the inner contents of the marker.
+    /// If the inner contents were not validly null-terminated, returns None.
     pub fn inner(&self) -> Option<&[u16]> {
         self.0.map(U16CStr::as_slice)
     }
 
-    // Returns the inner contents of the marker.
-    // If the inner contents are not validly null-terminated, returns None.
+    /// Returns the inner contents of the marker.
+    /// If the inner contents were not validly null-terminated, returns None.
     pub fn inner_as_cstr(&self) -> Option<&U16CStr> {
         self.0
     }
@@ -70,10 +72,12 @@ impl Default for DirBuffer {
 }
 
 impl DirBuffer {
+    /// Create a new unacquired directory buffer.
     pub fn new() -> Self {
         Self(std::ptr::null_mut())
     }
 
+    /// Try to acquire a lock on the directory buffer to write entries into.
     pub fn acquire(&mut self, reset: bool, capacity_hint: Option<u32>) -> Result<DirBufferLock> {
         let mut result = STATUS_SUCCESS;
         unsafe {
@@ -91,6 +95,10 @@ impl DirBuffer {
         }
     }
 
+    /// Read the contents of the directory buffer into the provided slice,
+    /// returning the number of bytes written.
+    ///
+    /// If the directory buffer was never acquired, this is a no-op.
     pub fn read(&mut self, marker: DirMarker, buffer: &mut [u8]) -> u32 {
         let mut out = 0u32;
         unsafe {
@@ -109,7 +117,7 @@ impl DirBuffer {
 }
 
 impl DirBufferLock<'_> {
-    /// Write a DirInfo entry into the directory buffer.
+    /// Write a directory entry into the directory buffer.
     ///
     /// A buffer can accept multiple DirInfos of varying sizes.
     pub fn write<const D: usize>(&mut self, dir_info: &mut DirInfo<D>) -> Result<()> {
@@ -154,6 +162,11 @@ union DirInfoPadding {
 
 #[repr(C)]
 /// A directory information entry.
+///
+/// ## Safety
+/// Note that `BUFFER_SIZE` is the size of the name buffer in characters, not bytes.
+/// In most cases, the default is sufficient. A buffer size that is too large
+/// may not be copyable to the request buffer.
 pub struct DirInfo<const BUFFER_SIZE: usize = 255> {
     size: u16,
     file_info: FileInfo,
@@ -163,6 +176,7 @@ pub struct DirInfo<const BUFFER_SIZE: usize = 255> {
 
 ensure_layout!(FSP_FSCTL_DIR_INFO, DirInfo<0>);
 impl<const BUFFER_SIZE: usize> DirInfo<BUFFER_SIZE> {
+    /// Create a new, empty directory entry info.
     pub fn new() -> Self {
         Self {
             // begin with initially no file_name
@@ -185,22 +199,13 @@ impl<const BUFFER_SIZE: usize> Default for DirInfo<BUFFER_SIZE> {
     }
 }
 
-impl<const BUFFER_SIZE: usize> WideNameInfo<BUFFER_SIZE> for DirInfo<BUFFER_SIZE> {
+impl<const BUFFER_SIZE: usize> WideNameInfoInternal<BUFFER_SIZE> for DirInfo<BUFFER_SIZE> {
     fn name_buffer(&mut self) -> &mut [u16; BUFFER_SIZE] {
         &mut self.file_name
     }
 
     fn set_size(&mut self, buffer_size: u16) {
         self.size = std::mem::size_of::<DirInfo<0>>() as u16 + buffer_size
-    }
-
-    /// Reset the directory entry.
-    fn reset(&mut self) {
-        self.size = std::mem::size_of::<DirInfo<0>>() as u16;
-        self.file_info = FileInfo::default();
-        self.padding.next_offset = 0;
-        self.padding.padding = [0; 24];
-        self.file_name = [0; BUFFER_SIZE]
     }
 
     fn add_to_buffer_internal(entry: Option<&Self>, buffer: &mut [u8], cursor: &mut u32) -> bool {
@@ -223,5 +228,16 @@ impl<const BUFFER_SIZE: usize> WideNameInfo<BUFFER_SIZE> for DirInfo<BUFFER_SIZE
                 ) != 0
             }
         }
+    }
+}
+
+impl<const BUFFER_SIZE: usize> WideNameInfo<BUFFER_SIZE> for DirInfo<BUFFER_SIZE> {
+    /// Reset the directory entry.
+    fn reset(&mut self) {
+        self.size = std::mem::size_of::<DirInfo<0>>() as u16;
+        self.file_info = FileInfo::default();
+        self.padding.next_offset = 0;
+        self.padding.padding = [0; 24];
+        self.file_name = [0; BUFFER_SIZE]
     }
 }

@@ -187,14 +187,10 @@ impl FileSystemContext for NtPassthroughContext {
         file_name: P,
         security_descriptor: PSECURITY_DESCRIPTOR,
         descriptor_len: Option<u64>,
-        resolve_reparse_points: impl FnOnce(&U16CStr) -> Option<u32>,
+        resolve_reparse_points: impl FnOnce(&U16CStr) -> Option<FileSecurity>,
     ) -> winfsp::Result<FileSecurity> {
-        if let Some(reparse_index) = resolve_reparse_points(file_name.as_ref()) {
-            return Ok(FileSecurity {
-                reparse: true,
-                sz_security_descriptor: descriptor_len.unwrap_or(0),
-                attributes: reparse_index,
-            });
+        if let Some(security) = resolve_reparse_points(file_name.as_ref()) {
+            return Ok(security);
         }
         let handle = lfs::lfs_open_file(
             *self.root_handle,
@@ -309,6 +305,10 @@ impl FileSystemContext for NtPassthroughContext {
         ))
     }
 
+    fn close(&self, context: Self::FileContext) {
+        context.close()
+    }
+
     fn create<P: AsRef<U16CStr>>(
         &self,
         file_name: P,
@@ -407,8 +407,78 @@ impl FileSystemContext for NtPassthroughContext {
         ))
     }
 
-    fn close(&self, context: Self::FileContext) {
-        context.close()
+    fn cleanup<P: AsRef<U16CStr>>(
+        &self,
+        context: &mut Self::FileContext,
+        _file_name: Option<P>,
+        flags: u32,
+    ) {
+        if FspCleanupDelete.is_flagged(flags) {
+            // ignore errors..
+            lfs::lfs_set_delete(context.handle(), true).unwrap_or(());
+            context.invalidate();
+        } else if self.set_alloc_size_on_cleanup {
+            if let Ok(fsize) = lfs::lfs_get_file_size(context.handle()) {
+                lfs::lfs_set_allocation_size(context.handle(), fsize).unwrap_or(());
+            }
+        }
+    }
+
+    fn flush(
+        &self,
+        context: Option<&Self::FileContext>,
+        file_info: &mut FileInfo,
+    ) -> winfsp::Result<()> {
+        if context.is_none() {
+            return Ok(());
+        }
+        let context = context.unwrap();
+        lfs::lfs_flush(context.handle())?;
+        lfs::lfs_get_file_info(context.handle(), None, file_info)
+    }
+
+    fn get_file_info(
+        &self,
+        context: &Self::FileContext,
+        file_info: &mut FileInfo,
+    ) -> winfsp::Result<()> {
+        lfs::lfs_get_file_info(context.handle(), None, file_info)
+    }
+
+    fn get_security(
+        &self,
+        context: &Self::FileContext,
+        security_descriptor: PSECURITY_DESCRIPTOR,
+        descriptor_len: Option<u64>,
+    ) -> winfsp::Result<u64> {
+        let needed_size = if let Some(descriptor_len) = descriptor_len {
+            lfs::lfs_get_security(
+                context.handle(),
+                (OWNER_SECURITY_INFORMATION
+                    | GROUP_SECURITY_INFORMATION
+                    | DACL_SECURITY_INFORMATION)
+                    .0,
+                security_descriptor,
+                descriptor_len as u32,
+            )?
+        } else {
+            0
+        };
+
+        Ok(needed_size as u64)
+    }
+
+    fn set_security(
+        &self,
+        context: &Self::FileContext,
+        security_information: u32,
+        modification_descriptor: PSECURITY_DESCRIPTOR,
+    ) -> winfsp::Result<()> {
+        lfs::lfs_set_security(
+            context.handle(),
+            security_information,
+            modification_descriptor,
+        )
     }
 
     fn overwrite(
@@ -472,177 +542,6 @@ impl FileSystemContext for NtPassthroughContext {
             bytes_transferred: bytes_read as u32,
             io_pending: false,
         })
-    }
-
-    fn write(
-        &self,
-        context: &Self::FileContext,
-        mut buffer: &[u8],
-        offset: u64,
-        _write_to_eof: bool,
-        constrained_io: bool,
-        file_info: &mut FileInfo,
-    ) -> winfsp::Result<IoResult> {
-        if constrained_io {
-            let fsize = lfs::lfs_get_file_size(context.handle())?;
-            if offset >= fsize {
-                return Ok(IoResult {
-                    bytes_transferred: 0,
-                    io_pending: false,
-                });
-            }
-
-            if offset + buffer.len() as u64 > fsize {
-                buffer = &buffer[0..(fsize as u64 - offset) as usize]
-            }
-        }
-
-        let bytes_read = lfs::lfs_write_file(context.handle(), buffer, offset)?;
-        lfs::lfs_get_file_info(context.handle(), None, file_info)?;
-        Ok(IoResult {
-            bytes_transferred: bytes_read as u32,
-            io_pending: false,
-        })
-    }
-
-    fn flush(
-        &self,
-        context: Option<&Self::FileContext>,
-        file_info: &mut FileInfo,
-    ) -> winfsp::Result<()> {
-        if context.is_none() {
-            return Ok(());
-        }
-        let context = context.unwrap();
-        lfs::lfs_flush(context.handle())?;
-        lfs::lfs_get_file_info(context.handle(), None, file_info)
-    }
-
-    fn get_file_info(
-        &self,
-        context: &Self::FileContext,
-        file_info: &mut FileInfo,
-    ) -> winfsp::Result<()> {
-        lfs::lfs_get_file_info(context.handle(), None, file_info)
-    }
-
-    fn rename<P: AsRef<U16CStr>>(
-        &self,
-        context: &Self::FileContext,
-        _file_name: P,
-        new_file_name: P,
-        replace_if_exists: bool,
-    ) -> winfsp::Result<()> {
-        let replace_mode = if replace_if_exists
-            && (!context.is_directory()
-                || unsafe {
-                    self.with_operation_request(|f| {
-                        (2 /*POSIX_SEMANTICS*/ & f.Req.SetInformation.Info.RenameEx.Flags) != 0
-                    })
-                }
-                .unwrap_or(false))
-        {
-            LfsRenameSemantics::PosixReplaceSemantics
-        } else if replace_if_exists {
-            LfsRenameSemantics::NtReplaceSemantics
-        } else {
-            LfsRenameSemantics::DoNotReplace
-        };
-
-        // skip first char
-        let new_file_name = &new_file_name.as_ref()[1..];
-        lfs::lfs_rename(
-            *self.root_handle,
-            context.handle(),
-            new_file_name,
-            replace_mode,
-        )
-    }
-
-    fn get_security(
-        &self,
-        context: &Self::FileContext,
-        security_descriptor: PSECURITY_DESCRIPTOR,
-        descriptor_len: Option<u64>,
-    ) -> winfsp::Result<u64> {
-        let needed_size = if let Some(descriptor_len) = descriptor_len {
-            lfs::lfs_get_security(
-                context.handle(),
-                (OWNER_SECURITY_INFORMATION
-                    | GROUP_SECURITY_INFORMATION
-                    | DACL_SECURITY_INFORMATION)
-                    .0,
-                security_descriptor,
-                descriptor_len as u32,
-            )?
-        } else {
-            0
-        };
-
-        Ok(needed_size as u64)
-    }
-
-    fn set_delete<P: AsRef<U16CStr>>(
-        &self,
-        context: &Self::FileContext,
-        _file_name: P,
-        delete_file: bool,
-    ) -> winfsp::Result<()> {
-        lfs::lfs_set_delete(context.handle(), delete_file)
-    }
-
-    fn set_file_size(
-        &self,
-        context: &Self::FileContext,
-        new_size: u64,
-        set_allocation_size: bool,
-        file_info: &mut FileInfo,
-    ) -> winfsp::Result<()> {
-        if set_allocation_size {
-            lfs::lfs_set_allocation_size(context.handle(), new_size)?;
-        } else {
-            lfs::lfs_set_eof(context.handle(), new_size)?;
-        }
-
-        lfs::lfs_get_file_info(context.handle(), None, file_info)
-    }
-
-    fn set_basic_info(
-        &self,
-        context: &Self::FileContext,
-        file_attributes: u32,
-        creation_time: u64,
-        last_access_time: u64,
-        last_write_time: u64,
-        last_change_time: u64,
-        file_info: &mut FileInfo,
-    ) -> winfsp::Result<()> {
-        lfs::lfs_set_basic_info(
-            context.handle(),
-            file_attributes,
-            creation_time,
-            last_access_time,
-            last_write_time,
-            last_change_time,
-        )?;
-        lfs::lfs_get_file_info(context.handle(), None, file_info)
-    }
-
-    fn cleanup<P: AsRef<U16CStr>>(
-        &self,
-        context: &mut Self::FileContext,
-        _file_name: Option<P>,
-        flags: u32,
-    ) {
-        if FspCleanupDelete.is_flagged(flags) {
-            // ignore errors..
-            lfs::lfs_set_delete(context.handle(), true).unwrap_or(());
-            context.invalidate();
-        } else if self.set_alloc_size_on_cleanup {
-            if let Ok(fsize) = lfs::lfs_get_file_size(context.handle()) {
-                lfs::lfs_set_allocation_size(context.handle(), fsize).unwrap_or(());
-            }
-        }
     }
 
     fn read_directory<P: AsRef<U16CStr>>(
@@ -713,6 +612,116 @@ impl FileSystemContext for NtPassthroughContext {
         Ok(context.dir_buffer().read(marker, buffer))
     }
 
+    fn rename<P: AsRef<U16CStr>>(
+        &self,
+        context: &Self::FileContext,
+        _file_name: P,
+        new_file_name: P,
+        replace_if_exists: bool,
+    ) -> winfsp::Result<()> {
+        let replace_mode = if replace_if_exists
+            && (!context.is_directory()
+                || unsafe {
+                    self.with_operation_request(|f| {
+                        (2 /*POSIX_SEMANTICS*/ & f.Req.SetInformation.Info.RenameEx.Flags) != 0
+                    })
+                }
+                .unwrap_or(false))
+        {
+            LfsRenameSemantics::PosixReplaceSemantics
+        } else if replace_if_exists {
+            LfsRenameSemantics::NtReplaceSemantics
+        } else {
+            LfsRenameSemantics::DoNotReplace
+        };
+
+        // skip first char
+        let new_file_name = &new_file_name.as_ref()[1..];
+        lfs::lfs_rename(
+            *self.root_handle,
+            context.handle(),
+            new_file_name,
+            replace_mode,
+        )
+    }
+
+    fn set_basic_info(
+        &self,
+        context: &Self::FileContext,
+        file_attributes: u32,
+        creation_time: u64,
+        last_access_time: u64,
+        last_write_time: u64,
+        last_change_time: u64,
+        file_info: &mut FileInfo,
+    ) -> winfsp::Result<()> {
+        lfs::lfs_set_basic_info(
+            context.handle(),
+            file_attributes,
+            creation_time,
+            last_access_time,
+            last_write_time,
+            last_change_time,
+        )?;
+        lfs::lfs_get_file_info(context.handle(), None, file_info)
+    }
+
+    fn set_delete<P: AsRef<U16CStr>>(
+        &self,
+        context: &Self::FileContext,
+        _file_name: P,
+        delete_file: bool,
+    ) -> winfsp::Result<()> {
+        lfs::lfs_set_delete(context.handle(), delete_file)
+    }
+
+    fn set_file_size(
+        &self,
+        context: &Self::FileContext,
+        new_size: u64,
+        set_allocation_size: bool,
+        file_info: &mut FileInfo,
+    ) -> winfsp::Result<()> {
+        if set_allocation_size {
+            lfs::lfs_set_allocation_size(context.handle(), new_size)?;
+        } else {
+            lfs::lfs_set_eof(context.handle(), new_size)?;
+        }
+
+        lfs::lfs_get_file_info(context.handle(), None, file_info)
+    }
+
+    fn write(
+        &self,
+        context: &Self::FileContext,
+        mut buffer: &[u8],
+        offset: u64,
+        _write_to_eof: bool,
+        constrained_io: bool,
+        file_info: &mut FileInfo,
+    ) -> winfsp::Result<IoResult> {
+        if constrained_io {
+            let fsize = lfs::lfs_get_file_size(context.handle())?;
+            if offset >= fsize {
+                return Ok(IoResult {
+                    bytes_transferred: 0,
+                    io_pending: false,
+                });
+            }
+
+            if offset + buffer.len() as u64 > fsize {
+                buffer = &buffer[0..(fsize as u64 - offset) as usize]
+            }
+        }
+
+        let bytes_read = lfs::lfs_write_file(context.handle(), buffer, offset)?;
+        lfs::lfs_get_file_info(context.handle(), None, file_info)?;
+        Ok(IoResult {
+            bytes_transferred: bytes_read as u32,
+            io_pending: false,
+        })
+    }
+
     fn get_volume_info(&self, out_volume_info: &mut VolumeInfo) -> winfsp::Result<()> {
         let vol_info = lfs::lfs_get_volume_info(*self.root_handle)?;
         out_volume_info.total_size = vol_info.total_size;
@@ -720,35 +729,73 @@ impl FileSystemContext for NtPassthroughContext {
         Ok(())
     }
 
-    fn set_security(
-        &self,
-        context: &Self::FileContext,
-        security_information: u32,
-        modification_descriptor: PSECURITY_DESCRIPTOR,
-    ) -> winfsp::Result<()> {
-        lfs::lfs_set_security(
-            context.handle(),
-            security_information,
-            modification_descriptor,
-        )
-    }
-
-    fn get_extended_attributes(
+    fn get_stream_info(
         &self,
         context: &Self::FileContext,
         buffer: &mut [u8],
     ) -> winfsp::Result<u32> {
-        Ok(lfs::lfs_get_ea(context.handle(), buffer) as u32)
-    }
+        let mut query_buffer = vec![0u8; 16 * 1024];
+        let mut buffer_cursor = 0;
+        let mut stream_info: StreamInfo = StreamInfo::new();
+        let bytes_transferred = lfs::lfs_get_stream_info(context.handle(), &mut query_buffer)?;
 
-    fn set_extended_attributes(
-        &self,
-        context: &Self::FileContext,
-        buffer: &[u8],
-        file_info: &mut FileInfo,
-    ) -> winfsp::Result<()> {
-        lfs::lfs_set_ea(context.handle(), buffer)?;
-        lfs::lfs_get_file_info(context.handle(), None, file_info)
+        let mut query_buffer_cursor = query_buffer.as_ptr() as *const FILE_STREAM_INFORMATION;
+        loop {
+            // SAFETY: FILE_STREAM_INFORMATION has StreamName as the last VST array member, so it's offset is size_of - 1.
+            // bounds check to ensure we don't go past the edge of the buffer.
+            if query_buffer.as_ptr().map_addr(|addr| addr.wrapping_add(bytes_transferred))
+                < (query_buffer_cursor as *const _ as *const u8)
+                .map_addr(|addr| addr.wrapping_add(size_of::<FILE_STREAM_INFORMATION>() - 1))
+            {
+                break;
+            }
+
+            unsafe {
+                let name_length = addr_of!((*query_buffer_cursor).StreamNameLength).read();
+                let mut stream_name_slice = {
+                    let stream_name_ptr = addr_of!((*query_buffer_cursor).StreamName) as *const u16;
+                    std::slice::from_raw_parts(
+                        stream_name_ptr,
+                        name_length
+                            .checked_div(std::mem::size_of::<u16>() as u32)
+                            .expect("Passed in stream name length of 0 from Windows!!")
+                            as usize,
+                    )
+                };
+                if stream_name_slice.first().cloned() == Some(b':' as u16) {
+                    stream_name_slice = &stream_name_slice[1..]
+                }
+
+                stream_info.set_name_raw(stream_name_slice)?;
+            }
+
+            unsafe {
+                stream_info.stream_size = *addr_of!((*query_buffer_cursor).StreamSize)
+                    .read()
+                    .QuadPart() as u64;
+                stream_info.stream_alloc_size =
+                    *addr_of!((*query_buffer_cursor).StreamAllocationSize)
+                        .read()
+                        .QuadPart() as u64;
+            }
+
+            if !stream_info.append_to_buffer(buffer, &mut buffer_cursor) {
+                return Ok(buffer_cursor);
+            }
+
+            unsafe {
+                let query_next = addr_of!((*query_buffer_cursor).NextEntryOffset).read();
+                if query_next == 0 {
+                    break;
+                }
+                query_buffer_cursor = (query_buffer_cursor as *const _ as *const u8)
+                    .map_addr(|addr| addr.wrapping_add(query_next as usize))
+                    .cast();
+            }
+        }
+
+        StreamInfo::<255>::finalize_buffer(buffer, &mut buffer_cursor);
+        Ok(buffer_cursor)
     }
 
     fn get_reparse_point_by_name<P: AsRef<U16CStr>>(
@@ -824,72 +871,21 @@ impl FileSystemContext for NtPassthroughContext {
         Ok(())
     }
 
-    fn get_stream_info(
+    fn get_extended_attributes(
         &self,
         context: &Self::FileContext,
         buffer: &mut [u8],
     ) -> winfsp::Result<u32> {
-        let mut query_buffer = vec![0u8; 16 * 1024];
-        let mut buffer_cursor = 0;
-        let mut stream_info: StreamInfo = StreamInfo::new();
-        let bytes_transferred = lfs::lfs_get_stream_info(context.handle(), &mut query_buffer)?;
+        Ok(lfs::lfs_get_ea(context.handle(), buffer) as u32)
+    }
 
-        let mut query_buffer_cursor = query_buffer.as_ptr() as *const FILE_STREAM_INFORMATION;
-        loop {
-            // SAFETY: FILE_STREAM_INFORMATION has StreamName as the last VST array member, so it's offset is size_of - 1.
-            // bounds check to ensure we don't go past the edge of the buffer.
-            if query_buffer.as_ptr().map_addr(|addr| addr.wrapping_add(bytes_transferred))
-                < (query_buffer_cursor as *const _ as *const u8)
-                .map_addr(|addr| addr.wrapping_add(size_of::<FILE_STREAM_INFORMATION>() - 1))
-            {
-                break;
-            }
-
-            unsafe {
-                let name_length = addr_of!((*query_buffer_cursor).StreamNameLength).read();
-                let mut stream_name_slice = {
-                    let stream_name_ptr = addr_of!((*query_buffer_cursor).StreamName) as *const u16;
-                    std::slice::from_raw_parts(
-                        stream_name_ptr,
-                        name_length
-                            .checked_div(std::mem::size_of::<u16>() as u32)
-                            .expect("Passed in stream name length of 0 from Windows!!")
-                            as usize,
-                    )
-                };
-                if stream_name_slice.first().cloned() == Some(b':' as u16) {
-                    stream_name_slice = &stream_name_slice[1..]
-                }
-
-                stream_info.set_name_raw(stream_name_slice)?;
-            }
-
-            unsafe {
-                stream_info.stream_size = *addr_of!((*query_buffer_cursor).StreamSize)
-                    .read()
-                    .QuadPart() as u64;
-                stream_info.stream_alloc_size =
-                    *addr_of!((*query_buffer_cursor).StreamAllocationSize)
-                        .read()
-                        .QuadPart() as u64;
-            }
-
-            if !stream_info.append_to_buffer(buffer, &mut buffer_cursor) {
-                return Ok(buffer_cursor);
-            }
-
-            unsafe {
-                let query_next = addr_of!((*query_buffer_cursor).NextEntryOffset).read();
-                if query_next == 0 {
-                    break;
-                }
-                query_buffer_cursor = (query_buffer_cursor as *const _ as *const u8)
-                    .map_addr(|addr| addr.wrapping_add(query_next as usize))
-                    .cast();
-            }
-        }
-
-        StreamInfo::<255>::finalize_buffer(buffer, &mut buffer_cursor);
-        Ok(buffer_cursor)
+    fn set_extended_attributes(
+        &self,
+        context: &Self::FileContext,
+        buffer: &[u8],
+        file_info: &mut FileInfo,
+    ) -> winfsp::Result<()> {
+        lfs::lfs_set_ea(context.handle(), buffer)?;
+        lfs::lfs_get_file_info(context.handle(), None, file_info)
     }
 }

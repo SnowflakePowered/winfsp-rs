@@ -6,7 +6,7 @@ Safe Rust bindings to [WinFSP](https://github.com/winfsp/winfsp) with examples.
 
 > ⚠️ **Very WIP and not production ready!** ⚠️
 > 
-> This crate may possibly be unsound, and is very undocumented.   
+> This crate is possibly unsound, and is very undocumented.   
 > A best effort has been made to keep aliasing rules around, but FFI with WinFSP involves a lot of pointers that end up 
 > as references when putting a Rust-friendly API around it, and the nature of FFI makes it difficult to test with miri.
 
@@ -16,7 +16,7 @@ feature. The path will automatically be determined via the Registry.
 
 ```toml
 [dependencies.winfsp]
-version = "0.2"
+version = "0.3"
 features = ["system"]
 ```
 ### Delay-loading
@@ -26,7 +26,7 @@ the build script.
 #### Cargo.toml
 ```toml
 [build-dependencies]
-winfsp = "0.2"
+winfsp = "0.3"
 ```
 
 #### build.rs

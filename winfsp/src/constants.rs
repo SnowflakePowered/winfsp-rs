@@ -1,19 +1,26 @@
 //! Useful constants re-exported from `winfsp-sys`.
 use winfsp_sys::{FSP_FSCTL_TRANSACT_REQ, FSP_FSCTL_TRANSACT_RSP, WCHAR};
 
+/// Flags passed to [FileSystemContext::cleanup](crate::filesystem::FileSystemContext::cleanup)
 #[repr(u32)]
 #[derive(Copy, Clone)]
 pub enum FspCleanupFlags {
+    /// Delete the file.
     FspCleanupDelete = 0x01,
+    /// Set the allocation size of the file.
     FspCleanupSetAllocationSize = 0x02,
+    /// Set the archive bit of the file.
     FspCleanupSetArchiveBit = 0x10,
+    /// Set the last access time for the file.
     FspCleanupSetLastAccessTime = 0x20,
+    /// Set the last write time for the file.
     FspCleanupSetLastWriteTime = 0x40,
+    /// Set the change time for the file.
     FspCleanupSetChangeTime = 0x80,
 }
 
 impl FspCleanupFlags {
-    /// Check if the provided bitfield has a flag.
+    /// Check if the flag is set in the provided bitfield.
     pub fn is_flagged(&self, flag: u32) -> bool {
         (*self as u32) & flag != 0
     }
@@ -35,3 +42,5 @@ pub const FSP_FSCTL_TRANSACT_REQ_SIZEMAX: usize =
     winfsp_sys::FSP_FSCTL_TRANSACT_REQ_SIZEMAX as usize;
 pub const FSP_FSCTL_TRANSACT_RSP_SIZEMAX: usize =
     winfsp_sys::FSP_FSCTL_TRANSACT_RSP_SIZEMAX as usize;
+
+pub const MAX_PATH: usize = 260;

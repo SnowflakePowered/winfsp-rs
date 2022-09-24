@@ -1,6 +1,5 @@
 use std::ffi::c_void;
 use std::slice;
-use windows::core::PWSTR;
 
 use windows::Win32::Foundation::{
     EXCEPTION_NONCONTINUABLE_EXCEPTION, STATUS_INSUFFICIENT_RESOURCES, STATUS_PENDING,
@@ -17,7 +16,10 @@ use winfsp_sys::{
 };
 use winfsp_sys::{NTSTATUS as FSP_STATUS, PVOID};
 
-use crate::filesystem::{DirInfo, DirMarker, FileInfo, FileSecurity, FileSystemContext, IoResult, OpenFileInfo, VolumeInfo};
+use crate::filesystem::{
+    DirInfo, DirMarker, FileInfo, FileSecurity, FileSystemContext, IoResult, OpenFileInfo,
+    VolumeInfo,
+};
 
 /// Catch panic and return EXECPTION_NONCONTINUABLE_EXCEPTION
 macro_rules! catch_panic {
@@ -132,6 +134,7 @@ unsafe extern "C" fn get_security_by_name<T: FileSystemContext>(
         }
         let file_name = unsafe { U16CStr::from_ptr_str_mut(file_name) };
 
+        let descriptor_len = unsafe { sz_security_descriptor.as_ref() }.cloned();
         // pass reparse point resolver into function
         let find_reparse_points = |file_name: &U16CStr| {
             let mut reparse_index = 0;
@@ -144,7 +147,11 @@ unsafe extern "C" fn get_security_by_name<T: FileSystemContext>(
                     &mut reparse_index,
                 ) != 0
                 {
-                    Some(reparse_index)
+                    Some(FileSecurity {
+                        reparse: true,
+                        sz_security_descriptor: descriptor_len.unwrap_or(0),
+                        attributes: reparse_index,
+                    })
                 } else {
                     None
                 }
@@ -155,7 +162,7 @@ unsafe extern "C" fn get_security_by_name<T: FileSystemContext>(
             context,
             file_name,
             PSECURITY_DESCRIPTOR(security_descriptor),
-            unsafe { sz_security_descriptor.as_ref() }.cloned(),
+            descriptor_len,
             find_reparse_points,
         ) {
             Ok(FileSecurity {
@@ -306,7 +313,8 @@ unsafe extern "C" fn set_volume_label<T: FileSystemContext>(
     catch_panic!({
         if let Some(volume_info) = unsafe { volume_info.cast::<VolumeInfo>().as_mut() } {
             require_ctx(fs, |context| {
-                T::set_volume_label(context, PWSTR::from_raw(volume_label), volume_info)
+                let volume_label = unsafe { U16CStr::from_ptr_str(volume_label) };
+                T::set_volume_label(context, volume_label, volume_info)
             })
         } else {
             EXCEPTION_NONCONTINUABLE_EXCEPTION.0
@@ -610,7 +618,13 @@ unsafe extern "C" fn flush<T: FileSystemContext>(
     catch_panic!({
         require_ctx(fs, |context| {
             let fctx = fctx.cast::<T::FileContext>();
-            unsafe { T::flush(context, fctx.as_ref(), &mut *out_file_info.cast::<FileInfo>()) }
+            unsafe {
+                T::flush(
+                    context,
+                    fctx.as_ref(),
+                    &mut *out_file_info.cast::<FileInfo>(),
+                )
+            }
         })
     })
 }
@@ -666,7 +680,14 @@ unsafe extern "C" fn set_ea<T: FileSystemContext>(
     catch_panic!({
         require_fctx(fs, fctx, |context, fctx| {
             let buffer = unsafe { slice::from_raw_parts(ea.cast::<u8>(), ea_len as usize) };
-            unsafe { T::set_extended_attributes(context, fctx, buffer, &mut *out_file_info.cast::<FileInfo>()) }
+            unsafe {
+                T::set_extended_attributes(
+                    context,
+                    fctx,
+                    buffer,
+                    &mut *out_file_info.cast::<FileInfo>(),
+                )
+            }
         })
     })
 }

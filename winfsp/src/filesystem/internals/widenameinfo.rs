@@ -1,11 +1,10 @@
+use crate::{Result, U16CStr};
 use std::ffi::OsStr;
 use std::iter;
 use std::os::windows::ffi::OsStrExt;
 use windows::Win32::Foundation::STATUS_INSUFFICIENT_RESOURCES;
-use crate::{Result, U16CStr};
 
-/// A information entry that contains a wide name buffer.
-pub trait WideNameInfo<const BUFFER_SIZE: usize = 255>: crate::filesystem::sealed::Sealed {
+pub trait WideNameInfoInternal<const BUFFER_SIZE: usize = 255> : crate::filesystem::sealed::Sealed {
     #[doc(hidden)]
     /// Return a reference to the name buffer.
     fn name_buffer(&mut self) -> &mut [u16; BUFFER_SIZE];
@@ -14,12 +13,13 @@ pub trait WideNameInfo<const BUFFER_SIZE: usize = 255>: crate::filesystem::seale
     /// Set the size of the entry.
     fn set_size(&mut self, buffer_size: u16);
 
-    /// Reset the contents of the entry.
-    fn reset(&mut self);
-
     #[doc(hidden)]
     fn add_to_buffer_internal(entry: Option<&Self>, buffer: &mut [u8], cursor: &mut u32) -> bool;
 
+}
+
+/// A information entry that contains a wide name buffer.
+pub trait WideNameInfo<const BUFFER_SIZE: usize = 255>: crate::filesystem::sealed::Sealed + WideNameInfoInternal<BUFFER_SIZE> {
     /// Finalize the buffer, indicating that no more entries are to be written.
     ///
     /// If successful, returns true, otherwise false indicates that no more entries
@@ -36,6 +36,9 @@ pub trait WideNameInfo<const BUFFER_SIZE: usize = 255>: crate::filesystem::seale
     fn append_to_buffer(&self, buffer: &mut [u8], cursor: &mut u32) -> bool {
         Self::add_to_buffer_internal(Some(self), buffer, cursor)
     }
+
+    /// Reset the contents of the entry.
+    fn reset(&mut self);
 
     /// Write the name of the entry as raw u16 bytes.
     ///
