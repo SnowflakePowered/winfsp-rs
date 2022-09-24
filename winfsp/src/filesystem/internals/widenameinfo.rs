@@ -4,7 +4,9 @@ use std::iter;
 use std::os::windows::ffi::OsStrExt;
 use windows::Win32::Foundation::STATUS_INSUFFICIENT_RESOURCES;
 
-pub trait WideNameInfoInternal<const BUFFER_SIZE: usize = 255> : crate::filesystem::sealed::Sealed {
+pub trait WideNameInfoInternal<const BUFFER_SIZE: usize = 255>:
+    crate::filesystem::sealed::Sealed
+{
     #[doc(hidden)]
     /// Return a reference to the name buffer.
     fn name_buffer(&mut self) -> &mut [u16; BUFFER_SIZE];
@@ -15,11 +17,12 @@ pub trait WideNameInfoInternal<const BUFFER_SIZE: usize = 255> : crate::filesyst
 
     #[doc(hidden)]
     fn add_to_buffer_internal(entry: Option<&Self>, buffer: &mut [u8], cursor: &mut u32) -> bool;
-
 }
 
 /// A information entry that contains a wide name buffer.
-pub trait WideNameInfo<const BUFFER_SIZE: usize = 255>: crate::filesystem::sealed::Sealed + WideNameInfoInternal<BUFFER_SIZE> {
+pub trait WideNameInfo<const BUFFER_SIZE: usize = 255>:
+    crate::filesystem::sealed::Sealed + WideNameInfoInternal<BUFFER_SIZE>
+{
     /// Finalize the buffer, indicating that no more entries are to be written.
     ///
     /// If successful, returns true, otherwise false indicates that no more entries

@@ -1,7 +1,7 @@
 use crate::filesystem::{ensure_layout, WideNameInfo};
 
-use winfsp_sys::{FspFileSystemAddNotifyInfo, FSP_FSCTL_NOTIFY_INFO};
 use crate::filesystem::widenameinfo::WideNameInfoInternal;
+use winfsp_sys::{FspFileSystemAddNotifyInfo, FSP_FSCTL_NOTIFY_INFO};
 
 #[repr(C)]
 #[derive(Debug, Clone)]

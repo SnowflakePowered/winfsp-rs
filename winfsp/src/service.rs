@@ -1,4 +1,4 @@
-//! Interfaces to the WinFSP service API to host a filesystem.
+//! Interfaces to the WinFSP service API to run a filesystem.
 use crate::error::FspError;
 use crate::FspInit;
 use crate::Result;

@@ -36,8 +36,12 @@ use windows::Win32::System::WindowsProgramming::{FILE_DELETE_ON_CLOSE, FILE_DIRE
 use windows::Win32::System::IO::{OVERLAPPED, OVERLAPPED_0, OVERLAPPED_0_0};
 
 use winfsp::constants::FspCleanupFlags;
-use winfsp::filesystem::{DirBuffer, DirInfo, DirMarker, FileSecurity, FileSystemContext, FileSystemHost, IoResult, WideNameInfo, FileInfo, VolumeParams, FileContextMode, VolumeInfo, OpenFileInfo};
+use winfsp::filesystem::{
+    DirBuffer, DirInfo, DirMarker,  FileInfo, FileSecurity, FileSystemContext,
+    IoResult, OpenFileInfo, VolumeInfo, WideNameInfo,
+};
 use winfsp::{FspError, Result};
+use winfsp::host::{FileContextMode, FileSystemHost, VolumeParams};
 
 use winfsp::util::Win32SafeHandle;
 
@@ -75,11 +79,7 @@ macro_rules! win32_try {
 }
 
 impl PtfsContext {
-    fn get_file_info_internal(
-        &self,
-        file_handle: HANDLE,
-        file_info: &mut FileInfo,
-    ) -> Result<()> {
+    fn get_file_info_internal(&self, file_handle: HANDLE, file_info: &mut FileInfo) -> Result<()> {
         let mut os_file_info: BY_HANDLE_FILE_INFORMATION = Default::default();
         win32_try!(unsafe GetFileInformationByHandle(file_handle, &mut os_file_info));
 
@@ -298,11 +298,7 @@ impl FileSystemContext for PtfsContext {
         }
     }
 
-    fn flush(
-        &self,
-        context: Option<&Self::FileContext>,
-        file_info: &mut FileInfo,
-    ) -> Result<()> {
+    fn flush(&self, context: Option<&Self::FileContext>, file_info: &mut FileInfo) -> Result<()> {
         if context.is_none() {
             return Ok(());
         }
@@ -317,11 +313,7 @@ impl FileSystemContext for PtfsContext {
         self.get_file_info_internal(*context.handle, file_info)
     }
 
-    fn get_file_info(
-        &self,
-        context: &Self::FileContext,
-        file_info: &mut FileInfo,
-    ) -> Result<()> {
+    fn get_file_info(&self, context: &Self::FileContext, file_info: &mut FileInfo) -> Result<()> {
         self.get_file_info_internal(*context.handle, file_info)
     }
 
@@ -741,7 +733,8 @@ impl Ptfs {
         let canonical_path = fs::canonicalize(&path)?;
         let mut volume_params = VolumeParams::new(FileContextMode::Descriptor);
 
-        volume_params.sector_size(ALLOCATION_UNIT)
+        volume_params
+            .sector_size(ALLOCATION_UNIT)
             .sectors_per_allocation_unit(1)
             .volume_creation_time(metadata.creation_time())
             .volume_serial_number(0)

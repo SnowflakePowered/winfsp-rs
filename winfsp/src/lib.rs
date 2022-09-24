@@ -8,6 +8,7 @@
 pub mod constants;
 mod error;
 pub mod filesystem;
+pub mod host;
 mod init;
 pub mod service;
 pub mod util;

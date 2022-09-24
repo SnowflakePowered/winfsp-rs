@@ -44,7 +44,7 @@ pub trait FileSystemContext: Sized {
     /// The user context that represents an open handle in the file system.
     ///
     /// The semantics of `FileContext` vary depending on the volume parameters
-    /// used to mount the file system. See [`FileContextMode`](crate::filesystem::FileContextMode)
+    /// used to mount the file system. See [`FileContextMode`](crate::host::FileContextMode)
     /// for more information.
     type FileContext: Sized;
 
@@ -188,6 +188,11 @@ pub trait FileSystemContext: Sized {
     }
 
     /// Set the file delete flag.
+    ///
+    /// ## Safety
+    /// The file should **never** be deleted in this function. Instead,
+    /// set a flag to indicate that the file is to be deleted later by
+    /// [`FileSystemContext::cleanup`](crate::filesystem::FileSystemContext::cleanup).
     fn set_delete<P: AsRef<U16CStr>>(
         &self,
         context: &Self::FileContext,
@@ -233,9 +238,9 @@ pub trait FileSystemContext: Sized {
 
     /// Get directory information for a single file or directory within a parent directory.
     ///
-    /// This method is only called when [VolumeParams::pass_query_directory_filename](crate::filesystem::VolumeParams::pass_query_directory_filename)
-    /// is set to true, and the file system was created with [FileSystemHost::new_with_directory_by_name](crate::filesystem::FileSystemHost::new_with_directory_by_name)
-    /// with `use_directory_by_name` set to true.
+    /// This method is only called when [VolumeParams::pass_query_directory_filename](crate::host::VolumeParams::pass_query_directory_filename)
+    /// is set to true, and the file system was created with [FileSystemParams::use_dir_info_by_name](crate::host::FileSystemParams).
+    /// set to true.
     fn get_dir_info_by_name<P: AsRef<U16CStr>>(
         &self,
         context: &Self::FileContext,
@@ -277,7 +282,6 @@ pub trait FileSystemContext: Sized {
     ) -> Result<u64> {
         Err(STATUS_INVALID_DEVICE_REQUEST.into())
     }
-
 
     /// Get reparse point information.
     fn get_reparse_point<P: AsRef<U16CStr>>(

@@ -8,8 +8,8 @@ use winfsp_sys::{
 };
 
 use crate::error::Result;
-use crate::filesystem::{ensure_layout, FileInfo, WideNameInfo};
 use crate::filesystem::sealed::WideNameInfoInternal;
+use crate::filesystem::{ensure_layout, FileInfo, WideNameInfo};
 
 /// A buffer used to hold directory entries when enumerating directories
 /// with the [`read_directory`](crate::filesystem::FileSystemContext::read_directory)

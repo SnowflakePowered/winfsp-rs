@@ -1,4 +1,4 @@
-//! Useful constants re-exported from `winfsp-sys`.
+//! Useful constants re-exported from [`winfsp-sys`](https://docs.rs/winfsp-sys/).
 use winfsp_sys::{FSP_FSCTL_TRANSACT_REQ, FSP_FSCTL_TRANSACT_RSP, WCHAR};
 
 /// Flags passed to [FileSystemContext::cleanup](crate::filesystem::FileSystemContext::cleanup)
@@ -25,6 +25,36 @@ impl FspCleanupFlags {
         (*self as u32) & flag != 0
     }
 }
+
+#[repr(u32)]
+#[derive(Copy, Clone)]
+/// An enumeration of possible transaction kinds by the WinFSP file system driver.
+pub enum FspTransactKind {
+    FspFsctlTransactReservedKind = 0,
+    FspFsctlTransactCreateKind,
+    FspFsctlTransactOverwriteKind,
+    FspFsctlTransactCleanupKind,
+    FspFsctlTransactCloseKind,
+    FspFsctlTransactReadKind,
+    FspFsctlTransactWriteKind,
+    FspFsctlTransactQueryInformationKind,
+    FspFsctlTransactSetInformationKind,
+    FspFsctlTransactQueryEaKind,
+    FspFsctlTransactSetEaKind,
+    FspFsctlTransactFlushBuffersKind,
+    FspFsctlTransactQueryVolumeInformationKind,
+    FspFsctlTransactSetVolumeInformationKind,
+    FspFsctlTransactQueryDirectoryKind,
+    FspFsctlTransactFileSystemControlKind,
+    FspFsctlTransactDeviceControlKind,
+    FspFsctlTransactShutdownKind,
+    FspFsctlTransactLockControlKind,
+    FspFsctlTransactQuerySecurityKind,
+    FspFsctlTransactSetSecurityKind,
+    FspFsctlTransactQueryStreamInformationKind,
+    FspFsctlTransactKindCount,
+}
+
 pub const FSP_FSCTL_TRANSACT_PATH_SIZEMAX: usize = 1024 * std::mem::size_of::<WCHAR>();
 pub const FSP_FSCTL_TRANSACT_REQ_BUFFER_SIZEMAX: usize =
     FSP_FSCTL_TRANSACT_REQ_SIZEMAX as usize - std::mem::size_of::<FSP_FSCTL_TRANSACT_REQ>();

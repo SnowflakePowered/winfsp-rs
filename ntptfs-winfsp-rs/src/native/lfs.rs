@@ -361,14 +361,14 @@ pub fn lfs_get_file_name(handle: HANDLE) -> winfsp::Result<Box<[u16]>> {
 // quick hack to be polymorphic for lfs_get_file_info
 pub enum MaybeOpenFileInfo<'a> {
     FileInfo(&'a mut FileInfo),
-    OpenFileInfo(&'a mut OpenFileInfo)
+    OpenFileInfo(&'a mut OpenFileInfo),
 }
 
 impl AsRef<FileInfo> for MaybeOpenFileInfo<'_> {
     fn as_ref(&self) -> &FileInfo {
         match self {
             MaybeOpenFileInfo::FileInfo(f) => f,
-            MaybeOpenFileInfo::OpenFileInfo(f) => f.as_ref()
+            MaybeOpenFileInfo::OpenFileInfo(f) => f.as_ref(),
         }
     }
 }
@@ -377,7 +377,7 @@ impl AsMut<FileInfo> for MaybeOpenFileInfo<'_> {
     fn as_mut(&mut self) -> &mut FileInfo {
         match self {
             MaybeOpenFileInfo::FileInfo(f) => f,
-            MaybeOpenFileInfo::OpenFileInfo(f) => f.as_mut()
+            MaybeOpenFileInfo::OpenFileInfo(f) => f.as_mut(),
         }
     }
 }

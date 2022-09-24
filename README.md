@@ -4,11 +4,14 @@
 
 Safe Rust bindings to [WinFSP](https://github.com/winfsp/winfsp) with examples. 
 
-> ⚠️ **Very WIP and not production ready!** ⚠️
+> ⚠️ **Use at your own risk** ⚠️
 > 
-> This crate is possibly unsound, and is very undocumented.   
-> A best effort has been made to keep aliasing rules around, but FFI with WinFSP involves a lot of pointers that end up 
-> as references when putting a Rust-friendly API around it, and the nature of FFI makes it difficult to test with miri.
+> A best effort has been made to keep Rust's aliasing rules in mind, and provide a safe and sound wrapper over
+> WinFSP. However, FFI with WinFSP involves a lot of pointers that end up as references and the nature of FFI makes
+> it difficult to test with miri. While ntptfs is used to test the correctness of the bindings and passes 
+> `winfsp-tests-x64.exe --case-insensitive-cmp -volpath_mount_test`, there is still a chance these bindings are unsound.
+> 
+> Please file a bug report if you encounter unsoundness when using the safe APIs of these bindings.
 
 ## Usage
 By default, winfsp-rs builds against an included import library. To build against the installed WinFSP libraries, enable the `system`
@@ -16,7 +19,7 @@ feature. The path will automatically be determined via the Registry.
 
 ```toml
 [dependencies.winfsp]
-version = "0.3"
+version = "0.4"
 features = ["system"]
 ```
 ### Delay-loading
@@ -26,7 +29,7 @@ the build script.
 #### Cargo.toml
 ```toml
 [build-dependencies]
-winfsp = "0.3"
+winfsp = "0.4"
 ```
 
 #### build.rs
@@ -37,7 +40,8 @@ fn main() {
 ```
 
 ### Debugging
-Debug output can be enabled with the `debug` feature. Debug output is not currently configurable at runtime.
+Debug output can be enabled with the `debug` feature. Debug output will be written to standard output, 
+and redirection of output is not configurable at this time.
 ```toml
 [dependencies.winfsp]
 features = ["debug"]

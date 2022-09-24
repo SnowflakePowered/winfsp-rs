@@ -623,7 +623,7 @@ checksum = "8b9761f0216b669019df1512f6e25e5ee779bf61c5cdc43c7293858e7efd7926"
 
 [[package]]
 name = "winfsp"
-version = "0.3.1+winfsp-1.11"
+version = "0.4.0+winfsp-1.11"
 dependencies = [
  "bytemuck",
  "paste",

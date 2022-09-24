@@ -45,9 +45,13 @@ use windows_sys::Win32::System::WindowsProgramming::{
     FILE_SYNCHRONOUS_IO_NONALERT,
 };
 use winfsp::constants::FspCleanupFlags::FspCleanupDelete;
-use winfsp::filesystem::{DirInfo, DirMarker, FileSecurity, FileSystemContext, IoResult, StreamInfo, WideNameInfo, FileInfo, VolumeParams, VolumeInfo, OpenFileInfo};
+use winfsp::filesystem::{
+    DirInfo, DirMarker, FileInfo, FileSecurity, FileSystemContext, IoResult, OpenFileInfo,
+    StreamInfo, VolumeInfo, WideNameInfo,
+};
 use winfsp::util::Win32SafeHandle;
 use winfsp::FspError;
+use winfsp::host::VolumeParams;
 use winfsp::U16CStr;
 
 #[repr(C)]
@@ -116,7 +120,8 @@ impl NtPassthroughContext {
         let fs_attr = volume::get_attr(*context.root_handle)?;
         let fs_sz = volume::get_size(*context.root_handle)?;
 
-        volume_params.sector_size(fs_sz.BytesPerSector as u16)
+        volume_params
+            .sector_size(fs_sz.BytesPerSector as u16)
             .sectors_per_allocation_unit(fs_sz.SectorsPerAllocationUnit as u16)
             .max_component_length(unsafe { fs_attr.as_ref().MaximumComponentNameLength } as u16)
             .case_sensitive_search(false)
@@ -164,7 +169,8 @@ impl NtPassthroughContext {
         file_info.allocation_size = unsafe { addr_of!((*query_info).AllocationSize).read() } as u64;
         file_info.file_size = unsafe { addr_of!((*query_info).EndOfFile).read() } as u64;
         file_info.creation_time = unsafe { addr_of!((*query_info).CreationTime).read() } as u64;
-        file_info.last_access_time = unsafe { addr_of!((*query_info).LastAccessTime).read() } as u64;
+        file_info.last_access_time =
+            unsafe { addr_of!((*query_info).LastAccessTime).read() } as u64;
         file_info.last_write_time = unsafe { addr_of!((*query_info).LastWriteTime).read() } as u64;
         file_info.change_time = unsafe { addr_of!((*query_info).ChangeTime).read() } as u64;
         file_info.index_number = unsafe { addr_of!((*query_info).FileId).read() } as u64;
@@ -298,11 +304,7 @@ impl FileSystemContext for NtPassthroughContext {
         let file_size = file_info.as_ref().file_size;
         lfs::lfs_get_file_info(*handle, Some(self.root_prefix_len), file_info)?;
 
-        Ok(Self::FileContext::new(
-            handle,
-            file_size,
-            is_directory,
-        ))
+        Ok(Self::FileContext::new(handle, file_size, is_directory))
     }
 
     fn close(&self, context: Self::FileContext) {
@@ -400,11 +402,7 @@ impl FileSystemContext for NtPassthroughContext {
         let file_size = file_info.as_ref().file_size;
         lfs::lfs_get_file_info(*handle, Some(self.root_prefix_len), file_info)?;
 
-        Ok(Self::FileContext::new(
-            handle,
-            file_size,
-            is_directory,
-        ))
+        Ok(Self::FileContext::new(handle, file_size, is_directory))
     }
 
     fn cleanup<P: AsRef<U16CStr>>(
@@ -583,9 +581,12 @@ impl FileSystemContext for NtPassthroughContext {
                     'inner: loop {
                         // SAFETY: FILE_ID_BOTH_DIR_INFO has FileName as the last VST array member, so it's offset is size_of - 1.
                         // bounds check to ensure we don't go past the edge of the buffer.
-                        if query_buffer.as_ptr().map_addr(|addr| addr.wrapping_add(bytes_transferred))
-                            < (query_buffer_cursor as *const _ as *const u8)
-                                .map_addr(|addr| addr.wrapping_add(size_of::<FILE_ID_BOTH_DIR_INFO>() - 1))
+                        if query_buffer
+                            .as_ptr()
+                            .map_addr(|addr| addr.wrapping_add(bytes_transferred))
+                            < (query_buffer_cursor as *const _ as *const u8).map_addr(|addr| {
+                                addr.wrapping_add(size_of::<FILE_ID_BOTH_DIR_INFO>() - 1)
+                            })
                         {
                             break 'once;
                         }
@@ -743,9 +744,11 @@ impl FileSystemContext for NtPassthroughContext {
         loop {
             // SAFETY: FILE_STREAM_INFORMATION has StreamName as the last VST array member, so it's offset is size_of - 1.
             // bounds check to ensure we don't go past the edge of the buffer.
-            if query_buffer.as_ptr().map_addr(|addr| addr.wrapping_add(bytes_transferred))
+            if query_buffer
+                .as_ptr()
+                .map_addr(|addr| addr.wrapping_add(bytes_transferred))
                 < (query_buffer_cursor as *const _ as *const u8)
-                .map_addr(|addr| addr.wrapping_add(size_of::<FILE_STREAM_INFORMATION>() - 1))
+                    .map_addr(|addr| addr.wrapping_add(size_of::<FILE_STREAM_INFORMATION>() - 1))
             {
                 break;
             }

@@ -6,7 +6,7 @@ use winfsp_sys::FSP_FSCTL_VOLUME_PARAMS;
 #[repr(transparent)]
 #[derive(Debug, Clone)]
 /// Parameters that control how the WinFSP volume is mounted and processes requests.
-pub struct VolumeParams(pub(in crate::filesystem) FSP_FSCTL_VOLUME_PARAMS);
+pub struct VolumeParams(pub(crate) FSP_FSCTL_VOLUME_PARAMS);
 
 /// Sets whether the FileContext represents a file node, or a file descriptor.
 ///
@@ -74,7 +74,7 @@ impl VolumeParams {
     }
 
     /// Safety: the returned pointer must not be modified.
-    pub(in crate::filesystem) unsafe fn get_winfsp_device_name(&self) -> *mut u16 {
+    pub(crate) unsafe fn get_winfsp_device_name(&self) -> *mut u16 {
         if self.0.Prefix[0] != 0 {
             w!("WinFsp.Net").as_ptr().cast_mut()
         } else {

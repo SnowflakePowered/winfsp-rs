@@ -1,11 +1,8 @@
 //! The main filesystem interfaces and helpers used to implement a WinFSP filesystem.
 mod context;
 mod directory;
-mod host;
-mod interface;
 mod internals;
 mod stream;
-mod volume;
 
 mod sealed {
     use crate::filesystem::{directory, stream};
@@ -20,7 +17,5 @@ mod sealed {
 
 pub use context::*;
 pub use directory::*;
-pub use host::*;
 pub use internals::*;
 pub use stream::*;
-pub use volume::*;
