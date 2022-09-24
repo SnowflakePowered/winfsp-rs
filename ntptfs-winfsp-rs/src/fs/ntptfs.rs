@@ -29,7 +29,7 @@ impl NtPassthroughFilesystem {
 
         Ok(NtPassthroughFilesystem {
             fs: FileSystemHost::new_with_options(
-                FileSystemParams::default_options_debug(volume_params, DebugMode::all()),
+                FileSystemParams::default_params_debug(volume_params, DebugMode::all()),
                 context,
             )?,
         })
