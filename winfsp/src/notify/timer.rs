@@ -41,6 +41,9 @@ extern "system" fn timer_callback<R, T: NotifyingFileSystemContext<R>, const TIM
     _timer: *mut TP_TIMER,
 ) {
     let fs = context.cast::<FSP_FILE_SYSTEM>();
+    if fs.is_null() {
+        panic!("Timer callback was passed in a null pointer")
+    }
     let context: &T = unsafe { &*(*fs).UserContext.cast::<T>() };
     let notifier = Notifier(fs);
     if let Some(val) = context.should_notify() {
