@@ -69,8 +69,8 @@ fn require_fctx_mut<C: FileSystemContext, F>(
     fctx: PVOID,
     inner: F,
 ) -> FSP_STATUS
-    where
-        F: FnOnce(&C, &mut C::FileContext) -> error::Result<()>,
+where
+    F: FnOnce(&C, &mut C::FileContext) -> error::Result<()>,
 {
     assert_ctx!(fs);
     assert_ctx!(fctx);
@@ -297,8 +297,8 @@ unsafe extern "C" fn close<T: FileSystemContext>(fs: *mut FSP_FILE_SYSTEM, fctx:
         return;
     }
     catch_panic!({
-        require_fctx_mut(fs, fctx, |context, fctx| {
-            T::close(context, unsafe { *Box::from_raw(fctx) });
+        require_ctx(fs, |context| {
+            T::close(context, unsafe { *Box::from_raw(fctx.cast()) });
             Ok(())
         })
     });
