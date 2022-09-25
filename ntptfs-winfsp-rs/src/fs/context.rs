@@ -544,7 +544,7 @@ impl FileSystemContext for NtPassthroughContext {
 
     fn read_directory<P: AsRef<U16CStr>>(
         &self,
-        context: &mut Self::FileContext,
+        context: &Self::FileContext,
         pattern: Option<P>,
         marker: DirMarker,
         buffer: &mut [u8],
@@ -558,7 +558,7 @@ impl FileSystemContext for NtPassthroughContext {
         let handle = context.handle();
         let pattern = pattern.map(|p| PCWSTR(p.as_ref().as_ptr()));
         let mut dirinfo: DirInfo = DirInfo::new();
-        if let Ok(mut dirbuffer) = context
+        if let Ok(dirbuffer) = context
             .dir_buffer()
             .acquire(marker.is_none(), Some(dir_size))
         {

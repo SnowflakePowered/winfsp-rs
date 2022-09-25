@@ -445,12 +445,12 @@ impl FileSystemContext for PtfsContext {
 
     fn read_directory<P: AsRef<U16CStr>>(
         &self,
-        context: &mut Self::FileContext,
+        context: &Self::FileContext,
         pattern: Option<P>,
         marker: DirMarker,
         buffer: &mut [u8],
     ) -> Result<u32> {
-        if let Ok(mut lock) = context.dir_buffer.acquire(marker.is_none(), None) {
+        if let Ok(lock) = context.dir_buffer.acquire(marker.is_none(), None) {
             let mut dirinfo = DirInfo::<{ MAX_PATH as usize }>::new();
             let pattern = pattern.map_or(PCWSTR::from(w!("*")), |p| PCWSTR(p.as_ref().as_ptr()));
             let pattern = unsafe { U16CStr::from_ptr_str(pattern.0) };

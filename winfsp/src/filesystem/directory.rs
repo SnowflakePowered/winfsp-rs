@@ -1,3 +1,4 @@
+use std::cell::UnsafeCell;
 use widestring::{u16cstr, U16CStr};
 use windows::Win32::Foundation::STATUS_SUCCESS;
 use winfsp_sys::{
@@ -14,12 +15,17 @@ use crate::filesystem::{ensure_layout, FileInfo, WideNameInfo};
 /// A buffer used to hold directory entries when enumerating directories
 /// with the [`read_directory`](crate::filesystem::FileSystemContext::read_directory)
 /// callback.
+///
+/// DirBuffer provides interior mutability for the directory buffer, which is
+/// managed completely by the filesystem driver. This is because the filesystem
+/// driver may create multiple threads that could possibly run afoul of the
+/// aliasing rules of `&mut`.
 #[derive(Debug)]
-pub struct DirBuffer(PVOID);
+pub struct DirBuffer(UnsafeCell<PVOID>);
 /// A lock into the directory read buffer that must be held while writing, and dropped
 /// as soon as writing of directory entries into the buffer is complete.
 #[derive(Debug)]
-pub struct DirBufferLock<'a>(&'a mut DirBuffer);
+pub struct DirBufferLock<'a>(&'a DirBuffer);
 /// A marker into the current position of the directory file when
 /// enumerating directories with [`read_directory`](crate::filesystem::FileSystemContext::read_directory)
 #[derive(Debug)]
@@ -74,15 +80,15 @@ impl Default for DirBuffer {
 impl DirBuffer {
     /// Create a new unacquired directory buffer.
     pub fn new() -> Self {
-        Self(std::ptr::null_mut())
+        Self(UnsafeCell::new(std::ptr::null_mut()))
     }
 
     /// Try to acquire a lock on the directory buffer to write entries into.
-    pub fn acquire(&mut self, reset: bool, capacity_hint: Option<u32>) -> Result<DirBufferLock> {
+    pub fn acquire(&self, reset: bool, capacity_hint: Option<u32>) -> Result<DirBufferLock> {
         let mut result = STATUS_SUCCESS;
         unsafe {
             if FspFileSystemAcquireDirectoryBufferEx(
-                &mut self.0,
+                self.0.get(),
                 reset.into(),
                 capacity_hint.unwrap_or(0),
                 &mut result.0,
@@ -99,11 +105,11 @@ impl DirBuffer {
     /// returning the number of bytes written.
     ///
     /// If the directory buffer was never acquired, this is a no-op.
-    pub fn read(&mut self, marker: DirMarker, buffer: &mut [u8]) -> u32 {
+    pub fn read(&self, marker: DirMarker, buffer: &mut [u8]) -> u32 {
         let mut out = 0u32;
         unsafe {
             FspFileSystemReadDirectoryBuffer(
-                &mut self.0,
+                self.0.get(),
                 marker
                     .0
                     .map_or(std::ptr::null_mut(), |v| v.as_ptr().cast_mut()),
@@ -120,13 +126,13 @@ impl DirBufferLock<'_> {
     /// Write a directory entry into the directory buffer.
     ///
     /// A buffer can accept multiple DirInfos of varying sizes.
-    pub fn write<const D: usize>(&mut self, dir_info: &mut DirInfo<D>) -> Result<()> {
+    pub fn write<const D: usize>(&self, dir_info: &mut DirInfo<D>) -> Result<()> {
         let mut status = STATUS_SUCCESS;
         unsafe {
-            let buffer = &mut self.0;
+            let buffer = self.0;
             // this is cursed.
             if FspFileSystemFillDirectoryBuffer(
-                &mut buffer.0,
+                buffer.0.get(),
                 (dir_info as *mut DirInfo<D>).cast(),
                 &mut status.0,
             ) == 0
@@ -141,16 +147,15 @@ impl DirBufferLock<'_> {
 impl Drop for DirBuffer {
     fn drop(&mut self) {
         unsafe {
-            FspFileSystemDeleteDirectoryBuffer(&mut self.0);
+            FspFileSystemDeleteDirectoryBuffer(self.0.get());
         }
     }
 }
 
 impl Drop for DirBufferLock<'_> {
     fn drop(&mut self) {
-        let buffer = &mut self.0;
-
-        unsafe { FspFileSystemReleaseDirectoryBuffer(&mut buffer.0) }
+        let buffer = self.0;
+        unsafe { FspFileSystemReleaseDirectoryBuffer(buffer.0.get()) }
     }
 }
 

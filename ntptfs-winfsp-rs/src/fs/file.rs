@@ -36,8 +36,8 @@ impl NtPassthroughFile {
         self.file_size_hint as u32
     }
 
-    pub fn dir_buffer(&mut self) -> &mut DirBuffer {
-        &mut self.dir_buffer
+    pub fn dir_buffer(&self) -> &DirBuffer {
+        &self.dir_buffer
     }
 
     /// Explicitly invalidate the handle before drop.

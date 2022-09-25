@@ -153,7 +153,7 @@ pub trait FileSystemContext: Sized {
     /// Read directory entries from a directory handle.
     fn read_directory<P: AsRef<U16CStr>>(
         &self,
-        context: &mut Self::FileContext,
+        context: &Self::FileContext,
         pattern: Option<P>,
         marker: DirMarker,
         buffer: &mut [u8],
