@@ -37,11 +37,11 @@ use windows::Win32::System::IO::{OVERLAPPED, OVERLAPPED_0, OVERLAPPED_0_0};
 
 use winfsp::constants::FspCleanupFlags;
 use winfsp::filesystem::{
-    DirBuffer, DirInfo, DirMarker,  FileInfo, FileSecurity, FileSystemContext,
-    IoResult, OpenFileInfo, VolumeInfo, WideNameInfo,
+    DirBuffer, DirInfo, DirMarker, FileInfo, FileSecurity, FileSystemContext, IoResult,
+    OpenFileInfo, VolumeInfo, WideNameInfo,
 };
-use winfsp::{FspError, Result};
 use winfsp::host::{FileContextMode, FileSystemHost, VolumeParams};
+use winfsp::{FspError, Result};
 
 use winfsp::util::Win32SafeHandle;
 

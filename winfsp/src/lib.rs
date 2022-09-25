@@ -3,6 +3,7 @@
 #![feature(io_error_more)]
 #![feature(ptr_const_cast)]
 #![feature(strict_provenance)]
+#![feature(let_else)]
 #![deny(unsafe_op_in_unsafe_fn)]
 
 pub mod constants;

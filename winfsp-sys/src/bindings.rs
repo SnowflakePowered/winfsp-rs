@@ -12,8 +12,8 @@ impl<Storage> __BindgenBitfieldUnit<Storage> {
     }
 }
 impl<Storage> __BindgenBitfieldUnit<Storage>
-    where
-        Storage: AsRef<[u8]> + AsMut<[u8]>,
+where
+    Storage: AsRef<[u8]> + AsMut<[u8]>,
 {
     #[inline]
     pub fn get_bit(&self, index: usize) -> bool {
@@ -183,10 +183,10 @@ fn bindgen_test_layout__LIST_ENTRY() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_LIST_ENTRY),
-            "::",
-            stringify!(Flink)
+                "Offset of field: ",
+                stringify!(_LIST_ENTRY),
+                "::",
+                stringify!(Flink)
             )
         );
     }
@@ -200,10 +200,10 @@ fn bindgen_test_layout__LIST_ENTRY() {
             },
             8usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_LIST_ENTRY),
-            "::",
-            stringify!(Blink)
+                "Offset of field: ",
+                stringify!(_LIST_ENTRY),
+                "::",
+                stringify!(Blink)
             )
         );
     }
@@ -248,10 +248,10 @@ fn bindgen_test_layout__GUID() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_GUID),
-            "::",
-            stringify!(Data1)
+                "Offset of field: ",
+                stringify!(_GUID),
+                "::",
+                stringify!(Data1)
             )
         );
     }
@@ -265,10 +265,10 @@ fn bindgen_test_layout__GUID() {
             },
             4usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_GUID),
-            "::",
-            stringify!(Data2)
+                "Offset of field: ",
+                stringify!(_GUID),
+                "::",
+                stringify!(Data2)
             )
         );
     }
@@ -282,10 +282,10 @@ fn bindgen_test_layout__GUID() {
             },
             6usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_GUID),
-            "::",
-            stringify!(Data3)
+                "Offset of field: ",
+                stringify!(_GUID),
+                "::",
+                stringify!(Data3)
             )
         );
     }
@@ -299,10 +299,10 @@ fn bindgen_test_layout__GUID() {
             },
             8usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_GUID),
-            "::",
-            stringify!(Data4)
+                "Offset of field: ",
+                stringify!(_GUID),
+                "::",
+                stringify!(Data4)
             )
         );
     }
@@ -341,10 +341,10 @@ fn bindgen_test_layout__GENERIC_MAPPING() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_GENERIC_MAPPING),
-            "::",
-            stringify!(GenericRead)
+                "Offset of field: ",
+                stringify!(_GENERIC_MAPPING),
+                "::",
+                stringify!(GenericRead)
             )
         );
     }
@@ -358,10 +358,10 @@ fn bindgen_test_layout__GENERIC_MAPPING() {
             },
             4usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_GENERIC_MAPPING),
-            "::",
-            stringify!(GenericWrite)
+                "Offset of field: ",
+                stringify!(_GENERIC_MAPPING),
+                "::",
+                stringify!(GenericWrite)
             )
         );
     }
@@ -375,10 +375,10 @@ fn bindgen_test_layout__GENERIC_MAPPING() {
             },
             8usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_GENERIC_MAPPING),
-            "::",
-            stringify!(GenericExecute)
+                "Offset of field: ",
+                stringify!(_GENERIC_MAPPING),
+                "::",
+                stringify!(GenericExecute)
             )
         );
     }
@@ -392,10 +392,10 @@ fn bindgen_test_layout__GENERIC_MAPPING() {
             },
             12usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_GENERIC_MAPPING),
-            "::",
-            stringify!(GenericAll)
+                "Offset of field: ",
+                stringify!(_GENERIC_MAPPING),
+                "::",
+                stringify!(GenericAll)
             )
         );
     }
@@ -438,10 +438,10 @@ fn bindgen_test_layout__RTL_CRITICAL_SECTION_DEBUG() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_RTL_CRITICAL_SECTION_DEBUG),
-            "::",
-            stringify!(Type)
+                "Offset of field: ",
+                stringify!(_RTL_CRITICAL_SECTION_DEBUG),
+                "::",
+                stringify!(Type)
             )
         );
     }
@@ -455,10 +455,10 @@ fn bindgen_test_layout__RTL_CRITICAL_SECTION_DEBUG() {
             },
             2usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_RTL_CRITICAL_SECTION_DEBUG),
-            "::",
-            stringify!(CreatorBackTraceIndex)
+                "Offset of field: ",
+                stringify!(_RTL_CRITICAL_SECTION_DEBUG),
+                "::",
+                stringify!(CreatorBackTraceIndex)
             )
         );
     }
@@ -472,10 +472,10 @@ fn bindgen_test_layout__RTL_CRITICAL_SECTION_DEBUG() {
             },
             8usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_RTL_CRITICAL_SECTION_DEBUG),
-            "::",
-            stringify!(CriticalSection)
+                "Offset of field: ",
+                stringify!(_RTL_CRITICAL_SECTION_DEBUG),
+                "::",
+                stringify!(CriticalSection)
             )
         );
     }
@@ -489,10 +489,10 @@ fn bindgen_test_layout__RTL_CRITICAL_SECTION_DEBUG() {
             },
             16usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_RTL_CRITICAL_SECTION_DEBUG),
-            "::",
-            stringify!(ProcessLocksList)
+                "Offset of field: ",
+                stringify!(_RTL_CRITICAL_SECTION_DEBUG),
+                "::",
+                stringify!(ProcessLocksList)
             )
         );
     }
@@ -506,10 +506,10 @@ fn bindgen_test_layout__RTL_CRITICAL_SECTION_DEBUG() {
             },
             32usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_RTL_CRITICAL_SECTION_DEBUG),
-            "::",
-            stringify!(EntryCount)
+                "Offset of field: ",
+                stringify!(_RTL_CRITICAL_SECTION_DEBUG),
+                "::",
+                stringify!(EntryCount)
             )
         );
     }
@@ -523,10 +523,10 @@ fn bindgen_test_layout__RTL_CRITICAL_SECTION_DEBUG() {
             },
             36usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_RTL_CRITICAL_SECTION_DEBUG),
-            "::",
-            stringify!(ContentionCount)
+                "Offset of field: ",
+                stringify!(_RTL_CRITICAL_SECTION_DEBUG),
+                "::",
+                stringify!(ContentionCount)
             )
         );
     }
@@ -540,10 +540,10 @@ fn bindgen_test_layout__RTL_CRITICAL_SECTION_DEBUG() {
             },
             40usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_RTL_CRITICAL_SECTION_DEBUG),
-            "::",
-            stringify!(Flags)
+                "Offset of field: ",
+                stringify!(_RTL_CRITICAL_SECTION_DEBUG),
+                "::",
+                stringify!(Flags)
             )
         );
     }
@@ -557,10 +557,10 @@ fn bindgen_test_layout__RTL_CRITICAL_SECTION_DEBUG() {
             },
             44usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_RTL_CRITICAL_SECTION_DEBUG),
-            "::",
-            stringify!(CreatorBackTraceIndexHigh)
+                "Offset of field: ",
+                stringify!(_RTL_CRITICAL_SECTION_DEBUG),
+                "::",
+                stringify!(CreatorBackTraceIndexHigh)
             )
         );
     }
@@ -574,10 +574,10 @@ fn bindgen_test_layout__RTL_CRITICAL_SECTION_DEBUG() {
             },
             46usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_RTL_CRITICAL_SECTION_DEBUG),
-            "::",
-            stringify!(SpareWORD)
+                "Offset of field: ",
+                stringify!(_RTL_CRITICAL_SECTION_DEBUG),
+                "::",
+                stringify!(SpareWORD)
             )
         );
     }
@@ -624,10 +624,10 @@ fn bindgen_test_layout__RTL_CRITICAL_SECTION() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_RTL_CRITICAL_SECTION),
-            "::",
-            stringify!(DebugInfo)
+                "Offset of field: ",
+                stringify!(_RTL_CRITICAL_SECTION),
+                "::",
+                stringify!(DebugInfo)
             )
         );
     }
@@ -641,10 +641,10 @@ fn bindgen_test_layout__RTL_CRITICAL_SECTION() {
             },
             8usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_RTL_CRITICAL_SECTION),
-            "::",
-            stringify!(LockCount)
+                "Offset of field: ",
+                stringify!(_RTL_CRITICAL_SECTION),
+                "::",
+                stringify!(LockCount)
             )
         );
     }
@@ -658,10 +658,10 @@ fn bindgen_test_layout__RTL_CRITICAL_SECTION() {
             },
             12usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_RTL_CRITICAL_SECTION),
-            "::",
-            stringify!(RecursionCount)
+                "Offset of field: ",
+                stringify!(_RTL_CRITICAL_SECTION),
+                "::",
+                stringify!(RecursionCount)
             )
         );
     }
@@ -675,10 +675,10 @@ fn bindgen_test_layout__RTL_CRITICAL_SECTION() {
             },
             16usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_RTL_CRITICAL_SECTION),
-            "::",
-            stringify!(OwningThread)
+                "Offset of field: ",
+                stringify!(_RTL_CRITICAL_SECTION),
+                "::",
+                stringify!(OwningThread)
             )
         );
     }
@@ -692,10 +692,10 @@ fn bindgen_test_layout__RTL_CRITICAL_SECTION() {
             },
             24usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_RTL_CRITICAL_SECTION),
-            "::",
-            stringify!(LockSemaphore)
+                "Offset of field: ",
+                stringify!(_RTL_CRITICAL_SECTION),
+                "::",
+                stringify!(LockSemaphore)
             )
         );
     }
@@ -709,10 +709,10 @@ fn bindgen_test_layout__RTL_CRITICAL_SECTION() {
             },
             32usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_RTL_CRITICAL_SECTION),
-            "::",
-            stringify!(SpinCount)
+                "Offset of field: ",
+                stringify!(_RTL_CRITICAL_SECTION),
+                "::",
+                stringify!(SpinCount)
             )
         );
     }
@@ -754,10 +754,10 @@ fn bindgen_test_layout__RTL_SRWLOCK() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_RTL_SRWLOCK),
-            "::",
-            stringify!(Ptr)
+                "Offset of field: ",
+                stringify!(_RTL_SRWLOCK),
+                "::",
+                stringify!(Ptr)
             )
         );
     }
@@ -800,10 +800,10 @@ fn bindgen_test_layout__FILETIME() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_FILETIME),
-            "::",
-            stringify!(dwLowDateTime)
+                "Offset of field: ",
+                stringify!(_FILETIME),
+                "::",
+                stringify!(dwLowDateTime)
             )
         );
     }
@@ -817,10 +817,10 @@ fn bindgen_test_layout__FILETIME() {
             },
             4usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_FILETIME),
-            "::",
-            stringify!(dwHighDateTime)
+                "Offset of field: ",
+                stringify!(_FILETIME),
+                "::",
+                stringify!(dwHighDateTime)
             )
         );
     }
@@ -857,10 +857,10 @@ fn bindgen_test_layout_SERVICE_STATUS_HANDLE__() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(SERVICE_STATUS_HANDLE__),
-            "::",
-            stringify!(unused)
+                "Offset of field: ",
+                stringify!(SERVICE_STATUS_HANDLE__),
+                "::",
+                stringify!(unused)
             )
         );
     }
@@ -899,10 +899,10 @@ fn bindgen_test_layout__SERVICE_STATUS() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_SERVICE_STATUS),
-            "::",
-            stringify!(dwServiceType)
+                "Offset of field: ",
+                stringify!(_SERVICE_STATUS),
+                "::",
+                stringify!(dwServiceType)
             )
         );
     }
@@ -916,10 +916,10 @@ fn bindgen_test_layout__SERVICE_STATUS() {
             },
             4usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_SERVICE_STATUS),
-            "::",
-            stringify!(dwCurrentState)
+                "Offset of field: ",
+                stringify!(_SERVICE_STATUS),
+                "::",
+                stringify!(dwCurrentState)
             )
         );
     }
@@ -933,10 +933,10 @@ fn bindgen_test_layout__SERVICE_STATUS() {
             },
             8usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_SERVICE_STATUS),
-            "::",
-            stringify!(dwControlsAccepted)
+                "Offset of field: ",
+                stringify!(_SERVICE_STATUS),
+                "::",
+                stringify!(dwControlsAccepted)
             )
         );
     }
@@ -950,10 +950,10 @@ fn bindgen_test_layout__SERVICE_STATUS() {
             },
             12usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_SERVICE_STATUS),
-            "::",
-            stringify!(dwWin32ExitCode)
+                "Offset of field: ",
+                stringify!(_SERVICE_STATUS),
+                "::",
+                stringify!(dwWin32ExitCode)
             )
         );
     }
@@ -967,10 +967,10 @@ fn bindgen_test_layout__SERVICE_STATUS() {
             },
             16usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_SERVICE_STATUS),
-            "::",
-            stringify!(dwServiceSpecificExitCode)
+                "Offset of field: ",
+                stringify!(_SERVICE_STATUS),
+                "::",
+                stringify!(dwServiceSpecificExitCode)
             )
         );
     }
@@ -984,10 +984,10 @@ fn bindgen_test_layout__SERVICE_STATUS() {
             },
             20usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_SERVICE_STATUS),
-            "::",
-            stringify!(dwCheckPoint)
+                "Offset of field: ",
+                stringify!(_SERVICE_STATUS),
+                "::",
+                stringify!(dwCheckPoint)
             )
         );
     }
@@ -1001,10 +1001,10 @@ fn bindgen_test_layout__SERVICE_STATUS() {
             },
             24usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_SERVICE_STATUS),
-            "::",
-            stringify!(dwWaitHint)
+                "Offset of field: ",
+                stringify!(_SERVICE_STATUS),
+                "::",
+                stringify!(dwWaitHint)
             )
         );
     }
@@ -1044,10 +1044,10 @@ fn bindgen_test_layout__IO_STATUS_BLOCK__bindgen_ty_1() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_IO_STATUS_BLOCK__bindgen_ty_1),
-            "::",
-            stringify!(Status)
+                "Offset of field: ",
+                stringify!(_IO_STATUS_BLOCK__bindgen_ty_1),
+                "::",
+                stringify!(Status)
             )
         );
     }
@@ -1061,10 +1061,10 @@ fn bindgen_test_layout__IO_STATUS_BLOCK__bindgen_ty_1() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_IO_STATUS_BLOCK__bindgen_ty_1),
-            "::",
-            stringify!(Pointer)
+                "Offset of field: ",
+                stringify!(_IO_STATUS_BLOCK__bindgen_ty_1),
+                "::",
+                stringify!(Pointer)
             )
         );
     }
@@ -1100,10 +1100,10 @@ fn bindgen_test_layout__IO_STATUS_BLOCK() {
             },
             8usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_IO_STATUS_BLOCK),
-            "::",
-            stringify!(Information)
+                "Offset of field: ",
+                stringify!(_IO_STATUS_BLOCK),
+                "::",
+                stringify!(Information)
             )
         );
     }
@@ -1199,10 +1199,10 @@ fn bindgen_test_layout_FSP_FSCTL_VOLUME_PARAMS_V0() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_VOLUME_PARAMS_V0),
-            "::",
-            stringify!(Version)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_VOLUME_PARAMS_V0),
+                "::",
+                stringify!(Version)
             )
         );
     }
@@ -1216,10 +1216,10 @@ fn bindgen_test_layout_FSP_FSCTL_VOLUME_PARAMS_V0() {
             },
             2usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_VOLUME_PARAMS_V0),
-            "::",
-            stringify!(SectorSize)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_VOLUME_PARAMS_V0),
+                "::",
+                stringify!(SectorSize)
             )
         );
     }
@@ -1233,10 +1233,10 @@ fn bindgen_test_layout_FSP_FSCTL_VOLUME_PARAMS_V0() {
             },
             4usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_VOLUME_PARAMS_V0),
-            "::",
-            stringify!(SectorsPerAllocationUnit)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_VOLUME_PARAMS_V0),
+                "::",
+                stringify!(SectorsPerAllocationUnit)
             )
         );
     }
@@ -1250,10 +1250,10 @@ fn bindgen_test_layout_FSP_FSCTL_VOLUME_PARAMS_V0() {
             },
             6usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_VOLUME_PARAMS_V0),
-            "::",
-            stringify!(MaxComponentLength)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_VOLUME_PARAMS_V0),
+                "::",
+                stringify!(MaxComponentLength)
             )
         );
     }
@@ -1267,10 +1267,10 @@ fn bindgen_test_layout_FSP_FSCTL_VOLUME_PARAMS_V0() {
             },
             8usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_VOLUME_PARAMS_V0),
-            "::",
-            stringify!(VolumeCreationTime)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_VOLUME_PARAMS_V0),
+                "::",
+                stringify!(VolumeCreationTime)
             )
         );
     }
@@ -1284,10 +1284,10 @@ fn bindgen_test_layout_FSP_FSCTL_VOLUME_PARAMS_V0() {
             },
             16usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_VOLUME_PARAMS_V0),
-            "::",
-            stringify!(VolumeSerialNumber)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_VOLUME_PARAMS_V0),
+                "::",
+                stringify!(VolumeSerialNumber)
             )
         );
     }
@@ -1301,10 +1301,10 @@ fn bindgen_test_layout_FSP_FSCTL_VOLUME_PARAMS_V0() {
             },
             20usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_VOLUME_PARAMS_V0),
-            "::",
-            stringify!(TransactTimeout)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_VOLUME_PARAMS_V0),
+                "::",
+                stringify!(TransactTimeout)
             )
         );
     }
@@ -1318,10 +1318,10 @@ fn bindgen_test_layout_FSP_FSCTL_VOLUME_PARAMS_V0() {
             },
             24usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_VOLUME_PARAMS_V0),
-            "::",
-            stringify!(IrpTimeout)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_VOLUME_PARAMS_V0),
+                "::",
+                stringify!(IrpTimeout)
             )
         );
     }
@@ -1335,10 +1335,10 @@ fn bindgen_test_layout_FSP_FSCTL_VOLUME_PARAMS_V0() {
             },
             28usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_VOLUME_PARAMS_V0),
-            "::",
-            stringify!(IrpCapacity)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_VOLUME_PARAMS_V0),
+                "::",
+                stringify!(IrpCapacity)
             )
         );
     }
@@ -1352,10 +1352,10 @@ fn bindgen_test_layout_FSP_FSCTL_VOLUME_PARAMS_V0() {
             },
             32usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_VOLUME_PARAMS_V0),
-            "::",
-            stringify!(FileInfoTimeout)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_VOLUME_PARAMS_V0),
+                "::",
+                stringify!(FileInfoTimeout)
             )
         );
     }
@@ -1369,10 +1369,10 @@ fn bindgen_test_layout_FSP_FSCTL_VOLUME_PARAMS_V0() {
             },
             40usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_VOLUME_PARAMS_V0),
-            "::",
-            stringify!(Prefix)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_VOLUME_PARAMS_V0),
+                "::",
+                stringify!(Prefix)
             )
         );
     }
@@ -1386,10 +1386,10 @@ fn bindgen_test_layout_FSP_FSCTL_VOLUME_PARAMS_V0() {
             },
             424usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_VOLUME_PARAMS_V0),
-            "::",
-            stringify!(FileSystemName)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_VOLUME_PARAMS_V0),
+                "::",
+                stringify!(FileSystemName)
             )
         );
     }
@@ -1924,10 +1924,10 @@ fn bindgen_test_layout_FSP_FSCTL_VOLUME_PARAMS() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_VOLUME_PARAMS),
-            "::",
-            stringify!(Version)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_VOLUME_PARAMS),
+                "::",
+                stringify!(Version)
             )
         );
     }
@@ -1941,10 +1941,10 @@ fn bindgen_test_layout_FSP_FSCTL_VOLUME_PARAMS() {
             },
             2usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_VOLUME_PARAMS),
-            "::",
-            stringify!(SectorSize)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_VOLUME_PARAMS),
+                "::",
+                stringify!(SectorSize)
             )
         );
     }
@@ -1958,10 +1958,10 @@ fn bindgen_test_layout_FSP_FSCTL_VOLUME_PARAMS() {
             },
             4usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_VOLUME_PARAMS),
-            "::",
-            stringify!(SectorsPerAllocationUnit)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_VOLUME_PARAMS),
+                "::",
+                stringify!(SectorsPerAllocationUnit)
             )
         );
     }
@@ -1975,10 +1975,10 @@ fn bindgen_test_layout_FSP_FSCTL_VOLUME_PARAMS() {
             },
             6usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_VOLUME_PARAMS),
-            "::",
-            stringify!(MaxComponentLength)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_VOLUME_PARAMS),
+                "::",
+                stringify!(MaxComponentLength)
             )
         );
     }
@@ -1992,10 +1992,10 @@ fn bindgen_test_layout_FSP_FSCTL_VOLUME_PARAMS() {
             },
             8usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_VOLUME_PARAMS),
-            "::",
-            stringify!(VolumeCreationTime)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_VOLUME_PARAMS),
+                "::",
+                stringify!(VolumeCreationTime)
             )
         );
     }
@@ -2009,10 +2009,10 @@ fn bindgen_test_layout_FSP_FSCTL_VOLUME_PARAMS() {
             },
             16usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_VOLUME_PARAMS),
-            "::",
-            stringify!(VolumeSerialNumber)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_VOLUME_PARAMS),
+                "::",
+                stringify!(VolumeSerialNumber)
             )
         );
     }
@@ -2026,10 +2026,10 @@ fn bindgen_test_layout_FSP_FSCTL_VOLUME_PARAMS() {
             },
             20usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_VOLUME_PARAMS),
-            "::",
-            stringify!(TransactTimeout)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_VOLUME_PARAMS),
+                "::",
+                stringify!(TransactTimeout)
             )
         );
     }
@@ -2043,10 +2043,10 @@ fn bindgen_test_layout_FSP_FSCTL_VOLUME_PARAMS() {
             },
             24usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_VOLUME_PARAMS),
-            "::",
-            stringify!(IrpTimeout)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_VOLUME_PARAMS),
+                "::",
+                stringify!(IrpTimeout)
             )
         );
     }
@@ -2060,10 +2060,10 @@ fn bindgen_test_layout_FSP_FSCTL_VOLUME_PARAMS() {
             },
             28usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_VOLUME_PARAMS),
-            "::",
-            stringify!(IrpCapacity)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_VOLUME_PARAMS),
+                "::",
+                stringify!(IrpCapacity)
             )
         );
     }
@@ -2077,10 +2077,10 @@ fn bindgen_test_layout_FSP_FSCTL_VOLUME_PARAMS() {
             },
             32usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_VOLUME_PARAMS),
-            "::",
-            stringify!(FileInfoTimeout)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_VOLUME_PARAMS),
+                "::",
+                stringify!(FileInfoTimeout)
             )
         );
     }
@@ -2094,10 +2094,10 @@ fn bindgen_test_layout_FSP_FSCTL_VOLUME_PARAMS() {
             },
             40usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_VOLUME_PARAMS),
-            "::",
-            stringify!(Prefix)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_VOLUME_PARAMS),
+                "::",
+                stringify!(Prefix)
             )
         );
     }
@@ -2111,10 +2111,10 @@ fn bindgen_test_layout_FSP_FSCTL_VOLUME_PARAMS() {
             },
             424usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_VOLUME_PARAMS),
-            "::",
-            stringify!(FileSystemName)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_VOLUME_PARAMS),
+                "::",
+                stringify!(FileSystemName)
             )
         );
     }
@@ -2128,10 +2128,10 @@ fn bindgen_test_layout_FSP_FSCTL_VOLUME_PARAMS() {
             },
             460usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_VOLUME_PARAMS),
-            "::",
-            stringify!(VolumeInfoTimeout)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_VOLUME_PARAMS),
+                "::",
+                stringify!(VolumeInfoTimeout)
             )
         );
     }
@@ -2145,10 +2145,10 @@ fn bindgen_test_layout_FSP_FSCTL_VOLUME_PARAMS() {
             },
             464usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_VOLUME_PARAMS),
-            "::",
-            stringify!(DirInfoTimeout)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_VOLUME_PARAMS),
+                "::",
+                stringify!(DirInfoTimeout)
             )
         );
     }
@@ -2162,10 +2162,10 @@ fn bindgen_test_layout_FSP_FSCTL_VOLUME_PARAMS() {
             },
             468usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_VOLUME_PARAMS),
-            "::",
-            stringify!(SecurityTimeout)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_VOLUME_PARAMS),
+                "::",
+                stringify!(SecurityTimeout)
             )
         );
     }
@@ -2179,10 +2179,10 @@ fn bindgen_test_layout_FSP_FSCTL_VOLUME_PARAMS() {
             },
             472usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_VOLUME_PARAMS),
-            "::",
-            stringify!(StreamInfoTimeout)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_VOLUME_PARAMS),
+                "::",
+                stringify!(StreamInfoTimeout)
             )
         );
     }
@@ -2196,10 +2196,10 @@ fn bindgen_test_layout_FSP_FSCTL_VOLUME_PARAMS() {
             },
             476usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_VOLUME_PARAMS),
-            "::",
-            stringify!(EaTimeout)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_VOLUME_PARAMS),
+                "::",
+                stringify!(EaTimeout)
             )
         );
     }
@@ -2213,10 +2213,10 @@ fn bindgen_test_layout_FSP_FSCTL_VOLUME_PARAMS() {
             },
             480usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_VOLUME_PARAMS),
-            "::",
-            stringify!(FsextControlCode)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_VOLUME_PARAMS),
+                "::",
+                stringify!(FsextControlCode)
             )
         );
     }
@@ -2230,10 +2230,10 @@ fn bindgen_test_layout_FSP_FSCTL_VOLUME_PARAMS() {
             },
             484usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_VOLUME_PARAMS),
-            "::",
-            stringify!(Reserved32)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_VOLUME_PARAMS),
+                "::",
+                stringify!(Reserved32)
             )
         );
     }
@@ -2247,10 +2247,10 @@ fn bindgen_test_layout_FSP_FSCTL_VOLUME_PARAMS() {
             },
             488usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_VOLUME_PARAMS),
-            "::",
-            stringify!(Reserved64)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_VOLUME_PARAMS),
+                "::",
+                stringify!(Reserved64)
             )
         );
     }
@@ -2870,10 +2870,10 @@ fn bindgen_test_layout_FSP_FSCTL_VOLUME_INFO() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_VOLUME_INFO),
-            "::",
-            stringify!(TotalSize)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_VOLUME_INFO),
+                "::",
+                stringify!(TotalSize)
             )
         );
     }
@@ -2887,10 +2887,10 @@ fn bindgen_test_layout_FSP_FSCTL_VOLUME_INFO() {
             },
             8usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_VOLUME_INFO),
-            "::",
-            stringify!(FreeSize)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_VOLUME_INFO),
+                "::",
+                stringify!(FreeSize)
             )
         );
     }
@@ -2904,10 +2904,10 @@ fn bindgen_test_layout_FSP_FSCTL_VOLUME_INFO() {
             },
             16usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_VOLUME_INFO),
-            "::",
-            stringify!(VolumeLabelLength)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_VOLUME_INFO),
+                "::",
+                stringify!(VolumeLabelLength)
             )
         );
     }
@@ -2921,10 +2921,10 @@ fn bindgen_test_layout_FSP_FSCTL_VOLUME_INFO() {
             },
             18usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_VOLUME_INFO),
-            "::",
-            stringify!(VolumeLabel)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_VOLUME_INFO),
+                "::",
+                stringify!(VolumeLabel)
             )
         );
     }
@@ -2966,10 +2966,10 @@ fn bindgen_test_layout_FSP_FSCTL_FILE_INFO() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_FILE_INFO),
-            "::",
-            stringify!(FileAttributes)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_FILE_INFO),
+                "::",
+                stringify!(FileAttributes)
             )
         );
     }
@@ -2983,10 +2983,10 @@ fn bindgen_test_layout_FSP_FSCTL_FILE_INFO() {
             },
             4usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_FILE_INFO),
-            "::",
-            stringify!(ReparseTag)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_FILE_INFO),
+                "::",
+                stringify!(ReparseTag)
             )
         );
     }
@@ -3000,10 +3000,10 @@ fn bindgen_test_layout_FSP_FSCTL_FILE_INFO() {
             },
             8usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_FILE_INFO),
-            "::",
-            stringify!(AllocationSize)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_FILE_INFO),
+                "::",
+                stringify!(AllocationSize)
             )
         );
     }
@@ -3017,10 +3017,10 @@ fn bindgen_test_layout_FSP_FSCTL_FILE_INFO() {
             },
             16usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_FILE_INFO),
-            "::",
-            stringify!(FileSize)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_FILE_INFO),
+                "::",
+                stringify!(FileSize)
             )
         );
     }
@@ -3034,10 +3034,10 @@ fn bindgen_test_layout_FSP_FSCTL_FILE_INFO() {
             },
             24usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_FILE_INFO),
-            "::",
-            stringify!(CreationTime)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_FILE_INFO),
+                "::",
+                stringify!(CreationTime)
             )
         );
     }
@@ -3051,10 +3051,10 @@ fn bindgen_test_layout_FSP_FSCTL_FILE_INFO() {
             },
             32usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_FILE_INFO),
-            "::",
-            stringify!(LastAccessTime)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_FILE_INFO),
+                "::",
+                stringify!(LastAccessTime)
             )
         );
     }
@@ -3068,10 +3068,10 @@ fn bindgen_test_layout_FSP_FSCTL_FILE_INFO() {
             },
             40usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_FILE_INFO),
-            "::",
-            stringify!(LastWriteTime)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_FILE_INFO),
+                "::",
+                stringify!(LastWriteTime)
             )
         );
     }
@@ -3085,10 +3085,10 @@ fn bindgen_test_layout_FSP_FSCTL_FILE_INFO() {
             },
             48usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_FILE_INFO),
-            "::",
-            stringify!(ChangeTime)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_FILE_INFO),
+                "::",
+                stringify!(ChangeTime)
             )
         );
     }
@@ -3102,10 +3102,10 @@ fn bindgen_test_layout_FSP_FSCTL_FILE_INFO() {
             },
             56usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_FILE_INFO),
-            "::",
-            stringify!(IndexNumber)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_FILE_INFO),
+                "::",
+                stringify!(IndexNumber)
             )
         );
     }
@@ -3119,10 +3119,10 @@ fn bindgen_test_layout_FSP_FSCTL_FILE_INFO() {
             },
             64usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_FILE_INFO),
-            "::",
-            stringify!(HardLinks)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_FILE_INFO),
+                "::",
+                stringify!(HardLinks)
             )
         );
     }
@@ -3136,10 +3136,10 @@ fn bindgen_test_layout_FSP_FSCTL_FILE_INFO() {
             },
             68usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_FILE_INFO),
-            "::",
-            stringify!(EaSize)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_FILE_INFO),
+                "::",
+                stringify!(EaSize)
             )
         );
     }
@@ -3173,10 +3173,10 @@ fn bindgen_test_layout_FSP_FSCTL_OPEN_FILE_INFO() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_OPEN_FILE_INFO),
-            "::",
-            stringify!(FileInfo)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_OPEN_FILE_INFO),
+                "::",
+                stringify!(FileInfo)
             )
         );
     }
@@ -3190,10 +3190,10 @@ fn bindgen_test_layout_FSP_FSCTL_OPEN_FILE_INFO() {
             },
             72usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_OPEN_FILE_INFO),
-            "::",
-            stringify!(NormalizedName)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_OPEN_FILE_INFO),
+                "::",
+                stringify!(NormalizedName)
             )
         );
     }
@@ -3207,10 +3207,10 @@ fn bindgen_test_layout_FSP_FSCTL_OPEN_FILE_INFO() {
             },
             80usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_OPEN_FILE_INFO),
-            "::",
-            stringify!(NormalizedNameSize)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_OPEN_FILE_INFO),
+                "::",
+                stringify!(NormalizedNameSize)
             )
         );
     }
@@ -3249,8 +3249,8 @@ fn bindgen_test_layout_FSP_FSCTL_DIR_INFO__bindgen_ty_1() {
         ::std::mem::align_of::<FSP_FSCTL_DIR_INFO__bindgen_ty_1>(),
         8usize,
         concat!(
-        "Alignment of ",
-        stringify!(FSP_FSCTL_DIR_INFO__bindgen_ty_1)
+            "Alignment of ",
+            stringify!(FSP_FSCTL_DIR_INFO__bindgen_ty_1)
         )
     );
     fn test_field_NextOffset() {
@@ -3262,10 +3262,10 @@ fn bindgen_test_layout_FSP_FSCTL_DIR_INFO__bindgen_ty_1() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_DIR_INFO__bindgen_ty_1),
-            "::",
-            stringify!(NextOffset)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_DIR_INFO__bindgen_ty_1),
+                "::",
+                stringify!(NextOffset)
             )
         );
     }
@@ -3279,10 +3279,10 @@ fn bindgen_test_layout_FSP_FSCTL_DIR_INFO__bindgen_ty_1() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_DIR_INFO__bindgen_ty_1),
-            "::",
-            stringify!(Padding)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_DIR_INFO__bindgen_ty_1),
+                "::",
+                stringify!(Padding)
             )
         );
     }
@@ -3318,10 +3318,10 @@ fn bindgen_test_layout_FSP_FSCTL_DIR_INFO() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_DIR_INFO),
-            "::",
-            stringify!(Size)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_DIR_INFO),
+                "::",
+                stringify!(Size)
             )
         );
     }
@@ -3335,10 +3335,10 @@ fn bindgen_test_layout_FSP_FSCTL_DIR_INFO() {
             },
             8usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_DIR_INFO),
-            "::",
-            stringify!(FileInfo)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_DIR_INFO),
+                "::",
+                stringify!(FileInfo)
             )
         );
     }
@@ -3352,10 +3352,10 @@ fn bindgen_test_layout_FSP_FSCTL_DIR_INFO() {
             },
             104usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_DIR_INFO),
-            "::",
-            stringify!(FileNameBuf)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_DIR_INFO),
+                "::",
+                stringify!(FileNameBuf)
             )
         );
     }
@@ -3399,10 +3399,10 @@ fn bindgen_test_layout_FSP_FSCTL_STREAM_INFO() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_STREAM_INFO),
-            "::",
-            stringify!(Size)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_STREAM_INFO),
+                "::",
+                stringify!(Size)
             )
         );
     }
@@ -3416,10 +3416,10 @@ fn bindgen_test_layout_FSP_FSCTL_STREAM_INFO() {
             },
             8usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_STREAM_INFO),
-            "::",
-            stringify!(StreamSize)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_STREAM_INFO),
+                "::",
+                stringify!(StreamSize)
             )
         );
     }
@@ -3433,10 +3433,10 @@ fn bindgen_test_layout_FSP_FSCTL_STREAM_INFO() {
             },
             16usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_STREAM_INFO),
-            "::",
-            stringify!(StreamAllocationSize)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_STREAM_INFO),
+                "::",
+                stringify!(StreamAllocationSize)
             )
         );
     }
@@ -3450,10 +3450,10 @@ fn bindgen_test_layout_FSP_FSCTL_STREAM_INFO() {
             },
             24usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_STREAM_INFO),
-            "::",
-            stringify!(StreamNameBuf)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_STREAM_INFO),
+                "::",
+                stringify!(StreamNameBuf)
             )
         );
     }
@@ -3488,10 +3488,10 @@ fn bindgen_test_layout_FSP_FSCTL_NOTIFY_INFO() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_NOTIFY_INFO),
-            "::",
-            stringify!(Size)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_NOTIFY_INFO),
+                "::",
+                stringify!(Size)
             )
         );
     }
@@ -3505,10 +3505,10 @@ fn bindgen_test_layout_FSP_FSCTL_NOTIFY_INFO() {
             },
             4usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_NOTIFY_INFO),
-            "::",
-            stringify!(Filter)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_NOTIFY_INFO),
+                "::",
+                stringify!(Filter)
             )
         );
     }
@@ -3522,10 +3522,10 @@ fn bindgen_test_layout_FSP_FSCTL_NOTIFY_INFO() {
             },
             8usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_NOTIFY_INFO),
-            "::",
-            stringify!(Action)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_NOTIFY_INFO),
+                "::",
+                stringify!(Action)
             )
         );
     }
@@ -3539,10 +3539,10 @@ fn bindgen_test_layout_FSP_FSCTL_NOTIFY_INFO() {
             },
             12usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_NOTIFY_INFO),
-            "::",
-            stringify!(FileNameBuf)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_NOTIFY_INFO),
+                "::",
+                stringify!(FileNameBuf)
             )
         );
     }
@@ -3575,10 +3575,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_FULL_CONTEXT() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_FULL_CONTEXT),
-            "::",
-            stringify!(UserContext)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_FULL_CONTEXT),
+                "::",
+                stringify!(UserContext)
             )
         );
     }
@@ -3592,10 +3592,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_FULL_CONTEXT() {
             },
             8usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_FULL_CONTEXT),
-            "::",
-            stringify!(UserContext2)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_FULL_CONTEXT),
+                "::",
+                stringify!(UserContext2)
             )
         );
     }
@@ -3628,10 +3628,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_BUF() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_BUF),
-            "::",
-            stringify!(Offset)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_BUF),
+                "::",
+                stringify!(Offset)
             )
         );
     }
@@ -3645,10 +3645,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_BUF() {
             },
             2usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_BUF),
-            "::",
-            stringify!(Size)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_BUF),
+                "::",
+                stringify!(Size)
             )
         );
     }
@@ -3709,16 +3709,16 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_1() {
         ::std::mem::size_of::<FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_1>(),
         64usize,
         concat!(
-        "Size of: ",
-        stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_1)
+            "Size of: ",
+            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_1)
         )
     );
     assert_eq!(
         ::std::mem::align_of::<FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_1>(),
         8usize,
         concat!(
-        "Alignment of ",
-        stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_1)
+            "Alignment of ",
+            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_1)
         )
     );
     fn test_field_CreateOptions() {
@@ -3732,10 +3732,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_1() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_1),
-            "::",
-            stringify!(CreateOptions)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_1),
+                "::",
+                stringify!(CreateOptions)
             )
         );
     }
@@ -3751,10 +3751,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_1() {
             },
             4usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_1),
-            "::",
-            stringify!(FileAttributes)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_1),
+                "::",
+                stringify!(FileAttributes)
             )
         );
     }
@@ -3770,10 +3770,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_1() {
             },
             8usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_1),
-            "::",
-            stringify!(SecurityDescriptor)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_1),
+                "::",
+                stringify!(SecurityDescriptor)
             )
         );
     }
@@ -3789,10 +3789,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_1() {
             },
             16usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_1),
-            "::",
-            stringify!(AllocationSize)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_1),
+                "::",
+                stringify!(AllocationSize)
             )
         );
     }
@@ -3808,10 +3808,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_1() {
             },
             24usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_1),
-            "::",
-            stringify!(AccessToken)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_1),
+                "::",
+                stringify!(AccessToken)
             )
         );
     }
@@ -3827,10 +3827,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_1() {
             },
             32usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_1),
-            "::",
-            stringify!(DesiredAccess)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_1),
+                "::",
+                stringify!(DesiredAccess)
             )
         );
     }
@@ -3846,10 +3846,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_1() {
             },
             36usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_1),
-            "::",
-            stringify!(GrantedAccess)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_1),
+                "::",
+                stringify!(GrantedAccess)
             )
         );
     }
@@ -3865,10 +3865,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_1() {
             },
             40usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_1),
-            "::",
-            stringify!(ShareAccess)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_1),
+                "::",
+                stringify!(ShareAccess)
             )
         );
     }
@@ -3884,10 +3884,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_1() {
             },
             44usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_1),
-            "::",
-            stringify!(Ea)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_1),
+                "::",
+                stringify!(Ea)
             )
         );
     }
@@ -3903,10 +3903,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_1() {
             },
             56usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_1),
-            "::",
-            stringify!(NamedStream)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_1),
+                "::",
+                stringify!(NamedStream)
             )
         );
     }
@@ -4099,16 +4099,16 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_2() {
         ::std::mem::size_of::<FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_2>(),
         40usize,
         concat!(
-        "Size of: ",
-        stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_2)
+            "Size of: ",
+            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_2)
         )
     );
     assert_eq!(
         ::std::mem::align_of::<FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_2>(),
         8usize,
         concat!(
-        "Alignment of ",
-        stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_2)
+            "Alignment of ",
+            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_2)
         )
     );
     fn test_field_UserContext() {
@@ -4122,10 +4122,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_2() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_2),
-            "::",
-            stringify!(UserContext)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_2),
+                "::",
+                stringify!(UserContext)
             )
         );
     }
@@ -4141,10 +4141,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_2() {
             },
             8usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_2),
-            "::",
-            stringify!(UserContext2)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_2),
+                "::",
+                stringify!(UserContext2)
             )
         );
     }
@@ -4160,10 +4160,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_2() {
             },
             16usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_2),
-            "::",
-            stringify!(FileAttributes)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_2),
+                "::",
+                stringify!(FileAttributes)
             )
         );
     }
@@ -4179,10 +4179,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_2() {
             },
             24usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_2),
-            "::",
-            stringify!(AllocationSize)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_2),
+                "::",
+                stringify!(AllocationSize)
             )
         );
     }
@@ -4198,10 +4198,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_2() {
             },
             36usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_2),
-            "::",
-            stringify!(Ea)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_2),
+                "::",
+                stringify!(Ea)
             )
         );
     }
@@ -4244,16 +4244,16 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_3() {
         ::std::mem::size_of::<FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_3>(),
         24usize,
         concat!(
-        "Size of: ",
-        stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_3)
+            "Size of: ",
+            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_3)
         )
     );
     assert_eq!(
         ::std::mem::align_of::<FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_3>(),
         8usize,
         concat!(
-        "Alignment of ",
-        stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_3)
+            "Alignment of ",
+            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_3)
         )
     );
     fn test_field_UserContext() {
@@ -4267,10 +4267,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_3() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_3),
-            "::",
-            stringify!(UserContext)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_3),
+                "::",
+                stringify!(UserContext)
             )
         );
     }
@@ -4286,10 +4286,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_3() {
             },
             8usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_3),
-            "::",
-            stringify!(UserContext2)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_3),
+                "::",
+                stringify!(UserContext2)
             )
         );
     }
@@ -4411,16 +4411,16 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_4() {
         ::std::mem::size_of::<FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_4>(),
         16usize,
         concat!(
-        "Size of: ",
-        stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_4)
+            "Size of: ",
+            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_4)
         )
     );
     assert_eq!(
         ::std::mem::align_of::<FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_4>(),
         8usize,
         concat!(
-        "Alignment of ",
-        stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_4)
+            "Alignment of ",
+            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_4)
         )
     );
     fn test_field_UserContext() {
@@ -4434,10 +4434,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_4() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_4),
-            "::",
-            stringify!(UserContext)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_4),
+                "::",
+                stringify!(UserContext)
             )
         );
     }
@@ -4453,10 +4453,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_4() {
             },
             8usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_4),
-            "::",
-            stringify!(UserContext2)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_4),
+                "::",
+                stringify!(UserContext2)
             )
         );
     }
@@ -4478,16 +4478,16 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_5() {
         ::std::mem::size_of::<FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_5>(),
         40usize,
         concat!(
-        "Size of: ",
-        stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_5)
+            "Size of: ",
+            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_5)
         )
     );
     assert_eq!(
         ::std::mem::align_of::<FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_5>(),
         8usize,
         concat!(
-        "Alignment of ",
-        stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_5)
+            "Alignment of ",
+            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_5)
         )
     );
     fn test_field_UserContext() {
@@ -4501,10 +4501,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_5() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_5),
-            "::",
-            stringify!(UserContext)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_5),
+                "::",
+                stringify!(UserContext)
             )
         );
     }
@@ -4520,10 +4520,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_5() {
             },
             8usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_5),
-            "::",
-            stringify!(UserContext2)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_5),
+                "::",
+                stringify!(UserContext2)
             )
         );
     }
@@ -4539,10 +4539,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_5() {
             },
             16usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_5),
-            "::",
-            stringify!(Address)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_5),
+                "::",
+                stringify!(Address)
             )
         );
     }
@@ -4558,10 +4558,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_5() {
             },
             24usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_5),
-            "::",
-            stringify!(Offset)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_5),
+                "::",
+                stringify!(Offset)
             )
         );
     }
@@ -4577,10 +4577,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_5() {
             },
             32usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_5),
-            "::",
-            stringify!(Length)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_5),
+                "::",
+                stringify!(Length)
             )
         );
     }
@@ -4596,10 +4596,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_5() {
             },
             36usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_5),
-            "::",
-            stringify!(Key)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_5),
+                "::",
+                stringify!(Key)
             )
         );
     }
@@ -4624,16 +4624,16 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_6() {
         ::std::mem::size_of::<FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_6>(),
         48usize,
         concat!(
-        "Size of: ",
-        stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_6)
+            "Size of: ",
+            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_6)
         )
     );
     assert_eq!(
         ::std::mem::align_of::<FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_6>(),
         8usize,
         concat!(
-        "Alignment of ",
-        stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_6)
+            "Alignment of ",
+            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_6)
         )
     );
     fn test_field_UserContext() {
@@ -4647,10 +4647,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_6() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_6),
-            "::",
-            stringify!(UserContext)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_6),
+                "::",
+                stringify!(UserContext)
             )
         );
     }
@@ -4666,10 +4666,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_6() {
             },
             8usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_6),
-            "::",
-            stringify!(UserContext2)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_6),
+                "::",
+                stringify!(UserContext2)
             )
         );
     }
@@ -4685,10 +4685,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_6() {
             },
             16usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_6),
-            "::",
-            stringify!(Address)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_6),
+                "::",
+                stringify!(Address)
             )
         );
     }
@@ -4704,10 +4704,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_6() {
             },
             24usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_6),
-            "::",
-            stringify!(Offset)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_6),
+                "::",
+                stringify!(Offset)
             )
         );
     }
@@ -4723,10 +4723,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_6() {
             },
             32usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_6),
-            "::",
-            stringify!(Length)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_6),
+                "::",
+                stringify!(Length)
             )
         );
     }
@@ -4742,10 +4742,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_6() {
             },
             36usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_6),
-            "::",
-            stringify!(Key)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_6),
+                "::",
+                stringify!(Key)
             )
         );
     }
@@ -4785,16 +4785,16 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_7() {
         ::std::mem::size_of::<FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_7>(),
         16usize,
         concat!(
-        "Size of: ",
-        stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_7)
+            "Size of: ",
+            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_7)
         )
     );
     assert_eq!(
         ::std::mem::align_of::<FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_7>(),
         8usize,
         concat!(
-        "Alignment of ",
-        stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_7)
+            "Alignment of ",
+            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_7)
         )
     );
     fn test_field_UserContext() {
@@ -4808,10 +4808,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_7() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_7),
-            "::",
-            stringify!(UserContext)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_7),
+                "::",
+                stringify!(UserContext)
             )
         );
     }
@@ -4827,10 +4827,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_7() {
             },
             8usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_7),
-            "::",
-            stringify!(UserContext2)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_7),
+                "::",
+                stringify!(UserContext2)
             )
         );
     }
@@ -4851,7 +4851,7 @@ pub union FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindgen_ty_1 {
     pub Basic: FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindgen_ty_1__bindgen_ty_2,
     pub Disposition: FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindgen_ty_1__bindgen_ty_3,
     pub DispositionEx:
-    FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindgen_ty_1__bindgen_ty_4,
+        FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindgen_ty_1__bindgen_ty_4,
     pub EndOfFile: FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindgen_ty_1__bindgen_ty_5,
     pub Rename: FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindgen_ty_1__bindgen_ty_6,
     pub RenameEx: FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindgen_ty_1__bindgen_ty_7,
@@ -4870,8 +4870,8 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindg
         >(),
         8usize,
         concat!(
-        "Size of: ",
-        stringify!(
+            "Size of: ",
+            stringify!(
                 FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindgen_ty_1__bindgen_ty_1
             )
         )
@@ -4882,8 +4882,8 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindg
         >(),
         8usize,
         concat!(
-        "Alignment of ",
-        stringify!(
+            "Alignment of ",
+            stringify!(
                 FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindgen_ty_1__bindgen_ty_1
             )
         )
@@ -4899,12 +4899,12 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindg
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(
+                "Offset of field: ",
+                stringify!(
                     FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindgen_ty_1__bindgen_ty_1
                 ),
-            "::",
-            stringify!(AllocationSize)
+                "::",
+                stringify!(AllocationSize)
             )
         );
     }
@@ -4928,8 +4928,8 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindg
         >(),
         40usize,
         concat!(
-        "Size of: ",
-        stringify!(
+            "Size of: ",
+            stringify!(
                 FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindgen_ty_1__bindgen_ty_2
             )
         )
@@ -4940,8 +4940,8 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindg
         >(),
         8usize,
         concat!(
-        "Alignment of ",
-        stringify!(
+            "Alignment of ",
+            stringify!(
                 FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindgen_ty_1__bindgen_ty_2
             )
         )
@@ -4957,12 +4957,12 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindg
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(
+                "Offset of field: ",
+                stringify!(
                     FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindgen_ty_1__bindgen_ty_2
                 ),
-            "::",
-            stringify!(FileAttributes)
+                "::",
+                stringify!(FileAttributes)
             )
         );
     }
@@ -4978,12 +4978,12 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindg
             },
             8usize,
             concat!(
-            "Offset of field: ",
-            stringify!(
+                "Offset of field: ",
+                stringify!(
                     FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindgen_ty_1__bindgen_ty_2
                 ),
-            "::",
-            stringify!(CreationTime)
+                "::",
+                stringify!(CreationTime)
             )
         );
     }
@@ -4999,12 +4999,12 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindg
             },
             16usize,
             concat!(
-            "Offset of field: ",
-            stringify!(
+                "Offset of field: ",
+                stringify!(
                     FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindgen_ty_1__bindgen_ty_2
                 ),
-            "::",
-            stringify!(LastAccessTime)
+                "::",
+                stringify!(LastAccessTime)
             )
         );
     }
@@ -5020,12 +5020,12 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindg
             },
             24usize,
             concat!(
-            "Offset of field: ",
-            stringify!(
+                "Offset of field: ",
+                stringify!(
                     FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindgen_ty_1__bindgen_ty_2
                 ),
-            "::",
-            stringify!(LastWriteTime)
+                "::",
+                stringify!(LastWriteTime)
             )
         );
     }
@@ -5041,12 +5041,12 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindg
             },
             32usize,
             concat!(
-            "Offset of field: ",
-            stringify!(
+                "Offset of field: ",
+                stringify!(
                     FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindgen_ty_1__bindgen_ty_2
                 ),
-            "::",
-            stringify!(ChangeTime)
+                "::",
+                stringify!(ChangeTime)
             )
         );
     }
@@ -5069,8 +5069,8 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindg
         >(),
         4usize,
         concat!(
-        "Size of: ",
-        stringify!(
+            "Size of: ",
+            stringify!(
                 FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindgen_ty_1__bindgen_ty_3
             )
         )
@@ -5081,8 +5081,8 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindg
         >(),
         4usize,
         concat!(
-        "Alignment of ",
-        stringify!(
+            "Alignment of ",
+            stringify!(
                 FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindgen_ty_1__bindgen_ty_3
             )
         )
@@ -5124,8 +5124,8 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindg
         >(),
         4usize,
         concat!(
-        "Size of: ",
-        stringify!(
+            "Size of: ",
+            stringify!(
                 FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindgen_ty_1__bindgen_ty_4
             )
         )
@@ -5136,8 +5136,8 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindg
         >(),
         4usize,
         concat!(
-        "Alignment of ",
-        stringify!(
+            "Alignment of ",
+            stringify!(
                 FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindgen_ty_1__bindgen_ty_4
             )
         )
@@ -5153,12 +5153,12 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindg
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(
+                "Offset of field: ",
+                stringify!(
                     FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindgen_ty_1__bindgen_ty_4
                 ),
-            "::",
-            stringify!(Flags)
+                "::",
+                stringify!(Flags)
             )
         );
     }
@@ -5178,8 +5178,8 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindg
         >(),
         8usize,
         concat!(
-        "Size of: ",
-        stringify!(
+            "Size of: ",
+            stringify!(
                 FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindgen_ty_1__bindgen_ty_5
             )
         )
@@ -5190,8 +5190,8 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindg
         >(),
         8usize,
         concat!(
-        "Alignment of ",
-        stringify!(
+            "Alignment of ",
+            stringify!(
                 FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindgen_ty_1__bindgen_ty_5
             )
         )
@@ -5207,12 +5207,12 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindg
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(
+                "Offset of field: ",
+                stringify!(
                     FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindgen_ty_1__bindgen_ty_5
                 ),
-            "::",
-            stringify!(FileSize)
+                "::",
+                stringify!(FileSize)
             )
         );
     }
@@ -5233,8 +5233,8 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindg
         >(),
         16usize,
         concat!(
-        "Size of: ",
-        stringify!(
+            "Size of: ",
+            stringify!(
                 FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindgen_ty_1__bindgen_ty_6
             )
         )
@@ -5245,8 +5245,8 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindg
         >(),
         8usize,
         concat!(
-        "Alignment of ",
-        stringify!(
+            "Alignment of ",
+            stringify!(
                 FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindgen_ty_1__bindgen_ty_6
             )
         )
@@ -5262,12 +5262,12 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindg
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(
+                "Offset of field: ",
+                stringify!(
                     FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindgen_ty_1__bindgen_ty_6
                 ),
-            "::",
-            stringify!(NewFileName)
+                "::",
+                stringify!(NewFileName)
             )
         );
     }
@@ -5283,12 +5283,12 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindg
             },
             8usize,
             concat!(
-            "Offset of field: ",
-            stringify!(
+                "Offset of field: ",
+                stringify!(
                     FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindgen_ty_1__bindgen_ty_6
                 ),
-            "::",
-            stringify!(AccessToken)
+                "::",
+                stringify!(AccessToken)
             )
         );
     }
@@ -5310,8 +5310,8 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindg
         >(),
         24usize,
         concat!(
-        "Size of: ",
-        stringify!(
+            "Size of: ",
+            stringify!(
                 FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindgen_ty_1__bindgen_ty_7
             )
         )
@@ -5322,8 +5322,8 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindg
         >(),
         8usize,
         concat!(
-        "Alignment of ",
-        stringify!(
+            "Alignment of ",
+            stringify!(
                 FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindgen_ty_1__bindgen_ty_7
             )
         )
@@ -5339,12 +5339,12 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindg
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(
+                "Offset of field: ",
+                stringify!(
                     FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindgen_ty_1__bindgen_ty_7
                 ),
-            "::",
-            stringify!(NewFileName)
+                "::",
+                stringify!(NewFileName)
             )
         );
     }
@@ -5360,12 +5360,12 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindg
             },
             8usize,
             concat!(
-            "Offset of field: ",
-            stringify!(
+                "Offset of field: ",
+                stringify!(
                     FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindgen_ty_1__bindgen_ty_7
                 ),
-            "::",
-            stringify!(AccessToken)
+                "::",
+                stringify!(AccessToken)
             )
         );
     }
@@ -5381,12 +5381,12 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindg
             },
             16usize,
             concat!(
-            "Offset of field: ",
-            stringify!(
+                "Offset of field: ",
+                stringify!(
                     FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindgen_ty_1__bindgen_ty_7
                 ),
-            "::",
-            stringify!(Flags)
+                "::",
+                stringify!(Flags)
             )
         );
     }
@@ -5398,16 +5398,16 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindg
         ::std::mem::size_of::<FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindgen_ty_1>(),
         40usize,
         concat!(
-        "Size of: ",
-        stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindgen_ty_1)
+            "Size of: ",
+            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindgen_ty_1)
         )
     );
     assert_eq!(
         ::std::mem::align_of::<FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindgen_ty_1>(),
         8usize,
         concat!(
-        "Alignment of ",
-        stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindgen_ty_1)
+            "Alignment of ",
+            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindgen_ty_1)
         )
     );
     fn test_field_Allocation() {
@@ -5421,10 +5421,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindg
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindgen_ty_1),
-            "::",
-            stringify!(Allocation)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindgen_ty_1),
+                "::",
+                stringify!(Allocation)
             )
         );
     }
@@ -5440,10 +5440,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindg
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindgen_ty_1),
-            "::",
-            stringify!(Basic)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindgen_ty_1),
+                "::",
+                stringify!(Basic)
             )
         );
     }
@@ -5459,10 +5459,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindg
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindgen_ty_1),
-            "::",
-            stringify!(Disposition)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindgen_ty_1),
+                "::",
+                stringify!(Disposition)
             )
         );
     }
@@ -5478,10 +5478,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindg
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindgen_ty_1),
-            "::",
-            stringify!(DispositionEx)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindgen_ty_1),
+                "::",
+                stringify!(DispositionEx)
             )
         );
     }
@@ -5497,10 +5497,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindg
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindgen_ty_1),
-            "::",
-            stringify!(EndOfFile)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindgen_ty_1),
+                "::",
+                stringify!(EndOfFile)
             )
         );
     }
@@ -5516,10 +5516,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindg
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindgen_ty_1),
-            "::",
-            stringify!(Rename)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindgen_ty_1),
+                "::",
+                stringify!(Rename)
             )
         );
     }
@@ -5535,10 +5535,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindg
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindgen_ty_1),
-            "::",
-            stringify!(RenameEx)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8__bindgen_ty_1),
+                "::",
+                stringify!(RenameEx)
             )
         );
     }
@@ -5559,16 +5559,16 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8() {
         ::std::mem::size_of::<FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8>(),
         64usize,
         concat!(
-        "Size of: ",
-        stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8)
+            "Size of: ",
+            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8)
         )
     );
     assert_eq!(
         ::std::mem::align_of::<FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8>(),
         8usize,
         concat!(
-        "Alignment of ",
-        stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8)
+            "Alignment of ",
+            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8)
         )
     );
     fn test_field_UserContext() {
@@ -5582,10 +5582,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8),
-            "::",
-            stringify!(UserContext)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8),
+                "::",
+                stringify!(UserContext)
             )
         );
     }
@@ -5601,10 +5601,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8() {
             },
             8usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8),
-            "::",
-            stringify!(UserContext2)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8),
+                "::",
+                stringify!(UserContext2)
             )
         );
     }
@@ -5620,10 +5620,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8() {
             },
             16usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8),
-            "::",
-            stringify!(FileInformationClass)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8),
+                "::",
+                stringify!(FileInformationClass)
             )
         );
     }
@@ -5639,10 +5639,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8() {
             },
             24usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8),
-            "::",
-            stringify!(Info)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_8),
+                "::",
+                stringify!(Info)
             )
         );
     }
@@ -5669,16 +5669,16 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_9() {
         ::std::mem::size_of::<FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_9>(),
         16usize,
         concat!(
-        "Size of: ",
-        stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_9)
+            "Size of: ",
+            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_9)
         )
     );
     assert_eq!(
         ::std::mem::align_of::<FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_9>(),
         8usize,
         concat!(
-        "Alignment of ",
-        stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_9)
+            "Alignment of ",
+            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_9)
         )
     );
     fn test_field_UserContext() {
@@ -5692,10 +5692,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_9() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_9),
-            "::",
-            stringify!(UserContext)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_9),
+                "::",
+                stringify!(UserContext)
             )
         );
     }
@@ -5711,10 +5711,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_9() {
             },
             8usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_9),
-            "::",
-            stringify!(UserContext2)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_9),
+                "::",
+                stringify!(UserContext2)
             )
         );
     }
@@ -5733,16 +5733,16 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_10() {
         ::std::mem::size_of::<FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_10>(),
         24usize,
         concat!(
-        "Size of: ",
-        stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_10)
+            "Size of: ",
+            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_10)
         )
     );
     assert_eq!(
         ::std::mem::align_of::<FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_10>(),
         8usize,
         concat!(
-        "Alignment of ",
-        stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_10)
+            "Alignment of ",
+            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_10)
         )
     );
     fn test_field_UserContext() {
@@ -5756,10 +5756,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_10() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_10),
-            "::",
-            stringify!(UserContext)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_10),
+                "::",
+                stringify!(UserContext)
             )
         );
     }
@@ -5775,10 +5775,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_10() {
             },
             8usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_10),
-            "::",
-            stringify!(UserContext2)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_10),
+                "::",
+                stringify!(UserContext2)
             )
         );
     }
@@ -5794,10 +5794,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_10() {
             },
             16usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_10),
-            "::",
-            stringify!(Ea)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_10),
+                "::",
+                stringify!(Ea)
             )
         );
     }
@@ -5815,16 +5815,16 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_11() {
         ::std::mem::size_of::<FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_11>(),
         16usize,
         concat!(
-        "Size of: ",
-        stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_11)
+            "Size of: ",
+            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_11)
         )
     );
     assert_eq!(
         ::std::mem::align_of::<FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_11>(),
         8usize,
         concat!(
-        "Alignment of ",
-        stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_11)
+            "Alignment of ",
+            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_11)
         )
     );
     fn test_field_UserContext() {
@@ -5838,10 +5838,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_11() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_11),
-            "::",
-            stringify!(UserContext)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_11),
+                "::",
+                stringify!(UserContext)
             )
         );
     }
@@ -5857,10 +5857,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_11() {
             },
             8usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_11),
-            "::",
-            stringify!(UserContext2)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_11),
+                "::",
+                stringify!(UserContext2)
             )
         );
     }
@@ -5891,8 +5891,8 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_12__bind
         >(),
         4usize,
         concat!(
-        "Size of: ",
-        stringify!(
+            "Size of: ",
+            stringify!(
                 FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_12__bindgen_ty_1__bindgen_ty_1
             )
         )
@@ -5903,8 +5903,8 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_12__bind
         >(),
         2usize,
         concat!(
-        "Alignment of ",
-        stringify!(
+            "Alignment of ",
+            stringify!(
                 FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_12__bindgen_ty_1__bindgen_ty_1
             )
         )
@@ -5920,12 +5920,12 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_12__bind
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(
+                "Offset of field: ",
+                stringify!(
                     FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_12__bindgen_ty_1__bindgen_ty_1
                 ),
-            "::",
-            stringify!(VolumeLabel)
+                "::",
+                stringify!(VolumeLabel)
             )
         );
     }
@@ -5937,16 +5937,16 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_12__bind
         ::std::mem::size_of::<FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_12__bindgen_ty_1>(),
         4usize,
         concat!(
-        "Size of: ",
-        stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_12__bindgen_ty_1)
+            "Size of: ",
+            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_12__bindgen_ty_1)
         )
     );
     assert_eq!(
         ::std::mem::align_of::<FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_12__bindgen_ty_1>(),
         2usize,
         concat!(
-        "Alignment of ",
-        stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_12__bindgen_ty_1)
+            "Alignment of ",
+            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_12__bindgen_ty_1)
         )
     );
     fn test_field_Label() {
@@ -5960,10 +5960,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_12__bind
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_12__bindgen_ty_1),
-            "::",
-            stringify!(Label)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_12__bindgen_ty_1),
+                "::",
+                stringify!(Label)
             )
         );
     }
@@ -5984,16 +5984,16 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_12() {
         ::std::mem::size_of::<FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_12>(),
         8usize,
         concat!(
-        "Size of: ",
-        stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_12)
+            "Size of: ",
+            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_12)
         )
     );
     assert_eq!(
         ::std::mem::align_of::<FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_12>(),
         4usize,
         concat!(
-        "Alignment of ",
-        stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_12)
+            "Alignment of ",
+            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_12)
         )
     );
     fn test_field_FsInformationClass() {
@@ -6007,10 +6007,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_12() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_12),
-            "::",
-            stringify!(FsInformationClass)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_12),
+                "::",
+                stringify!(FsInformationClass)
             )
         );
     }
@@ -6026,10 +6026,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_12() {
             },
             4usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_12),
-            "::",
-            stringify!(Info)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_12),
+                "::",
+                stringify!(Info)
             )
         );
     }
@@ -6063,16 +6063,16 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_13() {
         ::std::mem::size_of::<FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_13>(),
         40usize,
         concat!(
-        "Size of: ",
-        stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_13)
+            "Size of: ",
+            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_13)
         )
     );
     assert_eq!(
         ::std::mem::align_of::<FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_13>(),
         8usize,
         concat!(
-        "Alignment of ",
-        stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_13)
+            "Alignment of ",
+            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_13)
         )
     );
     fn test_field_UserContext() {
@@ -6086,10 +6086,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_13() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_13),
-            "::",
-            stringify!(UserContext)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_13),
+                "::",
+                stringify!(UserContext)
             )
         );
     }
@@ -6105,10 +6105,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_13() {
             },
             8usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_13),
-            "::",
-            stringify!(UserContext2)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_13),
+                "::",
+                stringify!(UserContext2)
             )
         );
     }
@@ -6124,10 +6124,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_13() {
             },
             16usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_13),
-            "::",
-            stringify!(Address)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_13),
+                "::",
+                stringify!(Address)
             )
         );
     }
@@ -6143,10 +6143,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_13() {
             },
             24usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_13),
-            "::",
-            stringify!(Length)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_13),
+                "::",
+                stringify!(Length)
             )
         );
     }
@@ -6162,10 +6162,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_13() {
             },
             28usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_13),
-            "::",
-            stringify!(Pattern)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_13),
+                "::",
+                stringify!(Pattern)
             )
         );
     }
@@ -6181,10 +6181,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_13() {
             },
             32usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_13),
-            "::",
-            stringify!(Marker)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_13),
+                "::",
+                stringify!(Marker)
             )
         );
     }
@@ -6245,16 +6245,16 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_14() {
         ::std::mem::size_of::<FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_14>(),
         32usize,
         concat!(
-        "Size of: ",
-        stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_14)
+            "Size of: ",
+            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_14)
         )
     );
     assert_eq!(
         ::std::mem::align_of::<FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_14>(),
         8usize,
         concat!(
-        "Alignment of ",
-        stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_14)
+            "Alignment of ",
+            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_14)
         )
     );
     fn test_field_UserContext() {
@@ -6268,10 +6268,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_14() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_14),
-            "::",
-            stringify!(UserContext)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_14),
+                "::",
+                stringify!(UserContext)
             )
         );
     }
@@ -6287,10 +6287,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_14() {
             },
             8usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_14),
-            "::",
-            stringify!(UserContext2)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_14),
+                "::",
+                stringify!(UserContext2)
             )
         );
     }
@@ -6306,10 +6306,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_14() {
             },
             16usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_14),
-            "::",
-            stringify!(FsControlCode)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_14),
+                "::",
+                stringify!(FsControlCode)
             )
         );
     }
@@ -6325,10 +6325,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_14() {
             },
             20usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_14),
-            "::",
-            stringify!(Buffer)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_14),
+                "::",
+                stringify!(Buffer)
             )
         );
     }
@@ -6344,10 +6344,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_14() {
             },
             24usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_14),
-            "::",
-            stringify!(TargetOnFileSystem)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_14),
+                "::",
+                stringify!(TargetOnFileSystem)
             )
         );
     }
@@ -6368,16 +6368,16 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_15() {
         ::std::mem::size_of::<FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_15>(),
         32usize,
         concat!(
-        "Size of: ",
-        stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_15)
+            "Size of: ",
+            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_15)
         )
     );
     assert_eq!(
         ::std::mem::align_of::<FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_15>(),
         8usize,
         concat!(
-        "Alignment of ",
-        stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_15)
+            "Alignment of ",
+            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_15)
         )
     );
     fn test_field_UserContext() {
@@ -6391,10 +6391,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_15() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_15),
-            "::",
-            stringify!(UserContext)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_15),
+                "::",
+                stringify!(UserContext)
             )
         );
     }
@@ -6410,10 +6410,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_15() {
             },
             8usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_15),
-            "::",
-            stringify!(UserContext2)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_15),
+                "::",
+                stringify!(UserContext2)
             )
         );
     }
@@ -6429,10 +6429,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_15() {
             },
             16usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_15),
-            "::",
-            stringify!(IoControlCode)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_15),
+                "::",
+                stringify!(IoControlCode)
             )
         );
     }
@@ -6448,10 +6448,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_15() {
             },
             20usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_15),
-            "::",
-            stringify!(Buffer)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_15),
+                "::",
+                stringify!(Buffer)
             )
         );
     }
@@ -6467,10 +6467,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_15() {
             },
             24usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_15),
-            "::",
-            stringify!(OutputLength)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_15),
+                "::",
+                stringify!(OutputLength)
             )
         );
     }
@@ -6488,16 +6488,16 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_16() {
         ::std::mem::size_of::<FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_16>(),
         16usize,
         concat!(
-        "Size of: ",
-        stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_16)
+            "Size of: ",
+            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_16)
         )
     );
     assert_eq!(
         ::std::mem::align_of::<FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_16>(),
         8usize,
         concat!(
-        "Alignment of ",
-        stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_16)
+            "Alignment of ",
+            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_16)
         )
     );
     fn test_field_UserContext() {
@@ -6511,10 +6511,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_16() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_16),
-            "::",
-            stringify!(UserContext)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_16),
+                "::",
+                stringify!(UserContext)
             )
         );
     }
@@ -6530,10 +6530,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_16() {
             },
             8usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_16),
-            "::",
-            stringify!(UserContext2)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_16),
+                "::",
+                stringify!(UserContext2)
             )
         );
     }
@@ -6553,16 +6553,16 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_17() {
         ::std::mem::size_of::<FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_17>(),
         24usize,
         concat!(
-        "Size of: ",
-        stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_17)
+            "Size of: ",
+            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_17)
         )
     );
     assert_eq!(
         ::std::mem::align_of::<FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_17>(),
         8usize,
         concat!(
-        "Alignment of ",
-        stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_17)
+            "Alignment of ",
+            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_17)
         )
     );
     fn test_field_UserContext() {
@@ -6576,10 +6576,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_17() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_17),
-            "::",
-            stringify!(UserContext)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_17),
+                "::",
+                stringify!(UserContext)
             )
         );
     }
@@ -6595,10 +6595,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_17() {
             },
             8usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_17),
-            "::",
-            stringify!(UserContext2)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_17),
+                "::",
+                stringify!(UserContext2)
             )
         );
     }
@@ -6614,10 +6614,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_17() {
             },
             16usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_17),
-            "::",
-            stringify!(SecurityInformation)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_17),
+                "::",
+                stringify!(SecurityInformation)
             )
         );
     }
@@ -6633,10 +6633,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_17() {
             },
             20usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_17),
-            "::",
-            stringify!(SecurityDescriptor)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_17),
+                "::",
+                stringify!(SecurityDescriptor)
             )
         );
     }
@@ -6654,16 +6654,16 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_18() {
         ::std::mem::size_of::<FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_18>(),
         16usize,
         concat!(
-        "Size of: ",
-        stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_18)
+            "Size of: ",
+            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_18)
         )
     );
     assert_eq!(
         ::std::mem::align_of::<FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_18>(),
         8usize,
         concat!(
-        "Alignment of ",
-        stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_18)
+            "Alignment of ",
+            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_18)
         )
     );
     fn test_field_UserContext() {
@@ -6677,10 +6677,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_18() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_18),
-            "::",
-            stringify!(UserContext)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_18),
+                "::",
+                stringify!(UserContext)
             )
         );
     }
@@ -6696,10 +6696,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_18() {
             },
             8usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_18),
-            "::",
-            stringify!(UserContext2)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1__bindgen_ty_18),
+                "::",
+                stringify!(UserContext2)
             )
         );
     }
@@ -6711,16 +6711,16 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1() {
         ::std::mem::size_of::<FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1>(),
         64usize,
         concat!(
-        "Size of: ",
-        stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1)
+            "Size of: ",
+            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1)
         )
     );
     assert_eq!(
         ::std::mem::align_of::<FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1>(),
         8usize,
         concat!(
-        "Alignment of ",
-        stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1)
+            "Alignment of ",
+            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1)
         )
     );
     fn test_field_Create() {
@@ -6733,10 +6733,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1),
-            "::",
-            stringify!(Create)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1),
+                "::",
+                stringify!(Create)
             )
         );
     }
@@ -6751,10 +6751,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1),
-            "::",
-            stringify!(Overwrite)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1),
+                "::",
+                stringify!(Overwrite)
             )
         );
     }
@@ -6769,10 +6769,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1),
-            "::",
-            stringify!(Cleanup)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1),
+                "::",
+                stringify!(Cleanup)
             )
         );
     }
@@ -6787,10 +6787,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1),
-            "::",
-            stringify!(Close)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1),
+                "::",
+                stringify!(Close)
             )
         );
     }
@@ -6805,10 +6805,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1),
-            "::",
-            stringify!(Read)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1),
+                "::",
+                stringify!(Read)
             )
         );
     }
@@ -6823,10 +6823,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1),
-            "::",
-            stringify!(Write)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1),
+                "::",
+                stringify!(Write)
             )
         );
     }
@@ -6841,10 +6841,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1),
-            "::",
-            stringify!(QueryInformation)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1),
+                "::",
+                stringify!(QueryInformation)
             )
         );
     }
@@ -6859,10 +6859,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1),
-            "::",
-            stringify!(SetInformation)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1),
+                "::",
+                stringify!(SetInformation)
             )
         );
     }
@@ -6877,10 +6877,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1),
-            "::",
-            stringify!(QueryEa)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1),
+                "::",
+                stringify!(QueryEa)
             )
         );
     }
@@ -6895,10 +6895,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1),
-            "::",
-            stringify!(SetEa)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1),
+                "::",
+                stringify!(SetEa)
             )
         );
     }
@@ -6913,10 +6913,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1),
-            "::",
-            stringify!(FlushBuffers)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1),
+                "::",
+                stringify!(FlushBuffers)
             )
         );
     }
@@ -6931,10 +6931,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1),
-            "::",
-            stringify!(SetVolumeInformation)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1),
+                "::",
+                stringify!(SetVolumeInformation)
             )
         );
     }
@@ -6949,10 +6949,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1),
-            "::",
-            stringify!(QueryDirectory)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1),
+                "::",
+                stringify!(QueryDirectory)
             )
         );
     }
@@ -6967,10 +6967,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1),
-            "::",
-            stringify!(FileSystemControl)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1),
+                "::",
+                stringify!(FileSystemControl)
             )
         );
     }
@@ -6985,10 +6985,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1),
-            "::",
-            stringify!(DeviceControl)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1),
+                "::",
+                stringify!(DeviceControl)
             )
         );
     }
@@ -7003,10 +7003,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1),
-            "::",
-            stringify!(QuerySecurity)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1),
+                "::",
+                stringify!(QuerySecurity)
             )
         );
     }
@@ -7021,10 +7021,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1),
-            "::",
-            stringify!(SetSecurity)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1),
+                "::",
+                stringify!(SetSecurity)
             )
         );
     }
@@ -7039,10 +7039,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1),
-            "::",
-            stringify!(QueryStreamInformation)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ__bindgen_ty_1),
+                "::",
+                stringify!(QueryStreamInformation)
             )
         );
     }
@@ -7078,10 +7078,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ),
-            "::",
-            stringify!(Version)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ),
+                "::",
+                stringify!(Version)
             )
         );
     }
@@ -7095,10 +7095,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ() {
             },
             2usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ),
-            "::",
-            stringify!(Size)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ),
+                "::",
+                stringify!(Size)
             )
         );
     }
@@ -7112,10 +7112,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ() {
             },
             4usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ),
-            "::",
-            stringify!(Kind)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ),
+                "::",
+                stringify!(Kind)
             )
         );
     }
@@ -7129,10 +7129,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ() {
             },
             8usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ),
-            "::",
-            stringify!(Hint)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ),
+                "::",
+                stringify!(Hint)
             )
         );
     }
@@ -7146,10 +7146,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ() {
             },
             16usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ),
-            "::",
-            stringify!(Req)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ),
+                "::",
+                stringify!(Req)
             )
         );
     }
@@ -7163,10 +7163,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ() {
             },
             80usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ),
-            "::",
-            stringify!(FileName)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ),
+                "::",
+                stringify!(FileName)
             )
         );
     }
@@ -7180,10 +7180,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_REQ() {
             },
             88usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_REQ),
-            "::",
-            stringify!(Buffer)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_REQ),
+                "::",
+                stringify!(Buffer)
             )
         );
     }
@@ -7220,16 +7220,16 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_RSP__bindgen_ty_1() {
         ::std::mem::size_of::<FSP_FSCTL_TRANSACT_RSP__bindgen_ty_1>(),
         8usize,
         concat!(
-        "Size of: ",
-        stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_1)
+            "Size of: ",
+            stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_1)
         )
     );
     assert_eq!(
         ::std::mem::align_of::<FSP_FSCTL_TRANSACT_RSP__bindgen_ty_1>(),
         4usize,
         concat!(
-        "Alignment of ",
-        stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_1)
+            "Alignment of ",
+            stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_1)
         )
     );
     fn test_field_Information() {
@@ -7242,10 +7242,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_RSP__bindgen_ty_1() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_1),
-            "::",
-            stringify!(Information)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_1),
+                "::",
+                stringify!(Information)
             )
         );
     }
@@ -7260,10 +7260,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_RSP__bindgen_ty_1() {
             },
             4usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_1),
-            "::",
-            stringify!(Status)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_1),
+                "::",
+                stringify!(Status)
             )
         );
     }
@@ -7313,16 +7313,16 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_1__bindg
         ::std::mem::size_of::<FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_1__bindgen_ty_1>(),
         104usize,
         concat!(
-        "Size of: ",
-        stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_1__bindgen_ty_1)
+            "Size of: ",
+            stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_1__bindgen_ty_1)
         )
     );
     assert_eq!(
         ::std::mem::align_of::<FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_1__bindgen_ty_1>(),
         8usize,
         concat!(
-        "Alignment of ",
-        stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_1__bindgen_ty_1)
+            "Alignment of ",
+            stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_1__bindgen_ty_1)
         )
     );
     fn test_field_UserContext() {
@@ -7336,10 +7336,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_1__bindg
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_1__bindgen_ty_1),
-            "::",
-            stringify!(UserContext)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_1__bindgen_ty_1),
+                "::",
+                stringify!(UserContext)
             )
         );
     }
@@ -7355,10 +7355,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_1__bindg
             },
             8usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_1__bindgen_ty_1),
-            "::",
-            stringify!(UserContext2)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_1__bindgen_ty_1),
+                "::",
+                stringify!(UserContext2)
             )
         );
     }
@@ -7374,10 +7374,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_1__bindg
             },
             16usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_1__bindgen_ty_1),
-            "::",
-            stringify!(GrantedAccess)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_1__bindgen_ty_1),
+                "::",
+                stringify!(GrantedAccess)
             )
         );
     }
@@ -7393,10 +7393,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_1__bindg
             },
             20usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_1__bindgen_ty_1),
-            "::",
-            stringify!(SecurityDescriptor)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_1__bindgen_ty_1),
+                "::",
+                stringify!(SecurityDescriptor)
             )
         );
     }
@@ -7412,10 +7412,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_1__bindg
             },
             24usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_1__bindgen_ty_1),
-            "::",
-            stringify!(FileInfo)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_1__bindgen_ty_1),
+                "::",
+                stringify!(FileInfo)
             )
         );
     }
@@ -7431,10 +7431,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_1__bindg
             },
             96usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_1__bindgen_ty_1),
-            "::",
-            stringify!(FileName)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_1__bindgen_ty_1),
+                "::",
+                stringify!(FileName)
             )
         );
     }
@@ -7492,16 +7492,16 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_1__bindg
         ::std::mem::size_of::<FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_1__bindgen_ty_2>(),
         4usize,
         concat!(
-        "Size of: ",
-        stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_1__bindgen_ty_2)
+            "Size of: ",
+            stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_1__bindgen_ty_2)
         )
     );
     assert_eq!(
         ::std::mem::align_of::<FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_1__bindgen_ty_2>(),
         2usize,
         concat!(
-        "Alignment of ",
-        stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_1__bindgen_ty_2)
+            "Alignment of ",
+            stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_1__bindgen_ty_2)
         )
     );
     fn test_field_Buffer() {
@@ -7515,10 +7515,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_1__bindg
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_1__bindgen_ty_2),
-            "::",
-            stringify!(Buffer)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_1__bindgen_ty_2),
+                "::",
+                stringify!(Buffer)
             )
         );
     }
@@ -7530,16 +7530,16 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_1() {
         ::std::mem::size_of::<FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_1>(),
         104usize,
         concat!(
-        "Size of: ",
-        stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_1)
+            "Size of: ",
+            stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_1)
         )
     );
     assert_eq!(
         ::std::mem::align_of::<FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_1>(),
         8usize,
         concat!(
-        "Alignment of ",
-        stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_1)
+            "Alignment of ",
+            stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_1)
         )
     );
     fn test_field_Opened() {
@@ -7553,10 +7553,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_1() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_1),
-            "::",
-            stringify!(Opened)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_1),
+                "::",
+                stringify!(Opened)
             )
         );
     }
@@ -7572,10 +7572,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_1() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_1),
-            "::",
-            stringify!(Reparse)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_1),
+                "::",
+                stringify!(Reparse)
             )
         );
     }
@@ -7601,16 +7601,16 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_2() {
         ::std::mem::size_of::<FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_2>(),
         72usize,
         concat!(
-        "Size of: ",
-        stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_2)
+            "Size of: ",
+            stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_2)
         )
     );
     assert_eq!(
         ::std::mem::align_of::<FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_2>(),
         8usize,
         concat!(
-        "Alignment of ",
-        stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_2)
+            "Alignment of ",
+            stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_2)
         )
     );
     fn test_field_FileInfo() {
@@ -7624,10 +7624,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_2() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_2),
-            "::",
-            stringify!(FileInfo)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_2),
+                "::",
+                stringify!(FileInfo)
             )
         );
     }
@@ -7644,16 +7644,16 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_3() {
         ::std::mem::size_of::<FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_3>(),
         72usize,
         concat!(
-        "Size of: ",
-        stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_3)
+            "Size of: ",
+            stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_3)
         )
     );
     assert_eq!(
         ::std::mem::align_of::<FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_3>(),
         8usize,
         concat!(
-        "Alignment of ",
-        stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_3)
+            "Alignment of ",
+            stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_3)
         )
     );
     fn test_field_FileInfo() {
@@ -7667,10 +7667,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_3() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_3),
-            "::",
-            stringify!(FileInfo)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_3),
+                "::",
+                stringify!(FileInfo)
             )
         );
     }
@@ -7687,16 +7687,16 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_4() {
         ::std::mem::size_of::<FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_4>(),
         72usize,
         concat!(
-        "Size of: ",
-        stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_4)
+            "Size of: ",
+            stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_4)
         )
     );
     assert_eq!(
         ::std::mem::align_of::<FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_4>(),
         8usize,
         concat!(
-        "Alignment of ",
-        stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_4)
+            "Alignment of ",
+            stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_4)
         )
     );
     fn test_field_FileInfo() {
@@ -7710,10 +7710,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_4() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_4),
-            "::",
-            stringify!(FileInfo)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_4),
+                "::",
+                stringify!(FileInfo)
             )
         );
     }
@@ -7730,16 +7730,16 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_5() {
         ::std::mem::size_of::<FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_5>(),
         72usize,
         concat!(
-        "Size of: ",
-        stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_5)
+            "Size of: ",
+            stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_5)
         )
     );
     assert_eq!(
         ::std::mem::align_of::<FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_5>(),
         8usize,
         concat!(
-        "Alignment of ",
-        stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_5)
+            "Alignment of ",
+            stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_5)
         )
     );
     fn test_field_FileInfo() {
@@ -7753,10 +7753,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_5() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_5),
-            "::",
-            stringify!(FileInfo)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_5),
+                "::",
+                stringify!(FileInfo)
             )
         );
     }
@@ -7773,16 +7773,16 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_6() {
         ::std::mem::size_of::<FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_6>(),
         4usize,
         concat!(
-        "Size of: ",
-        stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_6)
+            "Size of: ",
+            stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_6)
         )
     );
     assert_eq!(
         ::std::mem::align_of::<FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_6>(),
         2usize,
         concat!(
-        "Alignment of ",
-        stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_6)
+            "Alignment of ",
+            stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_6)
         )
     );
     fn test_field_Ea() {
@@ -7796,10 +7796,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_6() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_6),
-            "::",
-            stringify!(Ea)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_6),
+                "::",
+                stringify!(Ea)
             )
         );
     }
@@ -7817,16 +7817,16 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_7() {
         ::std::mem::size_of::<FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_7>(),
         80usize,
         concat!(
-        "Size of: ",
-        stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_7)
+            "Size of: ",
+            stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_7)
         )
     );
     assert_eq!(
         ::std::mem::align_of::<FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_7>(),
         8usize,
         concat!(
-        "Alignment of ",
-        stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_7)
+            "Alignment of ",
+            stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_7)
         )
     );
     fn test_field_FileInfo() {
@@ -7840,10 +7840,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_7() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_7),
-            "::",
-            stringify!(FileInfo)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_7),
+                "::",
+                stringify!(FileInfo)
             )
         );
     }
@@ -7859,10 +7859,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_7() {
             },
             72usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_7),
-            "::",
-            stringify!(Ea)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_7),
+                "::",
+                stringify!(Ea)
             )
         );
     }
@@ -7879,16 +7879,16 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_8() {
         ::std::mem::size_of::<FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_8>(),
         72usize,
         concat!(
-        "Size of: ",
-        stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_8)
+            "Size of: ",
+            stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_8)
         )
     );
     assert_eq!(
         ::std::mem::align_of::<FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_8>(),
         8usize,
         concat!(
-        "Alignment of ",
-        stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_8)
+            "Alignment of ",
+            stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_8)
         )
     );
     fn test_field_FileInfo() {
@@ -7902,10 +7902,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_8() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_8),
-            "::",
-            stringify!(FileInfo)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_8),
+                "::",
+                stringify!(FileInfo)
             )
         );
     }
@@ -7922,16 +7922,16 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_9() {
         ::std::mem::size_of::<FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_9>(),
         88usize,
         concat!(
-        "Size of: ",
-        stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_9)
+            "Size of: ",
+            stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_9)
         )
     );
     assert_eq!(
         ::std::mem::align_of::<FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_9>(),
         8usize,
         concat!(
-        "Alignment of ",
-        stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_9)
+            "Alignment of ",
+            stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_9)
         )
     );
     fn test_field_VolumeInfo() {
@@ -7945,10 +7945,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_9() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_9),
-            "::",
-            stringify!(VolumeInfo)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_9),
+                "::",
+                stringify!(VolumeInfo)
             )
         );
     }
@@ -7965,16 +7965,16 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_10() {
         ::std::mem::size_of::<FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_10>(),
         88usize,
         concat!(
-        "Size of: ",
-        stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_10)
+            "Size of: ",
+            stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_10)
         )
     );
     assert_eq!(
         ::std::mem::align_of::<FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_10>(),
         8usize,
         concat!(
-        "Alignment of ",
-        stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_10)
+            "Alignment of ",
+            stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_10)
         )
     );
     fn test_field_VolumeInfo() {
@@ -7988,10 +7988,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_10() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_10),
-            "::",
-            stringify!(VolumeInfo)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_10),
+                "::",
+                stringify!(VolumeInfo)
             )
         );
     }
@@ -8008,16 +8008,16 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_11() {
         ::std::mem::size_of::<FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_11>(),
         4usize,
         concat!(
-        "Size of: ",
-        stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_11)
+            "Size of: ",
+            stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_11)
         )
     );
     assert_eq!(
         ::std::mem::align_of::<FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_11>(),
         2usize,
         concat!(
-        "Alignment of ",
-        stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_11)
+            "Alignment of ",
+            stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_11)
         )
     );
     fn test_field_Buffer() {
@@ -8031,10 +8031,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_11() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_11),
-            "::",
-            stringify!(Buffer)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_11),
+                "::",
+                stringify!(Buffer)
             )
         );
     }
@@ -8051,16 +8051,16 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_12() {
         ::std::mem::size_of::<FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_12>(),
         4usize,
         concat!(
-        "Size of: ",
-        stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_12)
+            "Size of: ",
+            stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_12)
         )
     );
     assert_eq!(
         ::std::mem::align_of::<FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_12>(),
         2usize,
         concat!(
-        "Alignment of ",
-        stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_12)
+            "Alignment of ",
+            stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_12)
         )
     );
     fn test_field_Buffer() {
@@ -8074,10 +8074,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_12() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_12),
-            "::",
-            stringify!(Buffer)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_12),
+                "::",
+                stringify!(Buffer)
             )
         );
     }
@@ -8094,16 +8094,16 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_13() {
         ::std::mem::size_of::<FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_13>(),
         4usize,
         concat!(
-        "Size of: ",
-        stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_13)
+            "Size of: ",
+            stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_13)
         )
     );
     assert_eq!(
         ::std::mem::align_of::<FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_13>(),
         2usize,
         concat!(
-        "Alignment of ",
-        stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_13)
+            "Alignment of ",
+            stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_13)
         )
     );
     fn test_field_SecurityDescriptor() {
@@ -8117,10 +8117,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_13() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_13),
-            "::",
-            stringify!(SecurityDescriptor)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_13),
+                "::",
+                stringify!(SecurityDescriptor)
             )
         );
     }
@@ -8137,16 +8137,16 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_14() {
         ::std::mem::size_of::<FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_14>(),
         4usize,
         concat!(
-        "Size of: ",
-        stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_14)
+            "Size of: ",
+            stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_14)
         )
     );
     assert_eq!(
         ::std::mem::align_of::<FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_14>(),
         2usize,
         concat!(
-        "Alignment of ",
-        stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_14)
+            "Alignment of ",
+            stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_14)
         )
     );
     fn test_field_SecurityDescriptor() {
@@ -8160,10 +8160,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_14() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_14),
-            "::",
-            stringify!(SecurityDescriptor)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_14),
+                "::",
+                stringify!(SecurityDescriptor)
             )
         );
     }
@@ -8180,16 +8180,16 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_15() {
         ::std::mem::size_of::<FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_15>(),
         4usize,
         concat!(
-        "Size of: ",
-        stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_15)
+            "Size of: ",
+            stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_15)
         )
     );
     assert_eq!(
         ::std::mem::align_of::<FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_15>(),
         2usize,
         concat!(
-        "Alignment of ",
-        stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_15)
+            "Alignment of ",
+            stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_15)
         )
     );
     fn test_field_Buffer() {
@@ -8203,10 +8203,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_15() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_15),
-            "::",
-            stringify!(Buffer)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2__bindgen_ty_15),
+                "::",
+                stringify!(Buffer)
             )
         );
     }
@@ -8218,16 +8218,16 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2() {
         ::std::mem::size_of::<FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2>(),
         104usize,
         concat!(
-        "Size of: ",
-        stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2)
+            "Size of: ",
+            stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2)
         )
     );
     assert_eq!(
         ::std::mem::align_of::<FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2>(),
         8usize,
         concat!(
-        "Alignment of ",
-        stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2)
+            "Alignment of ",
+            stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2)
         )
     );
     fn test_field_Create() {
@@ -8240,10 +8240,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2),
-            "::",
-            stringify!(Create)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2),
+                "::",
+                stringify!(Create)
             )
         );
     }
@@ -8258,10 +8258,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2),
-            "::",
-            stringify!(Overwrite)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2),
+                "::",
+                stringify!(Overwrite)
             )
         );
     }
@@ -8276,10 +8276,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2),
-            "::",
-            stringify!(Write)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2),
+                "::",
+                stringify!(Write)
             )
         );
     }
@@ -8294,10 +8294,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2),
-            "::",
-            stringify!(QueryInformation)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2),
+                "::",
+                stringify!(QueryInformation)
             )
         );
     }
@@ -8312,10 +8312,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2),
-            "::",
-            stringify!(SetInformation)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2),
+                "::",
+                stringify!(SetInformation)
             )
         );
     }
@@ -8330,10 +8330,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2),
-            "::",
-            stringify!(QueryEa)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2),
+                "::",
+                stringify!(QueryEa)
             )
         );
     }
@@ -8348,10 +8348,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2),
-            "::",
-            stringify!(SetEa)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2),
+                "::",
+                stringify!(SetEa)
             )
         );
     }
@@ -8366,10 +8366,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2),
-            "::",
-            stringify!(FlushBuffers)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2),
+                "::",
+                stringify!(FlushBuffers)
             )
         );
     }
@@ -8384,10 +8384,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2),
-            "::",
-            stringify!(QueryVolumeInformation)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2),
+                "::",
+                stringify!(QueryVolumeInformation)
             )
         );
     }
@@ -8402,10 +8402,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2),
-            "::",
-            stringify!(SetVolumeInformation)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2),
+                "::",
+                stringify!(SetVolumeInformation)
             )
         );
     }
@@ -8420,10 +8420,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2),
-            "::",
-            stringify!(FileSystemControl)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2),
+                "::",
+                stringify!(FileSystemControl)
             )
         );
     }
@@ -8438,10 +8438,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2),
-            "::",
-            stringify!(DeviceControl)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2),
+                "::",
+                stringify!(DeviceControl)
             )
         );
     }
@@ -8456,10 +8456,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2),
-            "::",
-            stringify!(QuerySecurity)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2),
+                "::",
+                stringify!(QuerySecurity)
             )
         );
     }
@@ -8474,10 +8474,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2),
-            "::",
-            stringify!(SetSecurity)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2),
+                "::",
+                stringify!(SetSecurity)
             )
         );
     }
@@ -8492,10 +8492,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2),
-            "::",
-            stringify!(QueryStreamInformation)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_RSP__bindgen_ty_2),
+                "::",
+                stringify!(QueryStreamInformation)
             )
         );
     }
@@ -8531,10 +8531,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_RSP() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_RSP),
-            "::",
-            stringify!(Version)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_RSP),
+                "::",
+                stringify!(Version)
             )
         );
     }
@@ -8548,10 +8548,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_RSP() {
             },
             2usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_RSP),
-            "::",
-            stringify!(Size)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_RSP),
+                "::",
+                stringify!(Size)
             )
         );
     }
@@ -8565,10 +8565,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_RSP() {
             },
             4usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_RSP),
-            "::",
-            stringify!(Kind)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_RSP),
+                "::",
+                stringify!(Kind)
             )
         );
     }
@@ -8582,10 +8582,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_RSP() {
             },
             8usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_RSP),
-            "::",
-            stringify!(Hint)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_RSP),
+                "::",
+                stringify!(Hint)
             )
         );
     }
@@ -8599,10 +8599,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_RSP() {
             },
             16usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_RSP),
-            "::",
-            stringify!(IoStatus)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_RSP),
+                "::",
+                stringify!(IoStatus)
             )
         );
     }
@@ -8616,10 +8616,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_RSP() {
             },
             24usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_RSP),
-            "::",
-            stringify!(Rsp)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_RSP),
+                "::",
+                stringify!(Rsp)
             )
         );
     }
@@ -8633,10 +8633,10 @@ fn bindgen_test_layout_FSP_FSCTL_TRANSACT_RSP() {
             },
             128usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_FSCTL_TRANSACT_RSP),
-            "::",
-            stringify!(Buffer)
+                "Offset of field: ",
+                stringify!(FSP_FSCTL_TRANSACT_RSP),
+                "::",
+                stringify!(Buffer)
             )
         );
     }
@@ -8731,10 +8731,10 @@ fn bindgen_test_layout_FSP_MOUNT_DESC() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_MOUNT_DESC),
-            "::",
-            stringify!(VolumeHandle)
+                "Offset of field: ",
+                stringify!(FSP_MOUNT_DESC),
+                "::",
+                stringify!(VolumeHandle)
             )
         );
     }
@@ -8748,10 +8748,10 @@ fn bindgen_test_layout_FSP_MOUNT_DESC() {
             },
             8usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_MOUNT_DESC),
-            "::",
-            stringify!(VolumeName)
+                "Offset of field: ",
+                stringify!(FSP_MOUNT_DESC),
+                "::",
+                stringify!(VolumeName)
             )
         );
     }
@@ -8765,10 +8765,10 @@ fn bindgen_test_layout_FSP_MOUNT_DESC() {
             },
             16usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_MOUNT_DESC),
-            "::",
-            stringify!(Security)
+                "Offset of field: ",
+                stringify!(FSP_MOUNT_DESC),
+                "::",
+                stringify!(Security)
             )
         );
     }
@@ -8782,10 +8782,10 @@ fn bindgen_test_layout_FSP_MOUNT_DESC() {
             },
             24usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_MOUNT_DESC),
-            "::",
-            stringify!(Reserved)
+                "Offset of field: ",
+                stringify!(FSP_MOUNT_DESC),
+                "::",
+                stringify!(Reserved)
             )
         );
     }
@@ -8799,10 +8799,10 @@ fn bindgen_test_layout_FSP_MOUNT_DESC() {
             },
             32usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_MOUNT_DESC),
-            "::",
-            stringify!(MountPoint)
+                "Offset of field: ",
+                stringify!(FSP_MOUNT_DESC),
+                "::",
+                stringify!(MountPoint)
             )
         );
     }
@@ -8816,10 +8816,10 @@ fn bindgen_test_layout_FSP_MOUNT_DESC() {
             },
             40usize,
             concat!(
-            "Offset of field: ",
-            stringify!(FSP_MOUNT_DESC),
-            "::",
-            stringify!(MountHandle)
+                "Offset of field: ",
+                stringify!(FSP_MOUNT_DESC),
+                "::",
+                stringify!(MountHandle)
             )
         );
     }
@@ -8870,10 +8870,10 @@ fn bindgen_test_layout__FILE_FULL_EA_INFORMATION() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_FILE_FULL_EA_INFORMATION),
-            "::",
-            stringify!(NextEntryOffset)
+                "Offset of field: ",
+                stringify!(_FILE_FULL_EA_INFORMATION),
+                "::",
+                stringify!(NextEntryOffset)
             )
         );
     }
@@ -8887,10 +8887,10 @@ fn bindgen_test_layout__FILE_FULL_EA_INFORMATION() {
             },
             4usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_FILE_FULL_EA_INFORMATION),
-            "::",
-            stringify!(Flags)
+                "Offset of field: ",
+                stringify!(_FILE_FULL_EA_INFORMATION),
+                "::",
+                stringify!(Flags)
             )
         );
     }
@@ -8904,10 +8904,10 @@ fn bindgen_test_layout__FILE_FULL_EA_INFORMATION() {
             },
             5usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_FILE_FULL_EA_INFORMATION),
-            "::",
-            stringify!(EaNameLength)
+                "Offset of field: ",
+                stringify!(_FILE_FULL_EA_INFORMATION),
+                "::",
+                stringify!(EaNameLength)
             )
         );
     }
@@ -8921,10 +8921,10 @@ fn bindgen_test_layout__FILE_FULL_EA_INFORMATION() {
             },
             6usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_FILE_FULL_EA_INFORMATION),
-            "::",
-            stringify!(EaValueLength)
+                "Offset of field: ",
+                stringify!(_FILE_FULL_EA_INFORMATION),
+                "::",
+                stringify!(EaValueLength)
             )
         );
     }
@@ -8938,10 +8938,10 @@ fn bindgen_test_layout__FILE_FULL_EA_INFORMATION() {
             },
             8usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_FILE_FULL_EA_INFORMATION),
-            "::",
-            stringify!(EaName)
+                "Offset of field: ",
+                stringify!(_FILE_FULL_EA_INFORMATION),
+                "::",
+                stringify!(EaName)
             )
         );
     }
@@ -8971,7 +8971,7 @@ pub type FSP_FILE_SYSTEM_OPERATION = ::std::option::Option<
     ) -> NTSTATUS,
 >;
 pub const FSP_FILE_SYSTEM_OPERATION_GUARD_STRATEGY_FSP_FILE_SYSTEM_OPERATION_GUARD_STRATEGY_FINE:
-FSP_FILE_SYSTEM_OPERATION_GUARD_STRATEGY = 0;
+    FSP_FILE_SYSTEM_OPERATION_GUARD_STRATEGY = 0;
 pub const FSP_FILE_SYSTEM_OPERATION_GUARD_STRATEGY_FSP_FILE_SYSTEM_OPERATION_GUARD_STRATEGY_COARSE : FSP_FILE_SYSTEM_OPERATION_GUARD_STRATEGY = 1 ;
 #[doc = " User mode file system locking strategy."]
 #[doc = ""]
@@ -10035,10 +10035,10 @@ fn bindgen_test_layout__FSP_FILE_SYSTEM_INTERFACE() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_FSP_FILE_SYSTEM_INTERFACE),
-            "::",
-            stringify!(GetVolumeInfo)
+                "Offset of field: ",
+                stringify!(_FSP_FILE_SYSTEM_INTERFACE),
+                "::",
+                stringify!(GetVolumeInfo)
             )
         );
     }
@@ -10052,10 +10052,10 @@ fn bindgen_test_layout__FSP_FILE_SYSTEM_INTERFACE() {
             },
             8usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_FSP_FILE_SYSTEM_INTERFACE),
-            "::",
-            stringify!(SetVolumeLabelW)
+                "Offset of field: ",
+                stringify!(_FSP_FILE_SYSTEM_INTERFACE),
+                "::",
+                stringify!(SetVolumeLabelW)
             )
         );
     }
@@ -10069,10 +10069,10 @@ fn bindgen_test_layout__FSP_FILE_SYSTEM_INTERFACE() {
             },
             16usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_FSP_FILE_SYSTEM_INTERFACE),
-            "::",
-            stringify!(GetSecurityByName)
+                "Offset of field: ",
+                stringify!(_FSP_FILE_SYSTEM_INTERFACE),
+                "::",
+                stringify!(GetSecurityByName)
             )
         );
     }
@@ -10086,10 +10086,10 @@ fn bindgen_test_layout__FSP_FILE_SYSTEM_INTERFACE() {
             },
             24usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_FSP_FILE_SYSTEM_INTERFACE),
-            "::",
-            stringify!(Create)
+                "Offset of field: ",
+                stringify!(_FSP_FILE_SYSTEM_INTERFACE),
+                "::",
+                stringify!(Create)
             )
         );
     }
@@ -10103,10 +10103,10 @@ fn bindgen_test_layout__FSP_FILE_SYSTEM_INTERFACE() {
             },
             32usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_FSP_FILE_SYSTEM_INTERFACE),
-            "::",
-            stringify!(Open)
+                "Offset of field: ",
+                stringify!(_FSP_FILE_SYSTEM_INTERFACE),
+                "::",
+                stringify!(Open)
             )
         );
     }
@@ -10120,10 +10120,10 @@ fn bindgen_test_layout__FSP_FILE_SYSTEM_INTERFACE() {
             },
             40usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_FSP_FILE_SYSTEM_INTERFACE),
-            "::",
-            stringify!(Overwrite)
+                "Offset of field: ",
+                stringify!(_FSP_FILE_SYSTEM_INTERFACE),
+                "::",
+                stringify!(Overwrite)
             )
         );
     }
@@ -10137,10 +10137,10 @@ fn bindgen_test_layout__FSP_FILE_SYSTEM_INTERFACE() {
             },
             48usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_FSP_FILE_SYSTEM_INTERFACE),
-            "::",
-            stringify!(Cleanup)
+                "Offset of field: ",
+                stringify!(_FSP_FILE_SYSTEM_INTERFACE),
+                "::",
+                stringify!(Cleanup)
             )
         );
     }
@@ -10154,10 +10154,10 @@ fn bindgen_test_layout__FSP_FILE_SYSTEM_INTERFACE() {
             },
             56usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_FSP_FILE_SYSTEM_INTERFACE),
-            "::",
-            stringify!(Close)
+                "Offset of field: ",
+                stringify!(_FSP_FILE_SYSTEM_INTERFACE),
+                "::",
+                stringify!(Close)
             )
         );
     }
@@ -10171,10 +10171,10 @@ fn bindgen_test_layout__FSP_FILE_SYSTEM_INTERFACE() {
             },
             64usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_FSP_FILE_SYSTEM_INTERFACE),
-            "::",
-            stringify!(Read)
+                "Offset of field: ",
+                stringify!(_FSP_FILE_SYSTEM_INTERFACE),
+                "::",
+                stringify!(Read)
             )
         );
     }
@@ -10188,10 +10188,10 @@ fn bindgen_test_layout__FSP_FILE_SYSTEM_INTERFACE() {
             },
             72usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_FSP_FILE_SYSTEM_INTERFACE),
-            "::",
-            stringify!(Write)
+                "Offset of field: ",
+                stringify!(_FSP_FILE_SYSTEM_INTERFACE),
+                "::",
+                stringify!(Write)
             )
         );
     }
@@ -10205,10 +10205,10 @@ fn bindgen_test_layout__FSP_FILE_SYSTEM_INTERFACE() {
             },
             80usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_FSP_FILE_SYSTEM_INTERFACE),
-            "::",
-            stringify!(Flush)
+                "Offset of field: ",
+                stringify!(_FSP_FILE_SYSTEM_INTERFACE),
+                "::",
+                stringify!(Flush)
             )
         );
     }
@@ -10222,10 +10222,10 @@ fn bindgen_test_layout__FSP_FILE_SYSTEM_INTERFACE() {
             },
             88usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_FSP_FILE_SYSTEM_INTERFACE),
-            "::",
-            stringify!(GetFileInfo)
+                "Offset of field: ",
+                stringify!(_FSP_FILE_SYSTEM_INTERFACE),
+                "::",
+                stringify!(GetFileInfo)
             )
         );
     }
@@ -10239,10 +10239,10 @@ fn bindgen_test_layout__FSP_FILE_SYSTEM_INTERFACE() {
             },
             96usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_FSP_FILE_SYSTEM_INTERFACE),
-            "::",
-            stringify!(SetBasicInfo)
+                "Offset of field: ",
+                stringify!(_FSP_FILE_SYSTEM_INTERFACE),
+                "::",
+                stringify!(SetBasicInfo)
             )
         );
     }
@@ -10256,10 +10256,10 @@ fn bindgen_test_layout__FSP_FILE_SYSTEM_INTERFACE() {
             },
             104usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_FSP_FILE_SYSTEM_INTERFACE),
-            "::",
-            stringify!(SetFileSize)
+                "Offset of field: ",
+                stringify!(_FSP_FILE_SYSTEM_INTERFACE),
+                "::",
+                stringify!(SetFileSize)
             )
         );
     }
@@ -10273,10 +10273,10 @@ fn bindgen_test_layout__FSP_FILE_SYSTEM_INTERFACE() {
             },
             112usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_FSP_FILE_SYSTEM_INTERFACE),
-            "::",
-            stringify!(CanDelete)
+                "Offset of field: ",
+                stringify!(_FSP_FILE_SYSTEM_INTERFACE),
+                "::",
+                stringify!(CanDelete)
             )
         );
     }
@@ -10290,10 +10290,10 @@ fn bindgen_test_layout__FSP_FILE_SYSTEM_INTERFACE() {
             },
             120usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_FSP_FILE_SYSTEM_INTERFACE),
-            "::",
-            stringify!(Rename)
+                "Offset of field: ",
+                stringify!(_FSP_FILE_SYSTEM_INTERFACE),
+                "::",
+                stringify!(Rename)
             )
         );
     }
@@ -10307,10 +10307,10 @@ fn bindgen_test_layout__FSP_FILE_SYSTEM_INTERFACE() {
             },
             128usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_FSP_FILE_SYSTEM_INTERFACE),
-            "::",
-            stringify!(GetSecurity)
+                "Offset of field: ",
+                stringify!(_FSP_FILE_SYSTEM_INTERFACE),
+                "::",
+                stringify!(GetSecurity)
             )
         );
     }
@@ -10324,10 +10324,10 @@ fn bindgen_test_layout__FSP_FILE_SYSTEM_INTERFACE() {
             },
             136usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_FSP_FILE_SYSTEM_INTERFACE),
-            "::",
-            stringify!(SetSecurity)
+                "Offset of field: ",
+                stringify!(_FSP_FILE_SYSTEM_INTERFACE),
+                "::",
+                stringify!(SetSecurity)
             )
         );
     }
@@ -10341,10 +10341,10 @@ fn bindgen_test_layout__FSP_FILE_SYSTEM_INTERFACE() {
             },
             144usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_FSP_FILE_SYSTEM_INTERFACE),
-            "::",
-            stringify!(ReadDirectory)
+                "Offset of field: ",
+                stringify!(_FSP_FILE_SYSTEM_INTERFACE),
+                "::",
+                stringify!(ReadDirectory)
             )
         );
     }
@@ -10358,10 +10358,10 @@ fn bindgen_test_layout__FSP_FILE_SYSTEM_INTERFACE() {
             },
             152usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_FSP_FILE_SYSTEM_INTERFACE),
-            "::",
-            stringify!(ResolveReparsePoints)
+                "Offset of field: ",
+                stringify!(_FSP_FILE_SYSTEM_INTERFACE),
+                "::",
+                stringify!(ResolveReparsePoints)
             )
         );
     }
@@ -10375,10 +10375,10 @@ fn bindgen_test_layout__FSP_FILE_SYSTEM_INTERFACE() {
             },
             160usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_FSP_FILE_SYSTEM_INTERFACE),
-            "::",
-            stringify!(GetReparsePoint)
+                "Offset of field: ",
+                stringify!(_FSP_FILE_SYSTEM_INTERFACE),
+                "::",
+                stringify!(GetReparsePoint)
             )
         );
     }
@@ -10392,10 +10392,10 @@ fn bindgen_test_layout__FSP_FILE_SYSTEM_INTERFACE() {
             },
             168usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_FSP_FILE_SYSTEM_INTERFACE),
-            "::",
-            stringify!(SetReparsePoint)
+                "Offset of field: ",
+                stringify!(_FSP_FILE_SYSTEM_INTERFACE),
+                "::",
+                stringify!(SetReparsePoint)
             )
         );
     }
@@ -10409,10 +10409,10 @@ fn bindgen_test_layout__FSP_FILE_SYSTEM_INTERFACE() {
             },
             176usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_FSP_FILE_SYSTEM_INTERFACE),
-            "::",
-            stringify!(DeleteReparsePoint)
+                "Offset of field: ",
+                stringify!(_FSP_FILE_SYSTEM_INTERFACE),
+                "::",
+                stringify!(DeleteReparsePoint)
             )
         );
     }
@@ -10426,10 +10426,10 @@ fn bindgen_test_layout__FSP_FILE_SYSTEM_INTERFACE() {
             },
             184usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_FSP_FILE_SYSTEM_INTERFACE),
-            "::",
-            stringify!(GetStreamInfo)
+                "Offset of field: ",
+                stringify!(_FSP_FILE_SYSTEM_INTERFACE),
+                "::",
+                stringify!(GetStreamInfo)
             )
         );
     }
@@ -10443,10 +10443,10 @@ fn bindgen_test_layout__FSP_FILE_SYSTEM_INTERFACE() {
             },
             192usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_FSP_FILE_SYSTEM_INTERFACE),
-            "::",
-            stringify!(GetDirInfoByName)
+                "Offset of field: ",
+                stringify!(_FSP_FILE_SYSTEM_INTERFACE),
+                "::",
+                stringify!(GetDirInfoByName)
             )
         );
     }
@@ -10460,10 +10460,10 @@ fn bindgen_test_layout__FSP_FILE_SYSTEM_INTERFACE() {
             },
             200usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_FSP_FILE_SYSTEM_INTERFACE),
-            "::",
-            stringify!(Control)
+                "Offset of field: ",
+                stringify!(_FSP_FILE_SYSTEM_INTERFACE),
+                "::",
+                stringify!(Control)
             )
         );
     }
@@ -10477,10 +10477,10 @@ fn bindgen_test_layout__FSP_FILE_SYSTEM_INTERFACE() {
             },
             208usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_FSP_FILE_SYSTEM_INTERFACE),
-            "::",
-            stringify!(SetDelete)
+                "Offset of field: ",
+                stringify!(_FSP_FILE_SYSTEM_INTERFACE),
+                "::",
+                stringify!(SetDelete)
             )
         );
     }
@@ -10494,10 +10494,10 @@ fn bindgen_test_layout__FSP_FILE_SYSTEM_INTERFACE() {
             },
             216usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_FSP_FILE_SYSTEM_INTERFACE),
-            "::",
-            stringify!(CreateEx)
+                "Offset of field: ",
+                stringify!(_FSP_FILE_SYSTEM_INTERFACE),
+                "::",
+                stringify!(CreateEx)
             )
         );
     }
@@ -10511,10 +10511,10 @@ fn bindgen_test_layout__FSP_FILE_SYSTEM_INTERFACE() {
             },
             224usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_FSP_FILE_SYSTEM_INTERFACE),
-            "::",
-            stringify!(OverwriteEx)
+                "Offset of field: ",
+                stringify!(_FSP_FILE_SYSTEM_INTERFACE),
+                "::",
+                stringify!(OverwriteEx)
             )
         );
     }
@@ -10528,10 +10528,10 @@ fn bindgen_test_layout__FSP_FILE_SYSTEM_INTERFACE() {
             },
             232usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_FSP_FILE_SYSTEM_INTERFACE),
-            "::",
-            stringify!(GetEa)
+                "Offset of field: ",
+                stringify!(_FSP_FILE_SYSTEM_INTERFACE),
+                "::",
+                stringify!(GetEa)
             )
         );
     }
@@ -10545,10 +10545,10 @@ fn bindgen_test_layout__FSP_FILE_SYSTEM_INTERFACE() {
             },
             240usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_FSP_FILE_SYSTEM_INTERFACE),
-            "::",
-            stringify!(SetEa)
+                "Offset of field: ",
+                stringify!(_FSP_FILE_SYSTEM_INTERFACE),
+                "::",
+                stringify!(SetEa)
             )
         );
     }
@@ -10562,10 +10562,10 @@ fn bindgen_test_layout__FSP_FILE_SYSTEM_INTERFACE() {
             },
             248usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_FSP_FILE_SYSTEM_INTERFACE),
-            "::",
-            stringify!(Obsolete0)
+                "Offset of field: ",
+                stringify!(_FSP_FILE_SYSTEM_INTERFACE),
+                "::",
+                stringify!(Obsolete0)
             )
         );
     }
@@ -10579,10 +10579,10 @@ fn bindgen_test_layout__FSP_FILE_SYSTEM_INTERFACE() {
             },
             256usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_FSP_FILE_SYSTEM_INTERFACE),
-            "::",
-            stringify!(Reserved)
+                "Offset of field: ",
+                stringify!(_FSP_FILE_SYSTEM_INTERFACE),
+                "::",
+                stringify!(Reserved)
             )
         );
     }
@@ -10668,10 +10668,10 @@ fn bindgen_test_layout__FSP_FILE_SYSTEM() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_FSP_FILE_SYSTEM),
-            "::",
-            stringify!(Version)
+                "Offset of field: ",
+                stringify!(_FSP_FILE_SYSTEM),
+                "::",
+                stringify!(Version)
             )
         );
     }
@@ -10685,10 +10685,10 @@ fn bindgen_test_layout__FSP_FILE_SYSTEM() {
             },
             8usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_FSP_FILE_SYSTEM),
-            "::",
-            stringify!(UserContext)
+                "Offset of field: ",
+                stringify!(_FSP_FILE_SYSTEM),
+                "::",
+                stringify!(UserContext)
             )
         );
     }
@@ -10702,10 +10702,10 @@ fn bindgen_test_layout__FSP_FILE_SYSTEM() {
             },
             16usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_FSP_FILE_SYSTEM),
-            "::",
-            stringify!(VolumeName)
+                "Offset of field: ",
+                stringify!(_FSP_FILE_SYSTEM),
+                "::",
+                stringify!(VolumeName)
             )
         );
     }
@@ -10719,10 +10719,10 @@ fn bindgen_test_layout__FSP_FILE_SYSTEM() {
             },
             528usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_FSP_FILE_SYSTEM),
-            "::",
-            stringify!(VolumeHandle)
+                "Offset of field: ",
+                stringify!(_FSP_FILE_SYSTEM),
+                "::",
+                stringify!(VolumeHandle)
             )
         );
     }
@@ -10736,10 +10736,10 @@ fn bindgen_test_layout__FSP_FILE_SYSTEM() {
             },
             536usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_FSP_FILE_SYSTEM),
-            "::",
-            stringify!(EnterOperation)
+                "Offset of field: ",
+                stringify!(_FSP_FILE_SYSTEM),
+                "::",
+                stringify!(EnterOperation)
             )
         );
     }
@@ -10753,10 +10753,10 @@ fn bindgen_test_layout__FSP_FILE_SYSTEM() {
             },
             544usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_FSP_FILE_SYSTEM),
-            "::",
-            stringify!(LeaveOperation)
+                "Offset of field: ",
+                stringify!(_FSP_FILE_SYSTEM),
+                "::",
+                stringify!(LeaveOperation)
             )
         );
     }
@@ -10770,10 +10770,10 @@ fn bindgen_test_layout__FSP_FILE_SYSTEM() {
             },
             552usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_FSP_FILE_SYSTEM),
-            "::",
-            stringify!(Operations)
+                "Offset of field: ",
+                stringify!(_FSP_FILE_SYSTEM),
+                "::",
+                stringify!(Operations)
             )
         );
     }
@@ -10787,10 +10787,10 @@ fn bindgen_test_layout__FSP_FILE_SYSTEM() {
             },
             728usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_FSP_FILE_SYSTEM),
-            "::",
-            stringify!(Interface)
+                "Offset of field: ",
+                stringify!(_FSP_FILE_SYSTEM),
+                "::",
+                stringify!(Interface)
             )
         );
     }
@@ -10804,10 +10804,10 @@ fn bindgen_test_layout__FSP_FILE_SYSTEM() {
             },
             736usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_FSP_FILE_SYSTEM),
-            "::",
-            stringify!(DispatcherThread)
+                "Offset of field: ",
+                stringify!(_FSP_FILE_SYSTEM),
+                "::",
+                stringify!(DispatcherThread)
             )
         );
     }
@@ -10821,10 +10821,10 @@ fn bindgen_test_layout__FSP_FILE_SYSTEM() {
             },
             744usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_FSP_FILE_SYSTEM),
-            "::",
-            stringify!(DispatcherThreadCount)
+                "Offset of field: ",
+                stringify!(_FSP_FILE_SYSTEM),
+                "::",
+                stringify!(DispatcherThreadCount)
             )
         );
     }
@@ -10838,10 +10838,10 @@ fn bindgen_test_layout__FSP_FILE_SYSTEM() {
             },
             748usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_FSP_FILE_SYSTEM),
-            "::",
-            stringify!(DispatcherResult)
+                "Offset of field: ",
+                stringify!(_FSP_FILE_SYSTEM),
+                "::",
+                stringify!(DispatcherResult)
             )
         );
     }
@@ -10855,10 +10855,10 @@ fn bindgen_test_layout__FSP_FILE_SYSTEM() {
             },
             752usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_FSP_FILE_SYSTEM),
-            "::",
-            stringify!(MountPoint)
+                "Offset of field: ",
+                stringify!(_FSP_FILE_SYSTEM),
+                "::",
+                stringify!(MountPoint)
             )
         );
     }
@@ -10872,10 +10872,10 @@ fn bindgen_test_layout__FSP_FILE_SYSTEM() {
             },
             760usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_FSP_FILE_SYSTEM),
-            "::",
-            stringify!(MountHandle)
+                "Offset of field: ",
+                stringify!(_FSP_FILE_SYSTEM),
+                "::",
+                stringify!(MountHandle)
             )
         );
     }
@@ -10889,10 +10889,10 @@ fn bindgen_test_layout__FSP_FILE_SYSTEM() {
             },
             768usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_FSP_FILE_SYSTEM),
-            "::",
-            stringify!(DebugLog)
+                "Offset of field: ",
+                stringify!(_FSP_FILE_SYSTEM),
+                "::",
+                stringify!(DebugLog)
             )
         );
     }
@@ -10906,10 +10906,10 @@ fn bindgen_test_layout__FSP_FILE_SYSTEM() {
             },
             772usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_FSP_FILE_SYSTEM),
-            "::",
-            stringify!(OpGuardStrategy)
+                "Offset of field: ",
+                stringify!(_FSP_FILE_SYSTEM),
+                "::",
+                stringify!(OpGuardStrategy)
             )
         );
     }
@@ -10923,10 +10923,10 @@ fn bindgen_test_layout__FSP_FILE_SYSTEM() {
             },
             776usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_FSP_FILE_SYSTEM),
-            "::",
-            stringify!(OpGuardLock)
+                "Offset of field: ",
+                stringify!(_FSP_FILE_SYSTEM),
+                "::",
+                stringify!(OpGuardLock)
             )
         );
     }
@@ -10940,10 +10940,10 @@ fn bindgen_test_layout__FSP_FILE_SYSTEM() {
             },
             784usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_FSP_FILE_SYSTEM),
-            "::",
-            stringify!(UmFileContextIsUserContext2)
+                "Offset of field: ",
+                stringify!(_FSP_FILE_SYSTEM),
+                "::",
+                stringify!(UmFileContextIsUserContext2)
             )
         );
     }
@@ -10957,10 +10957,10 @@ fn bindgen_test_layout__FSP_FILE_SYSTEM() {
             },
             785usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_FSP_FILE_SYSTEM),
-            "::",
-            stringify!(UmFileContextIsFullContext)
+                "Offset of field: ",
+                stringify!(_FSP_FILE_SYSTEM),
+                "::",
+                stringify!(UmFileContextIsFullContext)
             )
         );
     }
@@ -11033,8 +11033,8 @@ fn bindgen_test_layout__FSP_FILE_SYSTEM_OPERATION_CONTEXT() {
         ::std::mem::align_of::<_FSP_FILE_SYSTEM_OPERATION_CONTEXT>(),
         8usize,
         concat!(
-        "Alignment of ",
-        stringify!(_FSP_FILE_SYSTEM_OPERATION_CONTEXT)
+            "Alignment of ",
+            stringify!(_FSP_FILE_SYSTEM_OPERATION_CONTEXT)
         )
     );
     fn test_field_Request() {
@@ -11047,10 +11047,10 @@ fn bindgen_test_layout__FSP_FILE_SYSTEM_OPERATION_CONTEXT() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_FSP_FILE_SYSTEM_OPERATION_CONTEXT),
-            "::",
-            stringify!(Request)
+                "Offset of field: ",
+                stringify!(_FSP_FILE_SYSTEM_OPERATION_CONTEXT),
+                "::",
+                stringify!(Request)
             )
         );
     }
@@ -11065,10 +11065,10 @@ fn bindgen_test_layout__FSP_FILE_SYSTEM_OPERATION_CONTEXT() {
             },
             8usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_FSP_FILE_SYSTEM_OPERATION_CONTEXT),
-            "::",
-            stringify!(Response)
+                "Offset of field: ",
+                stringify!(_FSP_FILE_SYSTEM_OPERATION_CONTEXT),
+                "::",
+                stringify!(Response)
             )
         );
     }
@@ -11968,7 +11968,7 @@ pub type FSP_SERVICE_START = ::std::option::Option<
     unsafe extern "C" fn(arg1: *mut FSP_SERVICE, arg2: ULONG, arg3: *mut PWSTR) -> NTSTATUS,
 >;
 pub type FSP_SERVICE_STOP =
-::std::option::Option<unsafe extern "C" fn(arg1: *mut FSP_SERVICE) -> NTSTATUS>;
+    ::std::option::Option<unsafe extern "C" fn(arg1: *mut FSP_SERVICE) -> NTSTATUS>;
 pub type FSP_SERVICE_CONTROL = ::std::option::Option<
     unsafe extern "C" fn(arg1: *mut FSP_SERVICE, arg2: ULONG, arg3: ULONG, arg4: PVOID) -> NTSTATUS,
 >;
@@ -12010,10 +12010,10 @@ fn bindgen_test_layout__FSP_SERVICE() {
             },
             0usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_FSP_SERVICE),
-            "::",
-            stringify!(Version)
+                "Offset of field: ",
+                stringify!(_FSP_SERVICE),
+                "::",
+                stringify!(Version)
             )
         );
     }
@@ -12027,10 +12027,10 @@ fn bindgen_test_layout__FSP_SERVICE() {
             },
             8usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_FSP_SERVICE),
-            "::",
-            stringify!(UserContext)
+                "Offset of field: ",
+                stringify!(_FSP_SERVICE),
+                "::",
+                stringify!(UserContext)
             )
         );
     }
@@ -12044,10 +12044,10 @@ fn bindgen_test_layout__FSP_SERVICE() {
             },
             16usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_FSP_SERVICE),
-            "::",
-            stringify!(OnStart)
+                "Offset of field: ",
+                stringify!(_FSP_SERVICE),
+                "::",
+                stringify!(OnStart)
             )
         );
     }
@@ -12061,10 +12061,10 @@ fn bindgen_test_layout__FSP_SERVICE() {
             },
             24usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_FSP_SERVICE),
-            "::",
-            stringify!(OnStop)
+                "Offset of field: ",
+                stringify!(_FSP_SERVICE),
+                "::",
+                stringify!(OnStop)
             )
         );
     }
@@ -12078,10 +12078,10 @@ fn bindgen_test_layout__FSP_SERVICE() {
             },
             32usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_FSP_SERVICE),
-            "::",
-            stringify!(OnControl)
+                "Offset of field: ",
+                stringify!(_FSP_SERVICE),
+                "::",
+                stringify!(OnControl)
             )
         );
     }
@@ -12095,10 +12095,10 @@ fn bindgen_test_layout__FSP_SERVICE() {
             },
             40usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_FSP_SERVICE),
-            "::",
-            stringify!(AcceptControl)
+                "Offset of field: ",
+                stringify!(_FSP_SERVICE),
+                "::",
+                stringify!(AcceptControl)
             )
         );
     }
@@ -12112,10 +12112,10 @@ fn bindgen_test_layout__FSP_SERVICE() {
             },
             44usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_FSP_SERVICE),
-            "::",
-            stringify!(ExitCode)
+                "Offset of field: ",
+                stringify!(_FSP_SERVICE),
+                "::",
+                stringify!(ExitCode)
             )
         );
     }
@@ -12129,10 +12129,10 @@ fn bindgen_test_layout__FSP_SERVICE() {
             },
             48usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_FSP_SERVICE),
-            "::",
-            stringify!(StatusHandle)
+                "Offset of field: ",
+                stringify!(_FSP_SERVICE),
+                "::",
+                stringify!(StatusHandle)
             )
         );
     }
@@ -12146,10 +12146,10 @@ fn bindgen_test_layout__FSP_SERVICE() {
             },
             56usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_FSP_SERVICE),
-            "::",
-            stringify!(ServiceStatus)
+                "Offset of field: ",
+                stringify!(_FSP_SERVICE),
+                "::",
+                stringify!(ServiceStatus)
             )
         );
     }
@@ -12163,10 +12163,10 @@ fn bindgen_test_layout__FSP_SERVICE() {
             },
             88usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_FSP_SERVICE),
-            "::",
-            stringify!(ServiceStatusGuard)
+                "Offset of field: ",
+                stringify!(_FSP_SERVICE),
+                "::",
+                stringify!(ServiceStatusGuard)
             )
         );
     }
@@ -12180,10 +12180,10 @@ fn bindgen_test_layout__FSP_SERVICE() {
             },
             128usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_FSP_SERVICE),
-            "::",
-            stringify!(ServiceStopGuard)
+                "Offset of field: ",
+                stringify!(_FSP_SERVICE),
+                "::",
+                stringify!(ServiceStopGuard)
             )
         );
     }
@@ -12197,10 +12197,10 @@ fn bindgen_test_layout__FSP_SERVICE() {
             },
             168usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_FSP_SERVICE),
-            "::",
-            stringify!(AllowConsoleMode)
+                "Offset of field: ",
+                stringify!(_FSP_SERVICE),
+                "::",
+                stringify!(AllowConsoleMode)
             )
         );
     }
@@ -12214,10 +12214,10 @@ fn bindgen_test_layout__FSP_SERVICE() {
             },
             170usize,
             concat!(
-            "Offset of field: ",
-            stringify!(_FSP_SERVICE),
-            "::",
-            stringify!(ServiceName)
+                "Offset of field: ",
+                stringify!(_FSP_SERVICE),
+                "::",
+                stringify!(ServiceName)
             )
         );
     }

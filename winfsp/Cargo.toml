@@ -14,7 +14,6 @@ winfsp-sys = { path = "../winfsp-sys", version = "0.1" }
 windows = { version = "0.41.0", features = ["Win32_Foundation", "Win32_System_LibraryLoader", "Win32_Security", "Win32_Storage_FileSystem", "Win32_System_WindowsProgramming", "Win32_System_Console", "Win32_System_Threading", "Win32_System_ProcessStatus"] }
 widestring = "1"
 thiserror = "1.0.32"
-registry = { version = "1.2.2", optional = true }
 paste = "1.0.9"
 static_assertions = "1.1.0"
 bytemuck = "1.12.1"
@@ -22,10 +21,10 @@ bytemuck = "1.12.1"
 [features]
 default = ["notify", "delayload"]
 debug = []
-system = ["winfsp-sys/system"]
+system = ["windows/Win32_System_Registry", "winfsp-sys/system"]
 notify = []
 build = []
-delayload = ["build", "registry"]
+delayload = ["build"]
 docsrs = ["winfsp-sys/docsrs"]
 
 [package.metadata.docs.rs]

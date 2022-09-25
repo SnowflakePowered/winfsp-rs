@@ -44,10 +44,9 @@ fn main() {
     let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
 
     // host needs to be windows
-    if cfg!(feature="docsrs") {
+    if cfg!(feature = "docsrs") {
         println!("cargo:warning=WinFSP does not build on any operating system but Windows. This feature is meant for docs.rs only. It will not link when compiled into a binary.");
-        File::create(out_dir.join("bindings.rs"))
-            .unwrap();
+        File::create(out_dir.join("bindings.rs")).unwrap();
         return;
     }
 
@@ -95,9 +94,15 @@ fn main() {
             .clang_arg("-DUNICODE")
             .clang_arg(link_include);
 
-        let bindings = if cfg!(target_os = "windows") && cfg!(target_arch = "x86_64") && cfg!(target_env = "msvc") {
+        let bindings = if cfg!(target_os = "windows")
+            && cfg!(target_arch = "x86_64")
+            && cfg!(target_env = "msvc")
+        {
             bindings.clang_arg("--target=x86_64-pc-windows-msvc")
-        } else if cfg!(target_os = "windows") && cfg!(target_arch = "i686") && cfg!(target_env = "msvc") {
+        } else if cfg!(target_os = "windows")
+            && cfg!(target_arch = "i686")
+            && cfg!(target_env = "msvc")
+        {
             bindings.clang_arg("--target=i686-pc-windows-msvc")
         } else {
             panic!("unsupported triple {}", env::var("TARGET").unwrap())

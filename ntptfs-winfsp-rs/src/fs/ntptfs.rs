@@ -3,9 +3,7 @@ use std::io::ErrorKind;
 
 use std::path::Path;
 
-use winfsp::host::{
-    DebugMode, FileContextMode, FileSystemHost, FileSystemParams, VolumeParams,
-};
+use winfsp::host::{DebugMode, FileContextMode, FileSystemHost, FileSystemParams, VolumeParams};
 
 pub struct NtPassthroughFilesystem {
     pub fs: FileSystemHost,

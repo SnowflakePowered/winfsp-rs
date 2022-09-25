@@ -49,9 +49,9 @@ use winfsp::filesystem::{
     DirInfo, DirMarker, FileInfo, FileSecurity, FileSystemContext, IoResult, OpenFileInfo,
     StreamInfo, VolumeInfo, WideNameInfo,
 };
+use winfsp::host::VolumeParams;
 use winfsp::util::Win32SafeHandle;
 use winfsp::FspError;
-use winfsp::host::VolumeParams;
 use winfsp::U16CStr;
 
 #[repr(C)]

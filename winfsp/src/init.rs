@@ -1,5 +1,5 @@
 #[cfg(feature = "system")]
-use registry::{Data, Hive, Security};
+use widestring::U16CStr;
 use windows::core::HSTRING;
 use windows::w;
 #[allow(unused_imports)]
@@ -18,15 +18,35 @@ pub struct FspInit;
 
 #[cfg(feature = "system")]
 fn get_system_winfsp() -> Option<HSTRING> {
-    let winfsp_install = Hive::LocalMachine
-        .open("SOFTWARE\\WOW6432Node\\WinFsp", Security::Read)
+    use crate::constants::MAX_PATH;
+    use windows::Win32::System::Registry::{RegGetValueW, HKEY_LOCAL_MACHINE, RRF_RT_REG_SZ};
+
+    let mut path = [0u16; MAX_PATH];
+    let mut size = (path.len() * std::mem::size_of::<u16>()) as u32;
+    let winfsp_install = unsafe {
+        RegGetValueW(
+            HKEY_LOCAL_MACHINE,
+            w!("SOFTWARE\\WOW6432Node\\WinFsp"),
+            w!("InstallDir"),
+            RRF_RT_REG_SZ,
+            None,
+            Some(path.as_mut_ptr().cast()),
+            Some(&mut size),
+        )
         .ok()
-        .and_then(|u| u.value("InstallDir").ok());
-    let mut directory = match winfsp_install {
-        Some(Data::String(string)) => string.to_os_string(),
-        _ => return None,
     };
 
+    if winfsp_install.is_err() {
+        return None;
+    }
+
+    let Ok(path) = U16CStr::from_slice(
+        &path[0..(size as usize) / std::mem::size_of::<u16>()]
+    ) else {
+        return None;
+    };
+
+    let mut directory = path.to_os_string();
     directory.push("\\bin\\");
 
     if cfg!(target_arch = "x86_64") {
