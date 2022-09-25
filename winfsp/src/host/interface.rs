@@ -724,15 +724,15 @@ unsafe extern "C" fn get_reparse_point_by_name<T: FileSystemContext>(
     catch_panic!({
         require_ctx(fs, |context| {
             let file_name = unsafe { U16CStr::from_ptr_str_mut(file_name) };
-            let buffer_len = unsafe { psize.read() };
-            if !buffer.is_null() {
+
+            if !buffer.is_null() && !psize.is_null() {
+                let buffer_len = unsafe { psize.read() };
                 let buffer =
                     unsafe { slice::from_raw_parts_mut(buffer.cast::<u8>(), buffer_len as usize) };
                 let bytes_transferred =
                     T::get_reparse_point_by_name(context, file_name, is_directory != 0, buffer)?;
-                if !psize.is_null() {
-                    unsafe { psize.write(bytes_transferred) };
-                }
+                // SAFETY: psize not null.
+                unsafe { psize.write(bytes_transferred) };
             } else {
                 // sometimes GetReparsePointByName is called with a null buffer, in
                 // cases where the caller does not care about the result.

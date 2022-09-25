@@ -25,7 +25,7 @@ impl NtPassthroughFilesystem {
         let context =
             NtPassthroughContext::new_with_volume_params(canonical_path, &mut volume_params)?;
 
-        volume_params.file_info_timeout(u32::MAX);
+        volume_params.file_info_timeout(1000);
         Ok(NtPassthroughFilesystem {
             fs: FileSystemHost::new_with_options(
                 FileSystemParams::default_params_debug(volume_params, DebugMode::all()),
