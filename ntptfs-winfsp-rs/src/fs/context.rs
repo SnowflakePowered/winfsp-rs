@@ -133,6 +133,9 @@ impl NtPassthroughContext {
             .pass_query_directory_pattern(true)
             .flush_and_purge_on_cleanup(true)
             .wsl_features(true)
+            .reparse_points(true)
+            .stream_info_timeout(1000)
+            .named_streams(true)
             .file_info_timeout(1000);
 
         Ok(context)
