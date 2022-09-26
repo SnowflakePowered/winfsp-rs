@@ -12,9 +12,9 @@ windows-sys = { version = "0.36.1", features = ["Win32_Foundation", "Win32_Syste
 ntapi = "0.3.7"
 bytemuck = "1.12.1"
 widestring = "1"
-winfsp = { path = "../winfsp", features = ["debug", "system"] }
+winfsp = { path = "../winfsp", version = "0.5", features = ["debug", "system"] }
 anyhow = "1"
 
 [build-dependencies]
-winfsp = { path = "../winfsp", features = ["delayload"] }
+winfsp = { path = "../winfsp", version = "0.5", features = ["delayload"] }
 
