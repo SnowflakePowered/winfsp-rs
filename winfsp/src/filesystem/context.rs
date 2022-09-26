@@ -107,7 +107,7 @@ pub trait FileSystemContext: Sized {
     /// Clean up a file.
     fn cleanup<P: AsRef<U16CStr>>(
         &self,
-        context: &mut Self::FileContext,
+        context: &Self::FileContext,
         file_name: Option<P>,
         flags: u32,
     ) {

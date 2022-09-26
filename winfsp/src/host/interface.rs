@@ -64,27 +64,6 @@ where
 }
 
 #[inline(always)]
-fn require_fctx_mut<C: FileSystemContext, F>(
-    fs: *mut FSP_FILE_SYSTEM,
-    fctx: PVOID,
-    inner: F,
-) -> FSP_STATUS
-where
-    F: FnOnce(&C, &mut C::FileContext) -> error::Result<()>,
-{
-    assert_ctx!(fs);
-    assert_ctx!(fctx);
-
-    let context: &C = unsafe { &*(*fs).UserContext.cast::<C>() };
-    let fctx = unsafe { &mut *fctx.cast::<C::FileContext>() };
-
-    match inner(context, fctx) {
-        Ok(_) => STATUS_SUCCESS.0,
-        Err(e) => e.as_ntstatus(),
-    }
-}
-
-#[inline(always)]
 fn require_ctx<C: FileSystemContext, F>(fs: *mut FSP_FILE_SYSTEM, inner: F) -> FSP_STATUS
 where
     F: FnOnce(&C) -> error::Result<()>,
@@ -539,7 +518,7 @@ unsafe extern "C" fn cleanup<T: FileSystemContext>(
     flags: u32,
 ) {
     catch_panic!({
-        require_fctx_mut(fs, fctx, |context, fctx| {
+        require_fctx(fs, fctx, |context, fctx| {
             let file_name = if !file_name.is_null() {
                 Some(unsafe { U16CStr::from_ptr_str_mut(file_name) })
             } else {

@@ -1,10 +1,11 @@
+use std::cell::RefCell;
 use windows::Win32::Foundation::HANDLE;
 use winfsp::filesystem::DirBuffer;
 use winfsp::util::NtSafeHandle;
 
 #[derive(Debug)]
 pub struct NtPassthroughFile {
-    handle: NtSafeHandle,
+    handle: RefCell<NtSafeHandle>,
     is_directory: bool,
     dir_buffer: DirBuffer,
     file_size_hint: u64,
@@ -13,7 +14,7 @@ pub struct NtPassthroughFile {
 impl NtPassthroughFile {
     pub fn new(handle: NtSafeHandle, file_size_hint: u64, is_directory: bool) -> Self {
         Self {
-            handle,
+            handle: RefCell::new(handle),
             file_size_hint,
             is_directory,
             dir_buffer: DirBuffer::new(),
@@ -21,11 +22,11 @@ impl NtPassthroughFile {
     }
 
     pub fn handle(&self) -> HANDLE {
-        *self.handle
+        **(self.handle.borrow())
     }
 
-    pub fn invalidate(&mut self) {
-        self.handle.invalidate()
+    pub fn invalidate(&self) {
+        self.handle.borrow_mut().invalidate()
     }
 
     pub fn is_directory(&self) -> bool {
@@ -41,8 +42,8 @@ impl NtPassthroughFile {
     }
 
     /// Explicitly invalidate the handle before drop.
-    pub fn close(mut self) {
-        self.handle.invalidate();
+    pub fn close(self) {
+        self.invalidate();
         drop(self)
     }
 }

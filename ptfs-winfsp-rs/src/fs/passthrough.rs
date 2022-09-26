@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 use std::ffi::{OsStr, OsString};
 use std::fs;
 use std::io::ErrorKind;
@@ -61,10 +62,19 @@ pub struct PtfsContext {
 
 #[repr(C)]
 pub struct PtfsFileContext {
-    handle: Win32SafeHandle,
+    handle: RefCell<Win32SafeHandle>,
     dir_buffer: DirBuffer,
 }
 
+impl PtfsFileContext {
+    pub fn handle(&self) -> HANDLE {
+        **self.handle.borrow()
+    }
+
+    pub fn invalidate(&self) {
+        self.handle.borrow_mut().invalidate()
+    }
+}
 #[inline(always)]
 const fn quadpart(hi: u32, lo: u32) -> u64 {
     (hi as u64) << 32 | lo as u64
@@ -143,10 +153,10 @@ impl FileSystemContext for PtfsContext {
         let mut attribute_tag_info: MaybeUninit<FILE_ATTRIBUTE_TAG_INFO> = MaybeUninit::uninit();
         let mut len_needed: u32 = 0;
 
-        let handle = Win32SafeHandle::from(handle);
+        let handle = RefCell::new(Win32SafeHandle::from(handle));
 
         win32_try!(unsafe GetFileInformationByHandleEx(
-            *handle,
+            **handle.borrow(),
             FileAttributeTagInfo,
             attribute_tag_info.as_mut_ptr() as *mut _,
             std::mem::size_of::<FILE_ATTRIBUTE_TAG_INFO>() as u32,
@@ -154,7 +164,7 @@ impl FileSystemContext for PtfsContext {
 
         if let Some(descriptor_len) = descriptor_len {
             win32_try!(unsafe GetKernelObjectSecurity(
-                *handle,
+                 **handle.borrow(),
                 (OWNER_SECURITY_INFORMATION
                     | GROUP_SECURITY_INFORMATION
                     | DACL_SECURITY_INFORMATION)
@@ -213,7 +223,7 @@ impl FileSystemContext for PtfsContext {
 
         self.get_file_info_internal(handle, file_info.as_mut())?;
         Ok(Self::FileContext {
-            handle: Win32SafeHandle::from(handle),
+            handle: RefCell::new(Win32SafeHandle::from(handle)),
             dir_buffer: DirBuffer::new(),
         })
     }
@@ -282,19 +292,19 @@ impl FileSystemContext for PtfsContext {
         self.get_file_info_internal(handle, file_info.as_mut())?;
 
         Ok(Self::FileContext {
-            handle: Win32SafeHandle::from(handle),
+            handle: RefCell::new(Win32SafeHandle::from(handle)),
             dir_buffer: Default::default(),
         })
     }
 
     fn cleanup<P: AsRef<U16CStr>>(
         &self,
-        context: &mut Self::FileContext,
+        context: &Self::FileContext,
         _file_name: Option<P>,
         flags: u32,
     ) {
         if flags & FspCleanupFlags::FspCleanupDelete as u32 != 0 {
-            context.handle.invalidate();
+            context.invalidate();
         }
     }
 
@@ -304,17 +314,17 @@ impl FileSystemContext for PtfsContext {
         }
 
         let context = context.unwrap();
-        if *context.handle == HANDLE(0) {
+        if context.handle() == HANDLE(0) {
             // we do not flush the whole volume, so just return ok
             return Ok(());
         }
 
-        win32_try!(unsafe FlushFileBuffers(*context.handle));
-        self.get_file_info_internal(*context.handle, file_info)
+        win32_try!(unsafe FlushFileBuffers(context.handle()));
+        self.get_file_info_internal(context.handle(), file_info)
     }
 
     fn get_file_info(&self, context: &Self::FileContext, file_info: &mut FileInfo) -> Result<()> {
-        self.get_file_info_internal(*context.handle, file_info)
+        self.get_file_info_internal(context.handle(), file_info)
     }
 
     fn get_security(
@@ -326,7 +336,7 @@ impl FileSystemContext for PtfsContext {
         let mut descriptor_size_needed = 0;
 
         win32_try!(unsafe GetKernelObjectSecurity(
-            *context.handle,
+            context.handle(),
             (OWNER_SECURITY_INFORMATION
                 | GROUP_SECURITY_INFORMATION
                 | DACL_SECURITY_INFORMATION)
@@ -346,7 +356,7 @@ impl FileSystemContext for PtfsContext {
         modification_descriptor: PSECURITY_DESCRIPTOR,
     ) -> Result<()> {
         win32_try!(unsafe SetKernelObjectSecurity(
-            *context.handle,
+            context.handle(),
             security_information,
             modification_descriptor
         ));
@@ -377,7 +387,7 @@ impl FileSystemContext for PtfsContext {
             };
 
             win32_try!(unsafe SetFileInformationByHandle(
-                *context.handle,
+                context.handle(),
                 FileBasicInfo,
                 (&basic_info as *const FILE_BASIC_INFO).cast(),
                 std::mem::size_of::<FILE_BASIC_INFO>() as u32,
@@ -385,7 +395,7 @@ impl FileSystemContext for PtfsContext {
         } else if file_attributes != FILE_FLAGS_AND_ATTRIBUTES(0) {
             let mut basic_info = FILE_BASIC_INFO::default();
             win32_try!(unsafe GetFileInformationByHandleEx(
-                *context.handle,
+                context.handle(),
                 FileAttributeTagInfo,
                 (&mut attribute_tag_info as *mut FILE_ATTRIBUTE_TAG_INFO).cast(),
                 std::mem::size_of::<FILE_ATTRIBUTE_TAG_INFO>() as u32,
@@ -394,7 +404,7 @@ impl FileSystemContext for PtfsContext {
             basic_info.FileAttributes = file_attributes.0 | attribute_tag_info.FileAttributes;
             if basic_info.FileAttributes.bitxor(file_attributes.0) != 0 {
                 win32_try!(unsafe SetFileInformationByHandle(
-                    *context.handle,
+                    context.handle(),
                     FileBasicInfo,
                     (&basic_info as *const FILE_BASIC_INFO).cast(),
                     std::mem::size_of::<FILE_BASIC_INFO>() as u32,
@@ -404,12 +414,12 @@ impl FileSystemContext for PtfsContext {
 
         let alloc_info = FILE_ALLOCATION_INFO::default();
         win32_try!(unsafe SetFileInformationByHandle(
-            *context.handle,
+            context.handle(),
             FileAllocationInfo,
             (&alloc_info as *const FILE_ALLOCATION_INFO).cast(),
             std::mem::size_of::<FILE_ALLOCATION_INFO>() as u32,
         ));
-        self.get_file_info_internal(*context.handle, file_info)
+        self.get_file_info_internal(context.handle(), file_info)
     }
 
     fn read(
@@ -430,7 +440,7 @@ impl FileSystemContext for PtfsContext {
 
         let mut bytes_read = 0;
         win32_try!(unsafe ReadFile(
-            *context.handle,
+            context.handle(),
             Some(buffer.as_mut_ptr() as *mut _),
             buffer.len() as u32,
             Some(&mut bytes_read),
@@ -458,7 +468,7 @@ impl FileSystemContext for PtfsContext {
             let mut full_path = [0; FULLPATH_SIZE];
             let mut length = unsafe {
                 GetFinalPathNameByHandleW(
-                    *context.handle,
+                    context.handle(),
                     &mut full_path[0..FULLPATH_SIZE - 1],
                     FILE_NAME::default(),
                 )
@@ -593,13 +603,13 @@ impl FileSystemContext for PtfsContext {
             ChangeTime: last_change_time as i64,
         };
         win32_try!(unsafe SetFileInformationByHandle(
-            *context.handle,
+            context.handle(),
             FileBasicInfo,
             (&basic_info as *const FILE_BASIC_INFO).cast(),
             std::mem::size_of::<FILE_BASIC_INFO>() as u32,
         ));
 
-        self.get_file_info_internal(*context.handle, file_info)
+        self.get_file_info_internal(context.handle(), file_info)
     }
 
     fn set_delete<P: AsRef<U16CStr>>(
@@ -612,7 +622,7 @@ impl FileSystemContext for PtfsContext {
             DeleteFile: BOOLEAN(if delete_file { 1 } else { 0 }),
         };
 
-        win32_try!(unsafe SetFileInformationByHandle(*context.handle,
+        win32_try!(unsafe SetFileInformationByHandle(context.handle(),
             FileDispositionInfo, (&disposition_info as *const FILE_DISPOSITION_INFO).cast(),
             std::mem::size_of::<FILE_DISPOSITION_INFO>() as u32));
         Ok(())
@@ -631,7 +641,7 @@ impl FileSystemContext for PtfsContext {
             };
 
             win32_try!(unsafe SetFileInformationByHandle(
-                *context.handle,
+                context.handle(),
                 FileAllocationInfo,
                 (&allocation_info as *const FILE_ALLOCATION_INFO).cast(),
                 std::mem::size_of::<FILE_ALLOCATION_INFO>() as u32
@@ -642,13 +652,13 @@ impl FileSystemContext for PtfsContext {
             };
 
             win32_try!(unsafe SetFileInformationByHandle(
-                *context.handle,
+                context.handle(),
                 FileEndOfFileInfo,
                 (&eof_info as *const FILE_END_OF_FILE_INFO).cast(),
                 std::mem::size_of::<FILE_END_OF_FILE_INFO>() as u32
             ))
         }
-        self.get_file_info_internal(*context.handle, file_info)
+        self.get_file_info_internal(context.handle(), file_info)
     }
 
     fn write(
@@ -662,7 +672,7 @@ impl FileSystemContext for PtfsContext {
     ) -> Result<IoResult> {
         if constrained_io {
             let mut fsize = 0;
-            win32_try!(unsafe GetFileSizeEx(*context.handle, &mut fsize));
+            win32_try!(unsafe GetFileSizeEx(context.handle(), &mut fsize));
 
             if offset >= fsize as u64 {
                 return Ok(IoResult {
@@ -688,14 +698,14 @@ impl FileSystemContext for PtfsContext {
 
         let mut bytes_transferred = 0;
         win32_try!(unsafe WriteFile(
-            *context.handle,
+            context.handle(),
             Some(buffer.as_ptr().cast()),
             buffer.len() as u32,
             Some(&mut bytes_transferred),
             Some(&mut overlapped),
         ));
 
-        self.get_file_info_internal(*context.handle, file_info)?;
+        self.get_file_info_internal(context.handle(), file_info)?;
         Ok(IoResult {
             bytes_transferred,
             io_pending: false,

@@ -411,7 +411,7 @@ impl FileSystemContext for NtPassthroughContext {
 
     fn cleanup<P: AsRef<U16CStr>>(
         &self,
-        context: &mut Self::FileContext,
+        context: &Self::FileContext,
         _file_name: Option<P>,
         flags: u32,
     ) {
