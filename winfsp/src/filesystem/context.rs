@@ -40,6 +40,14 @@ pub struct IoResult {
 /// the caller will receive `STATUS_NONCONTINUABLE_EXCEPTION` (0xC0000025).
 ///
 /// Any non-implemented optional methods will return `STATUS_INVALID_DEVICE_REQUEST` (0xC0000010).
+///
+/// Notice that once created, `FileContext` is only accessible through a shared, immutable
+/// reference. Especially when using [`FileContextMode::Node`](crate::host::FileContextMode::Node),
+/// this may be an obstacle when the `FileContext` needs to be mutated. This is because the filesystem
+/// driver can call any of the trait methods on any thread, and `&mut` aliasing rules can not be guaranteed.
+/// Instead, interior mutability wrappers should be used whenever a `FileContext` field needs to be mutated.
+/// As an example, [`DirBuffer`](crate::filesystem::DirBuffer) implements interior mutability for the filesystem
+/// driver managed directory buffer.
 pub trait FileSystemContext: Sized {
     /// The user context that represents an open handle in the file system.
     ///
