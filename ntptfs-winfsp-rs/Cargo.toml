@@ -2,7 +2,8 @@
 name = "ntptfs-winfsp-rs"
 version = "0.1.0-alpha"
 edition = "2021"
-
+license = "GPL-3.0"
+description = "NTFS Passthrough File System via winfsp-rs"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
