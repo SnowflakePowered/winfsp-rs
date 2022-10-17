@@ -7,5 +7,5 @@ mod fs;
 mod native;
 
 pub use fs::context::NtPassthroughContext;
-pub use fs::ntptfs::NtPassthroughFilesystem;
 pub use fs::file::NtPassthroughFile;
+pub use fs::ntptfs::NtPassthroughFilesystem;

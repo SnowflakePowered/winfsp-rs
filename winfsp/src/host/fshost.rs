@@ -1,4 +1,6 @@
+use std::cell::UnsafeCell;
 use std::ffi::OsStr;
+use std::ptr::NonNull;
 use windows::core::Result;
 use windows::core::HSTRING;
 use windows::Win32::Foundation::NTSTATUS;
@@ -73,12 +75,12 @@ impl FileSystemParams {
 /// This is separate from the lifetime of the service which is managed by
 /// [`FileSystemService`](crate::service::FileSystemService). A `FileSystemHost`
 /// should start within the context of a service.
-pub struct FileSystemHost(*mut FSP_FILE_SYSTEM, Option<Timer>);
+pub struct FileSystemHost(NonNull<FSP_FILE_SYSTEM>, Option<Timer>);
 impl FileSystemHost {
     fn new_filesystem_inner<T: FileSystemContext>(
         options: FileSystemParams,
         context: T,
-    ) -> Result<*mut FSP_FILE_SYSTEM> {
+    ) -> Result<NonNull<FSP_FILE_SYSTEM>> {
         #[allow(unused_variables)]
         let FileSystemParams {
             use_dir_info_by_name,
@@ -96,12 +98,14 @@ impl FileSystemHost {
         };
 
         let interface: FSP_FILE_SYSTEM_INTERFACE = interface.into();
-        let interface = Box::into_raw(Box::new(interface));
+        let interface = Box::into_raw(Box::new(UnsafeCell::new(interface)));
+        // SAFETY: WinFSP owns the allocation that fsp_struct points to.
         let result = unsafe {
             FspFileSystemCreate(
                 volume_params.get_winfsp_device_name(),
                 &volume_params.0,
-                interface,
+                // SAFETY: UnsafeCell<T> and T are transmutable.
+                interface.cast(),
                 &mut fsp_struct,
             )
         };
@@ -120,7 +124,7 @@ impl FileSystemHost {
         }
 
         unsafe {
-            (*fsp_struct).UserContext = Box::into_raw(Box::new(context)) as *mut _;
+            (*fsp_struct).UserContext = Box::into_raw(Box::new(UnsafeCell::new(context))) as *mut _;
 
             match guard_strategy {
                 OperationGuardStrategy::Fine => FspFileSystemSetOperationGuardStrategyF(fsp_struct, FSP_FILE_SYSTEM_OPERATION_GUARD_STRATEGY_FSP_FILE_SYSTEM_OPERATION_GUARD_STRATEGY_FINE),
@@ -128,7 +132,8 @@ impl FileSystemHost {
             }
         }
 
-        Ok(fsp_struct)
+        assert!(!fsp_struct.is_null());
+        Ok(NonNull::new(fsp_struct).expect("FSP_FILE_SYSTEM pointer was created but was null!"))
     }
 
     /// Create a `FileSystemHost` with the default settings
@@ -173,20 +178,21 @@ impl FileSystemHost {
 
     /// Start the filesystem dispatcher for this filesystem.
     pub fn start(&mut self) -> Result<()> {
-        let result = unsafe { FspFileSystemStartDispatcher(self.0, 0) };
+        let result = unsafe { FspFileSystemStartDispatcher(self.0.as_ptr(), 0) };
         let result = NTSTATUS(result);
         result.ok()
     }
 
     /// Stop the filesystem dispatcher for this filesystem.
     pub fn stop(&mut self) {
-        unsafe { FspFileSystemStopDispatcher(self.0) }
+        unsafe { FspFileSystemStopDispatcher(self.0.as_ptr()) }
     }
 
     /// Mount the filesystem to the given mount point.
     pub fn mount<S: AsRef<OsStr>>(&mut self, mount: S) -> Result<()> {
         let mount = HSTRING::from(mount.as_ref());
-        let result = unsafe { FspFileSystemSetMountPoint(self.0, mount.as_ptr().cast_mut()) };
+        let result =
+            unsafe { FspFileSystemSetMountPoint(self.0.as_ptr(), mount.as_ptr().cast_mut()) };
 
         let result = NTSTATUS(result);
         result.ok()
@@ -195,6 +201,6 @@ impl FileSystemHost {
     /// Unmount the filesystem. It is safe to call this function even if the
     /// file system is not mounted.
     pub fn unmount(&mut self) {
-        unsafe { FspFileSystemRemoveMountPoint(self.0) }
+        unsafe { FspFileSystemRemoveMountPoint(self.0.as_ptr()) }
     }
 }

@@ -1,4 +1,5 @@
 //! Interfaces to the WinFSP service API to run a filesystem.
+use std::cell::UnsafeCell;
 use crate::error::FspError;
 use crate::FspInit;
 use crate::Result;
@@ -41,9 +42,9 @@ impl<T> FileSystemService<T> {
     /// Set the context.
     fn set_context(&mut self, context: T) {
         unsafe {
-            let ptr: *mut FileSystemServiceContext<T> = self.0.as_mut().UserContext.cast();
+            let ptr: *mut UnsafeCell<FileSystemServiceContext<T>> = self.0.as_mut().UserContext.cast();
             if let Some(ptr) = ptr.as_mut() {
-                ptr.context = Some(Box::new(context))
+                ptr.get_mut().context = Some(Box::new(context))
             }
         }
     }
@@ -54,10 +55,11 @@ impl<T> FileSystemService<T> {
                 .0
                 .as_mut()
                 .UserContext
-                .cast::<FileSystemServiceContext<T>>()
+                .cast::<UnsafeCell<FileSystemServiceContext<T>>>()
                 .as_mut()
+
             {
-                p.context.as_deref_mut()
+                p.get_mut().context.as_deref_mut()
             } else {
                 None
             }
@@ -158,12 +160,12 @@ impl<T> FileSystemServiceBuilder<T> {
         };
 
         unsafe { service.as_mut() }.unwrap().UserContext =
-            Box::into_raw(Box::new(FileSystemServiceContext::<T> {
+            Box::into_raw(Box::new(UnsafeCell::new(FileSystemServiceContext::<T> {
                 start: self.start,
                 stop: self.stop,
                 control: self.control,
                 context: None,
-            })) as *mut _;
+            }))) as *mut _;
         if result == STATUS_SUCCESS.0 && !service.is_null() {
             Ok(unsafe { FileSystemService::from_raw_unchecked(service) })
         } else {

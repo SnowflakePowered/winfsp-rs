@@ -1,4 +1,5 @@
 use crate::notify::{Notifier, NotifyingFileSystemContext};
+use std::ptr::NonNull;
 use windows::Win32::Foundation::{NTSTATUS, STATUS_SUCCESS};
 use windows::Win32::System::Threading::{
     CloseThreadpoolTimer, CreateThreadpoolTimer, SetThreadpoolTimer, TP_CALLBACK_INSTANCE, TP_TIMER,
@@ -9,11 +10,15 @@ pub struct Timer(*mut TP_TIMER);
 
 impl Timer {
     pub fn create<R, T: NotifyingFileSystemContext<R>, const TIMEOUT: u32>(
-        fs: *mut FSP_FILE_SYSTEM,
+        fs: NonNull<FSP_FILE_SYSTEM>,
     ) -> Self {
         let mut timer = Self(std::ptr::null_mut());
         timer.0 = unsafe {
-            CreateThreadpoolTimer(Some(timer_callback::<R, T, TIMEOUT>), Some(fs.cast()), None)
+            CreateThreadpoolTimer(
+                Some(timer_callback::<R, T, TIMEOUT>),
+                Some(fs.as_ptr().cast()),
+                None,
+            )
         };
 
         let timer_due = TIMEOUT as i64 * -1;
