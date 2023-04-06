@@ -54,6 +54,11 @@ impl<T> VariableSizedBox<T> {
     pub fn len(&self) -> usize {
         self.size
     }
+
+    /// Returns `true` if it contains no elements.
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
 }
 impl<T> Drop for VariableSizedBox<T> {
     fn drop(&mut self) {

@@ -57,9 +57,9 @@ pub enum FspTransactKind {
 
 pub const FSP_FSCTL_TRANSACT_PATH_SIZEMAX: usize = 1024 * std::mem::size_of::<WCHAR>();
 pub const FSP_FSCTL_TRANSACT_REQ_BUFFER_SIZEMAX: usize =
-    FSP_FSCTL_TRANSACT_REQ_SIZEMAX as usize - std::mem::size_of::<FSP_FSCTL_TRANSACT_REQ>();
+    FSP_FSCTL_TRANSACT_REQ_SIZEMAX - std::mem::size_of::<FSP_FSCTL_TRANSACT_REQ>();
 pub const FSP_FSCTL_TRANSACT_RSP_BUFFER_SIZEMAX: usize =
-    FSP_FSCTL_TRANSACT_RSP_SIZEMAX as usize - std::mem::size_of::<FSP_FSCTL_TRANSACT_RSP>();
+    FSP_FSCTL_TRANSACT_RSP_SIZEMAX - std::mem::size_of::<FSP_FSCTL_TRANSACT_RSP>();
 
 pub const FSP_FSCTL_DEFAULT_ALIGNMENT: usize = winfsp_sys::FSP_FSCTL_DEFAULT_ALIGNMENT as usize;
 pub const FSP_FSCTL_DEVICECONTROL_SIZEMAX: usize =

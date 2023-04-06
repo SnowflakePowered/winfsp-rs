@@ -605,7 +605,7 @@ unsafe extern "C" fn set_delete<T: FileSystemContext>(
     catch_panic!({
         require_fctx(fs, fctx, |context, fctx| {
             let file_name = unsafe { U16CStr::from_ptr_str_mut(file_name) };
-            T::set_delete(context, fctx, &file_name, delete_file != 0)
+            T::set_delete(context, fctx, file_name, delete_file != 0)
         })
     })
 }

@@ -2,9 +2,8 @@ use std::io::{Error, ErrorKind};
 use thiserror::Error;
 use windows::core::HRESULT;
 use windows::Win32::Foundation::{
-    ERROR_ACCESS_DENIED, ERROR_ALREADY_EXISTS, ERROR_DIRECTORY, ERROR_DIRECTORY_NOT_SUPPORTED,
-    ERROR_FILENAME_EXCED_RANGE, ERROR_FILE_NOT_FOUND, ERROR_INVALID_PARAMETER, NTSTATUS,
-    WIN32_ERROR,
+    ERROR_ACCESS_DENIED, ERROR_ALREADY_EXISTS, ERROR_FILE_NOT_FOUND, ERROR_INVALID_PARAMETER,
+    NTSTATUS, WIN32_ERROR,
 };
 use winfsp_sys::FspNtStatusFromWin32;
 
@@ -35,24 +34,18 @@ impl FspError {
     #[inline(always)]
     pub(crate) fn as_ntstatus(&self) -> winfsp_sys::NTSTATUS {
         match self {
-            FspError::HRESULT(h) => unsafe { FspNtStatusFromWin32(h.0 as u32) },
-            FspError::WIN32(e) => {
-                unsafe { FspNtStatusFromWin32(e.0 as u32) }
-                // e.0 as i32
-            }
+            FspError::HRESULT(h) => unsafe { FspNtStatusFromWin32(h.0 as u32) }
+            FspError::WIN32(e) => unsafe { FspNtStatusFromWin32(e.0) }
             FspError::IO(e) => {
                 let win32_equiv = match e {
                     ErrorKind::NotFound => ERROR_FILE_NOT_FOUND,
                     ErrorKind::PermissionDenied => ERROR_ACCESS_DENIED,
                     ErrorKind::AlreadyExists => ERROR_ALREADY_EXISTS,
                     ErrorKind::InvalidInput => ERROR_INVALID_PARAMETER,
-                    ErrorKind::InvalidFilename => ERROR_FILENAME_EXCED_RANGE,
-                    ErrorKind::IsADirectory => ERROR_DIRECTORY_NOT_SUPPORTED,
-                    ErrorKind::NotADirectory => ERROR_DIRECTORY,
                     // todo: return something sensible.
                     _ => panic!("Unsupported IO error {:?}", e),
                 };
-                unsafe { FspNtStatusFromWin32(win32_equiv.0 as u32) }
+                unsafe { FspNtStatusFromWin32(win32_equiv.0) }
             }
             FspError::NTSTATUS(e) => e.0,
         }

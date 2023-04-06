@@ -54,7 +54,7 @@ impl OpenFileInfo {
             unsafe {
                 self.normalized_name.write(prefix);
                 self.normalized_name
-                    .map_addr(|addr| addr.wrapping_add(1))
+                    .wrapping_offset(1)
                     .cast::<u8>()
                     .copy_from_nonoverlapping(file_name.as_ptr(), file_name.len());
             }
