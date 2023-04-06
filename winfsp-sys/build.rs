@@ -5,7 +5,7 @@ use std::fs::File;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-static HEADER: &str = r#"
+const HEADER: &str = r#"
 #include <winfsp/winfsp.h>
 #include <winfsp/fsctl.h>
 #include <winfsp/launch.h>
@@ -61,11 +61,18 @@ fn main() {
 
     println!("cargo:rustc-link-lib=dylib=delayimp");
 
-    if cfg!(target_os = "windows") && cfg!(target_arch = "x86_64") && cfg!(target_env = "msvc") {
+    if cfg!(all(
+        target_os = "windows",
+        target_arch = "x86_64",
+        target_env = "msvc"
+    )) {
         println!("cargo:rustc-link-lib=dylib=winfsp-x64");
         println!("cargo:rustc-link-arg=/DELAYLOAD:winfsp-x64.dll");
-    } else if cfg!(target_os = "windows") && cfg!(target_arch = "i686") && cfg!(target_env = "msvc")
-    {
+    } else if cfg!(all(
+        target_os = "windows",
+        target_arch = "i686",
+        target_env = "msvc"
+    )) {
         println!("cargo:rustc-link-lib=dylib=winfsp-x86");
         println!("cargo:rustc-link-arg=/DELAYLOAD:winfsp-x86.dll");
     } else {
