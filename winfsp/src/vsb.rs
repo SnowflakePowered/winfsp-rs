@@ -50,6 +50,7 @@ impl<T> VariableSizedBox<T> {
         unsafe { self.data.as_ref() }
     }
 
+    #[allow(clippy::len_without_is_empty)]
     /// The length of the allocation specified in bytes.
     pub fn len(&self) -> usize {
         self.size

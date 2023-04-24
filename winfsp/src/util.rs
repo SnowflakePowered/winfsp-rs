@@ -214,7 +214,7 @@ mod test {
         crate::winfsp_init_or_die();
         eprintln!("hello");
 
-        get_process_security(PSECURITY_DESCRIPTOR::default(), None);
+        let _ = get_process_security(PSECURITY_DESCRIPTOR::default(), None);
     }
 }
 

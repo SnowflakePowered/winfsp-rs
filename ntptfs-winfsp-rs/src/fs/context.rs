@@ -715,7 +715,7 @@ impl FileSystemContext for NtPassthroughContext {
             }
 
             if offset + buffer.len() as u64 > fsize {
-                buffer = &buffer[0..(fsize as u64 - offset) as usize]
+                buffer = &buffer[0..(fsize - offset) as usize]
             }
         }
 

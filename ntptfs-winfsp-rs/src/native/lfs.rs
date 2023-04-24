@@ -472,20 +472,17 @@ pub fn lfs_get_file_info<'a, P: Into<MaybeOpenFileInfo<'a>>>(
     }
 
     if let (Some(root_prefix_length_bytes), MaybeOpenFileInfo::OpenFileInfo(open_file))
-            = (root_prefix_length, maybe_file_info) && result != STATUS_BUFFER_OVERFLOW && root_prefix_length_bytes != u32::MAX {
-        if  open_file.normalized_name_size() > (size_of::<u16>() as u32 + file_all_info.NameInformation.FileNameLength as u32) as u16
-                && root_prefix_length_bytes <= file_all_info.NameInformation.FileNameLength {
+            = (root_prefix_length, maybe_file_info) && result != STATUS_BUFFER_OVERFLOW && root_prefix_length_bytes != u32::MAX && open_file.normalized_name_size() > (size_of::<u16>() as u32 + file_all_info.NameInformation.FileNameLength) as u16 && root_prefix_length_bytes <= file_all_info.NameInformation.FileNameLength {
 
-            // get the file_name without root prefix
-            let file_name = unsafe {
-                slice::from_raw_parts(file_all_info.NameInformation.FileName.as_ptr().cast::<u8>(),
-                                      file_all_info.NameInformation.FileNameLength as usize)
-            };
+        // get the file_name without root prefix
+        let file_name = unsafe {
+            slice::from_raw_parts(file_all_info.NameInformation.FileName.as_ptr().cast::<u8>(),
+                                  file_all_info.NameInformation.FileNameLength as usize)
+        };
 
-            let file_name = &file_name[(root_prefix_length_bytes as usize)..];
-            let file_name: &[u16] = bytemuck::cast_slice(file_name);
-            open_file.set_normalized_name(file_name, Some(b'\\' as u16));
-        }
+        let file_name = &file_name[(root_prefix_length_bytes as usize)..];
+        let file_name: &[u16] = bytemuck::cast_slice(file_name);
+        open_file.set_normalized_name(file_name, Some(b'\\' as u16));
     }
 
     Ok(())

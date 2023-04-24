@@ -47,7 +47,7 @@ use winfsp::{FspError, Result};
 use winfsp::util::Win32SafeHandle;
 
 const ALLOCATION_UNIT: u16 = 4096;
-const VOLUME_LABEL: &'static str = "Snowflake";
+const VOLUME_LABEL: &str = "Snowflake";
 const FULLPATH_SIZE: usize = MAX_PATH as usize
     + (winfsp::constants::FSP_FSCTL_TRANSACT_PATH_SIZEMAX / std::mem::size_of::<u16>());
 

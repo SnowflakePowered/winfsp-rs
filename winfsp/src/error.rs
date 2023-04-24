@@ -37,7 +37,7 @@ impl FspError {
         match self {
             FspError::HRESULT(h) => unsafe { FspNtStatusFromWin32(h.0 as u32) },
             FspError::WIN32(e) => {
-                unsafe { FspNtStatusFromWin32(e.0 as u32) }
+                unsafe { FspNtStatusFromWin32(e.0) }
                 // e.0 as i32
             }
             FspError::IO(e) => {
@@ -52,7 +52,7 @@ impl FspError {
                     // todo: return something sensible.
                     _ => panic!("Unsupported IO error {:?}", e),
                 };
-                unsafe { FspNtStatusFromWin32(win32_equiv.0 as u32) }
+                unsafe { FspNtStatusFromWin32(win32_equiv.0) }
             }
             FspError::NTSTATUS(e) => e.0,
         }
