@@ -1,5 +1,6 @@
 use std::cell::UnsafeCell;
 use std::ffi::OsStr;
+use std::marker::PhantomData;
 use std::ptr::NonNull;
 use windows::core::Result;
 use windows::core::HSTRING;
@@ -75,9 +76,9 @@ impl FileSystemParams {
 /// This is separate from the lifetime of the service which is managed by
 /// [`FileSystemService`](crate::service::FileSystemService). A `FileSystemHost`
 /// should start within the context of a service.
-pub struct FileSystemHost(NonNull<FSP_FILE_SYSTEM>, Option<Timer>);
-impl FileSystemHost {
-    fn new_filesystem_inner<T: FileSystemContext>(
+pub struct FileSystemHost<'ctx>(NonNull<FSP_FILE_SYSTEM>, Option<Timer>, PhantomData<&'ctx FSP_FILE_SYSTEM>);
+impl<'ctx> FileSystemHost<'ctx> {
+    fn new_filesystem_inner<T: FileSystemContext + 'ctx>(
         options: FileSystemParams,
         context: T,
     ) -> Result<NonNull<FSP_FILE_SYSTEM>> {
@@ -138,7 +139,7 @@ impl FileSystemHost {
 
     /// Create a `FileSystemHost` with the default settings
     /// for the provided context implementation.
-    pub fn new<T: FileSystemContext>(volume_params: VolumeParams, context: T) -> Result<Self> {
+    pub fn new<T: FileSystemContext + 'ctx>(volume_params: VolumeParams, context: T) -> Result<Self> {
         Self::new_with_options::<T>(
             FileSystemParams {
                 use_dir_info_by_name: false,
@@ -152,19 +153,19 @@ impl FileSystemHost {
 
     /// Create a `FileSystemHost` with the provided context implementation, and
     /// host options.
-    pub fn new_with_options<T: FileSystemContext>(
+    pub fn new_with_options<T: FileSystemContext + 'ctx>(
         options: FileSystemParams,
         context: T,
     ) -> Result<Self> {
         let fsp_struct = Self::new_filesystem_inner(options, context)?;
-        Ok(FileSystemHost(fsp_struct, None))
+        Ok(FileSystemHost(fsp_struct, None, PhantomData::default()))
     }
 
     /// Create a `FileSystemHost` with the provided notifying context implementation,
     /// host options, and polling interval.
     #[cfg(feature = "notify")]
     pub fn new_with_timer<
-        T: FileSystemContext + NotifyingFileSystemContext<R>,
+        T: FileSystemContext + NotifyingFileSystemContext<R> + 'ctx,
         R,
         const INTERVAL: u32,
     >(
@@ -173,7 +174,7 @@ impl FileSystemHost {
     ) -> Result<Self> {
         let fsp_struct = Self::new_filesystem_inner(options, context)?;
         let timer = Timer::create::<R, T, INTERVAL>(fsp_struct);
-        Ok(FileSystemHost(fsp_struct, Some(timer)))
+        Ok(FileSystemHost(fsp_struct, Some(timer), PhantomData::default()))
     }
 
     /// Start the filesystem dispatcher for this filesystem.

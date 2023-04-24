@@ -6,6 +6,7 @@
       <sourceFolder url="file://$MODULE_DIR$/ptfs-winfsp-rs/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/winfsp-sys/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/winfsp/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/unsound-fs/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
     </content>
     <orderEntry type="inheritedJdk" />
