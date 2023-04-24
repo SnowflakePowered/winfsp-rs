@@ -1,8 +1,8 @@
 //! Interfaces to the WinFSP service API to run a filesystem.
-use std::cell::UnsafeCell;
 use crate::error::FspError;
 use crate::FspInit;
 use crate::Result;
+use std::cell::UnsafeCell;
 use std::ffi::c_void;
 use std::marker::PhantomData;
 use std::ptr::NonNull;
@@ -42,7 +42,8 @@ impl<T> FileSystemService<T> {
     /// Set the context.
     fn set_context(&mut self, context: T) {
         unsafe {
-            let ptr: *mut UnsafeCell<FileSystemServiceContext<T>> = self.0.as_mut().UserContext.cast();
+            let ptr: *mut UnsafeCell<FileSystemServiceContext<T>> =
+                self.0.as_mut().UserContext.cast();
             if let Some(ptr) = ptr.as_mut() {
                 ptr.get_mut().context = Some(Box::new(context))
             }
@@ -57,7 +58,6 @@ impl<T> FileSystemService<T> {
                 .UserContext
                 .cast::<UnsafeCell<FileSystemServiceContext<T>>>()
                 .as_mut()
-
             {
                 p.get_mut().context.as_deref_mut()
             } else {

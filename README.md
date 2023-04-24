@@ -46,6 +46,18 @@ and redirection of output is not configurable at this time.
 [dependencies.winfsp]
 features = ["debug"]
 ```
+### Building on Stable Rust
+It is recommended you build winfsp-rs on nightly Rust as it relies on [`io_error_more`](https://github.com/rust-lang/rust/issues/86442)
+and [`strict_provenance`](https://github.com/rust-lang/rust/issues/95228). However, it is possible to build winfsp-rs
+on stable Rust without support for these features. 
+
+```toml
+[dependencies.winfsp]
+default-features = false
+# notify if you need filesystem notifications, delayload is needed for build-time helpers.
+features = ["notify", "delayload"]
+```
+
 
 ## Legal
 winfsp-rs is licensed under the terms of the GNU General Public License version 3 as published by the
