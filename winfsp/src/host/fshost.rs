@@ -76,9 +76,9 @@ impl FileSystemParams {
 /// This is separate from the lifetime of the service which is managed by
 /// [`FileSystemService`](crate::service::FileSystemService). A `FileSystemHost`
 /// should start within the context of a service.
-pub struct FileSystemHost<'ctx>(NonNull<FSP_FILE_SYSTEM>, Option<Timer>, PhantomData<&'ctx FSP_FILE_SYSTEM>);
-impl<'ctx> FileSystemHost<'ctx> {
-    fn new_filesystem_inner<T: FileSystemContext + 'ctx>(
+pub struct FileSystemHost(NonNull<FSP_FILE_SYSTEM>, Option<Timer>, PhantomData<&'static FSP_FILE_SYSTEM>);
+impl FileSystemHost {
+    fn new_filesystem_inner<T: FileSystemContext + 'static>(
         options: FileSystemParams,
         context: T,
     ) -> Result<NonNull<FSP_FILE_SYSTEM>> {
@@ -139,7 +139,7 @@ impl<'ctx> FileSystemHost<'ctx> {
 
     /// Create a `FileSystemHost` with the default settings
     /// for the provided context implementation.
-    pub fn new<T: FileSystemContext + 'ctx>(volume_params: VolumeParams, context: T) -> Result<Self> {
+    pub fn new<T: FileSystemContext + 'static>(volume_params: VolumeParams, context: T) -> Result<Self> {
         Self::new_with_options::<T>(
             FileSystemParams {
                 use_dir_info_by_name: false,
@@ -153,7 +153,7 @@ impl<'ctx> FileSystemHost<'ctx> {
 
     /// Create a `FileSystemHost` with the provided context implementation, and
     /// host options.
-    pub fn new_with_options<T: FileSystemContext + 'ctx>(
+    pub fn new_with_options<T: FileSystemContext + 'static>(
         options: FileSystemParams,
         context: T,
     ) -> Result<Self> {
@@ -165,7 +165,7 @@ impl<'ctx> FileSystemHost<'ctx> {
     /// host options, and polling interval.
     #[cfg(feature = "notify")]
     pub fn new_with_timer<
-        T: FileSystemContext + NotifyingFileSystemContext<R> + 'ctx,
+        T: FileSystemContext + NotifyingFileSystemContext<R> + 'static,
         R,
         const INTERVAL: u32,
     >(
