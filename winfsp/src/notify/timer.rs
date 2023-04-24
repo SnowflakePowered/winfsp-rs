@@ -21,7 +21,7 @@ impl Timer {
             )
         };
 
-        let timer_due = TIMEOUT as i64 * -1;
+        let timer_due = -(TIMEOUT as i64);
         unsafe {
             SetThreadpoolTimer(
                 timer.0,
