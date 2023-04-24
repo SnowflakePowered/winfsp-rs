@@ -520,7 +520,7 @@ unsafe extern "C" fn cleanup<T: FileSystemContext>(
     catch_panic!({
         require_fctx(fs, fctx, |context, fctx| {
             let file_name = if !file_name.is_null() {
-                Some(unsafe { U16CStr::from_ptr_str_mut(file_name) })
+                Some(unsafe { U16CStr::from_ptr_str(file_name) })
             } else {
                 None
             };
