@@ -18,8 +18,8 @@ use crate::filesystem::FileSystemContext;
 use crate::host::interface::Interface;
 use crate::host::{DebugMode, VolumeParams};
 
-use crate::notify::NotifyingFileSystemContext;
-use crate::notify::Timer;
+#[cfg(feature = "notify")]
+use crate::notify::{NotifyingFileSystemContext, Timer};
 
 /// The usermode file system locking strategy.
 pub enum OperationGuardStrategy {
@@ -78,7 +78,7 @@ impl FileSystemParams {
 /// should start within the context of a service.
 pub struct FileSystemHost<'ctx>(
     NonNull<FSP_FILE_SYSTEM>,
-    Option<Timer>,
+    #[cfg(feature = "notify")] Option<Timer>,
     PhantomData<&'ctx FSP_FILE_SYSTEM>,
 );
 impl<'ctx> FileSystemHost<'ctx> {
@@ -165,7 +165,12 @@ impl<'ctx> FileSystemHost<'ctx> {
         context: T,
     ) -> Result<Self> {
         let fsp_struct = Self::new_filesystem_inner(options, context)?;
-        Ok(FileSystemHost(fsp_struct, None, PhantomData::default()))
+        Ok(FileSystemHost(
+            fsp_struct,
+            #[cfg(feature = "notify")]
+            None,
+            PhantomData::default(),
+        ))
     }
 
     /// Create a `FileSystemHost` with the provided notifying context implementation,

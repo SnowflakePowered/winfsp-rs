@@ -115,6 +115,7 @@ pub fn winfsp_init_or_die() -> FspInit {
 /// Build-time helper to enable `DELAYLOAD` linking to the system WinFSP.
 ///
 /// This function should be called from `build.rs`.
+#[cfg(feature = "delayload")]
 pub fn winfsp_link_delayload() {
     if cfg!(all(target_os = "windows", target_env = "msvc")) {
         if cfg!(target_arch = "x86_64") {
