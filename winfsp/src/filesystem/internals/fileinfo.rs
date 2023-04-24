@@ -53,8 +53,16 @@ impl OpenFileInfo {
         if let (Some(prefix), false) = (prefix, first_letter == prefix) {
             unsafe {
                 self.normalized_name.write(prefix);
+
+                #[cfg(feature = "strict-provenance")]
                 self.normalized_name
                     .map_addr(|addr| addr.wrapping_add(1))
+                    .cast::<u8>()
+                    .copy_from_nonoverlapping(file_name.as_ptr(), file_name.len());
+
+                #[cfg(not(feature = "strict-provenance"))]
+                self.normalized_name
+                    .wrapping_offset(1)
                     .cast::<u8>()
                     .copy_from_nonoverlapping(file_name.as_ptr(), file_name.len());
             }

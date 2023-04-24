@@ -1,5 +1,5 @@
-#![feature(io_error_more)]
-#![feature(strict_provenance)]
+#![cfg_attr(feature = "strict-provenance", feature(strict_provenance))]
+#![cfg_attr(feature = "io-error", feature(io_error_more))]
 #![deny(unsafe_op_in_unsafe_fn)]
 
 pub mod constants;

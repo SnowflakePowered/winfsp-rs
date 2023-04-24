@@ -19,13 +19,15 @@ static_assertions = "1.1.0"
 bytemuck = "1.12.1"
 
 [features]
-default = ["notify", "delayload"]
+default = ["notify", "delayload", "io-error", "strict-provenance"]
 debug = []
 system = ["windows/Win32_System_Registry", "winfsp-sys/system"]
 notify = []
 build = []
 delayload = ["build"]
 docsrs = ["winfsp-sys/docsrs"]
+strict-provenance = []
+io-error = []
 
 [package.metadata.docs.rs]
 default-target = "x86_64-pc-windows-msvc"

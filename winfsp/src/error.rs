@@ -2,10 +2,15 @@ use std::io::{Error, ErrorKind};
 use thiserror::Error;
 use windows::core::HRESULT;
 use windows::Win32::Foundation::{
-    ERROR_ACCESS_DENIED, ERROR_ALREADY_EXISTS, ERROR_DIRECTORY, ERROR_DIRECTORY_NOT_SUPPORTED,
-    ERROR_FILENAME_EXCED_RANGE, ERROR_FILE_NOT_FOUND, ERROR_INVALID_PARAMETER, NTSTATUS,
-    WIN32_ERROR,
+    ERROR_ACCESS_DENIED, ERROR_ALREADY_EXISTS, ERROR_FILE_NOT_FOUND, ERROR_INVALID_PARAMETER,
+    NTSTATUS, WIN32_ERROR,
 };
+
+#[cfg(feature = "io-error")]
+use windows::Win32::Foundation::{
+    ERROR_DIRECTORY, ERROR_DIRECTORY_NOT_SUPPORTED, ERROR_FILENAME_EXCED_RANGE,
+};
+
 use winfsp_sys::FspNtStatusFromWin32;
 
 /// Error type for WinFSP.
@@ -46,8 +51,11 @@ impl FspError {
                     ErrorKind::PermissionDenied => ERROR_ACCESS_DENIED,
                     ErrorKind::AlreadyExists => ERROR_ALREADY_EXISTS,
                     ErrorKind::InvalidInput => ERROR_INVALID_PARAMETER,
+                    #[cfg(feature = "io-error")]
                     ErrorKind::InvalidFilename => ERROR_FILENAME_EXCED_RANGE,
+                    #[cfg(feature = "io-error")]
                     ErrorKind::IsADirectory => ERROR_DIRECTORY_NOT_SUPPORTED,
+                    #[cfg(feature = "io-error")]
                     ErrorKind::NotADirectory => ERROR_DIRECTORY,
                     // todo: return something sensible.
                     _ => panic!("Unsupported IO error {:?}", e),

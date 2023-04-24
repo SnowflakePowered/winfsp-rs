@@ -76,7 +76,11 @@ impl FileSystemParams {
 /// This is separate from the lifetime of the service which is managed by
 /// [`FileSystemService`](crate::service::FileSystemService). A `FileSystemHost`
 /// should start within the context of a service.
-pub struct FileSystemHost<'ctx>(NonNull<FSP_FILE_SYSTEM>, Option<Timer>, PhantomData<&'ctx FSP_FILE_SYSTEM>);
+pub struct FileSystemHost<'ctx>(
+    NonNull<FSP_FILE_SYSTEM>,
+    Option<Timer>,
+    PhantomData<&'ctx FSP_FILE_SYSTEM>,
+);
 impl<'ctx> FileSystemHost<'ctx> {
     fn new_filesystem_inner<T: FileSystemContext + 'ctx>(
         options: FileSystemParams,
@@ -139,7 +143,10 @@ impl<'ctx> FileSystemHost<'ctx> {
 
     /// Create a `FileSystemHost` with the default settings
     /// for the provided context implementation.
-    pub fn new<T: FileSystemContext + 'ctx>(volume_params: VolumeParams, context: T) -> Result<Self> {
+    pub fn new<T: FileSystemContext + 'ctx>(
+        volume_params: VolumeParams,
+        context: T,
+    ) -> Result<Self> {
         Self::new_with_options::<T>(
             FileSystemParams {
                 use_dir_info_by_name: false,
@@ -174,7 +181,11 @@ impl<'ctx> FileSystemHost<'ctx> {
     ) -> Result<Self> {
         let fsp_struct = Self::new_filesystem_inner(options, context)?;
         let timer = Timer::create::<R, T, INTERVAL>(fsp_struct);
-        Ok(FileSystemHost(fsp_struct, Some(timer), PhantomData::default()))
+        Ok(FileSystemHost(
+            fsp_struct,
+            Some(timer),
+            PhantomData::default(),
+        ))
     }
 
     /// Start the filesystem dispatcher for this filesystem.
