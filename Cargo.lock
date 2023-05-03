@@ -602,7 +602,7 @@ dependencies = [
 
 [[package]]
 name = "winfsp-sys"
-version = "0.2.0+winfsp-2.0"
+version = "0.2.1+winfsp-2.0"
 dependencies = [
  "bindgen",
  "registry",

@@ -14,6 +14,10 @@ mod vsb;
 #[cfg(feature = "notify")]
 pub mod notify;
 
+// only publicly export notify if feature is enabled.
+#[cfg(not(feature = "notify"))]
+mod notify;
+
 pub use error::FspError;
 pub use error::Result;
 
