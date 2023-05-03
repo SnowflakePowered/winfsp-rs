@@ -860,6 +860,22 @@ unsafe extern "C" fn get_dir_info_by_name<T: FileSystemContext>(
     })
 }
 
+unsafe extern "C" fn dispatcher_stopped<T: FileSystemContext>(
+    fs: *mut FSP_FILE_SYSTEM,
+    normally: BOOLEAN,
+) {
+    catch_panic!({
+        require_ctx(fs, |context| {
+            T::dispatcher_stopped(context, normally == 1);
+            Ok(())
+        })
+    });
+
+    unsafe {
+        winfsp_sys::FspFileSystemStopServiceIfNecessary(fs, normally);
+    }
+}
+
 pub struct Interface {
     get_volume_info: Option<
         unsafe extern "C" fn(
@@ -1118,6 +1134,7 @@ pub struct Interface {
             dir_info: *mut FSP_FSCTL_DIR_INFO,
         ) -> FSP_STATUS,
     >,
+    dispatcher_stopped: Option<unsafe extern "C" fn(fs: *mut FSP_FILE_SYSTEM, normally: BOOLEAN)>
 }
 
 impl Interface {
@@ -1151,6 +1168,7 @@ impl Interface {
             resolve_reparse_points: Some(resolve_reparse_points::<T>),
             get_stream_info: Some(get_stream_info::<T>),
             get_dir_info_by_name: None,
+            dispatcher_stopped: Some(dispatcher_stopped::<T>)
         }
     }
 
@@ -1184,6 +1202,7 @@ impl Interface {
             resolve_reparse_points: Some(resolve_reparse_points::<T>),
             get_stream_info: Some(get_stream_info::<T>),
             get_dir_info_by_name: Some(get_dir_info_by_name::<T>),
+            dispatcher_stopped: Some(dispatcher_stopped::<T>)
         }
     }
 }
@@ -1219,6 +1238,7 @@ impl From<Interface> for FSP_FILE_SYSTEM_INTERFACE {
             ResolveReparsePoints: interface.resolve_reparse_points,
             GetDirInfoByName: interface.get_dir_info_by_name,
             GetStreamInfo: interface.get_stream_info,
+            DispatcherStopped: interface.dispatcher_stopped,
             ..Default::default()
         }
     }

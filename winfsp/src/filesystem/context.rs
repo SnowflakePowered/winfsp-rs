@@ -351,6 +351,16 @@ pub trait FileSystemContext: Sized {
         Err(STATUS_INVALID_DEVICE_REQUEST.into())
     }
 
+    /// Inform the file system that its dispatcher has been stopped.
+    ///
+    /// If the dispatcher was stopped via the driver being unloaded, or
+    /// otherwise some non-normal situation, `normally` will be false.
+    ///
+    /// Do not attempt to call [`FspFileSystemStopServiceIfNecessary`](winfsp_sys::FspFileSystemStopServiceIfNecessary),
+    /// it will be called after this function ends. All cleanup done within this function
+    /// should be user-mode only.
+    fn dispatcher_stopped(&self, normally: bool) {}
+
     /// Get the context response of the current FSP interface operation.
     ///
     /// ## Safety
