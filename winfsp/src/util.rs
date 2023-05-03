@@ -176,7 +176,7 @@ pub fn get_process_security(
     let handle = unsafe {
         let handle = CreateFileW(
             PCWSTR(path.as_ptr()),
-            FILE_READ_ATTRIBUTES | READ_CONTROL,
+            (FILE_READ_ATTRIBUTES | READ_CONTROL).0,
             FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
             None,
             OPEN_EXISTING,

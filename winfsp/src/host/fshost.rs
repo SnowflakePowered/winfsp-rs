@@ -180,7 +180,7 @@ impl<'ctx> FileSystemHost<'ctx> {
         context: T,
     ) -> Result<Self> {
         let fsp_struct = Self::new_filesystem_inner(options, context)?;
-        let timer = Timer::create::<R, T, INTERVAL>(fsp_struct);
+        let timer = Timer::create::<R, T, INTERVAL>(fsp_struct)?;
         Ok(FileSystemHost(
             fsp_struct,
             Some(timer),

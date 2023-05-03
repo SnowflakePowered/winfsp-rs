@@ -26,7 +26,7 @@ use windows::Win32::Storage::FileSystem::{
     GetDiskFreeSpaceExW, GetFileInformationByHandle, GetFileInformationByHandleEx, GetFileSizeEx,
     GetFinalPathNameByHandleW, GetVolumePathNameW, MoveFileExW, ReadFile,
     SetFileInformationByHandle, WriteFile, BY_HANDLE_FILE_INFORMATION, CREATE_NEW,
-    FILE_ACCESS_FLAGS, FILE_ALLOCATION_INFO, FILE_ATTRIBUTE_DIRECTORY, FILE_ATTRIBUTE_NORMAL,
+    FILE_ACCESS_RIGHTS, FILE_ALLOCATION_INFO, FILE_ATTRIBUTE_DIRECTORY, FILE_ATTRIBUTE_NORMAL,
     FILE_ATTRIBUTE_TAG_INFO, FILE_BASIC_INFO, FILE_DISPOSITION_INFO, FILE_END_OF_FILE_INFO,
     FILE_FLAGS_AND_ATTRIBUTES, FILE_FLAG_BACKUP_SEMANTICS, FILE_FLAG_DELETE_ON_CLOSE,
     FILE_FLAG_POSIX_SEMANTICS, FILE_NAME, FILE_READ_ATTRIBUTES, FILE_SHARE_DELETE, FILE_SHARE_MODE,
@@ -137,7 +137,7 @@ impl FileSystemContext for PtfsContext {
         let handle = unsafe {
             let handle = CreateFileW(
                 &HSTRING::from(full_path.as_os_str()),
-                FILE_READ_ATTRIBUTES | READ_CONTROL,
+                (FILE_READ_ATTRIBUTES | READ_CONTROL).0,
                 FILE_SHARE_MODE(0),
                 None,
                 OPEN_EXISTING,
@@ -186,7 +186,7 @@ impl FileSystemContext for PtfsContext {
         &self,
         file_name: P,
         create_options: u32,
-        granted_access: FILE_ACCESS_FLAGS,
+        granted_access: FILE_ACCESS_RIGHTS,
         file_info: &mut OpenFileInfo,
     ) -> Result<Self::FileContext> {
         let file_name = OsString::from_wide(file_name.as_ref().as_slice());
@@ -204,7 +204,7 @@ impl FileSystemContext for PtfsContext {
         let handle = unsafe {
             let handle = CreateFileW(
                 PCWSTR(full_path.as_ptr()),
-                granted_access,
+                granted_access.0,
                 FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
                 None,
                 OPEN_EXISTING,
@@ -236,7 +236,7 @@ impl FileSystemContext for PtfsContext {
         &self,
         file_name: P,
         create_options: u32,
-        granted_access: FILE_ACCESS_FLAGS,
+        granted_access: FILE_ACCESS_RIGHTS,
         mut file_attributes: FILE_FLAGS_AND_ATTRIBUTES,
         security_descriptor: PSECURITY_DESCRIPTOR,
         _allocation_size: u64,
@@ -276,7 +276,7 @@ impl FileSystemContext for PtfsContext {
         let handle = unsafe {
             let handle = CreateFileW(
                 PCWSTR(full_path.as_ptr()),
-                granted_access,
+                granted_access.0,
                 FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
                 Some(&security_attributes),
                 CREATE_NEW,
@@ -699,8 +699,7 @@ impl FileSystemContext for PtfsContext {
         let mut bytes_transferred = 0;
         win32_try!(unsafe WriteFile(
             context.handle(),
-            Some(buffer.as_ptr().cast()),
-            buffer.len() as u32,
+            Some(buffer),
             Some(&mut bytes_transferred),
             Some(&mut overlapped),
         ));

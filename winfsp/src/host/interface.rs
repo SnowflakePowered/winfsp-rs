@@ -6,7 +6,7 @@ use windows::Win32::Foundation::{
     STATUS_REPARSE, STATUS_SUCCESS,
 };
 use windows::Win32::Security::PSECURITY_DESCRIPTOR;
-use windows::Win32::Storage::FileSystem::{FILE_ACCESS_FLAGS, FILE_FLAGS_AND_ATTRIBUTES};
+use windows::Win32::Storage::FileSystem::{FILE_ACCESS_RIGHTS, FILE_FLAGS_AND_ATTRIBUTES};
 
 use crate::{error, U16CStr};
 use winfsp_sys::{
@@ -205,7 +205,7 @@ unsafe extern "C" fn open<T: FileSystemContext>(
                 context,
                 file_name,
                 create_options,
-                FILE_ACCESS_FLAGS(granted_access),
+                FILE_ACCESS_RIGHTS(granted_access),
                 // SAFETY: https://winfsp.dev/doc/WinFsp-API-winfsp.h/
                 // The FileInfo parameter to Create and Open is typed as pointer to FSP_FSCTL_FILE_INFO.
                 // The true type of this parameter is pointer to FSP_FSCTL_OPEN_FILE_INFO.
@@ -253,7 +253,7 @@ unsafe extern "C" fn create_ex<T: FileSystemContext>(
                 context,
                 file_name,
                 create_options,
-                FILE_ACCESS_FLAGS(granted_access),
+                FILE_ACCESS_RIGHTS(granted_access),
                 FILE_FLAGS_AND_ATTRIBUTES(file_attributes),
                 PSECURITY_DESCRIPTOR(security_descriptor),
                 allocation_size,
