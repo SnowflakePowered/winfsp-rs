@@ -91,6 +91,8 @@ extern const __declspec(selectany) GUID FspFsvrtDeviceClassGuid =
 /* fsctl device codes */
 #define FSP_FSCTL_MOUNTDEV              \
     CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 0x800 + 'M', METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define FSP_FSCTL_MOUNTMGR              \
+    CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 0x800 + 'm', METHOD_BUFFERED, FILE_ANY_ACCESS)
 #define FSP_FSCTL_VOLUME_NAME           \
     CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 0x800 + 'N', METHOD_BUFFERED, FILE_ANY_ACCESS)
 #define FSP_FSCTL_VOLUME_LIST           \
@@ -109,6 +111,8 @@ extern const __declspec(selectany) GUID FspFsvrtDeviceClassGuid =
     CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 0x800 + 's', METHOD_BUFFERED, FILE_ANY_ACCESS)
 #define FSP_FSCTL_NOTIFY                \
     CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 0x800 + 'n', METHOD_NEITHER, FILE_ANY_ACCESS)
+#define FSP_FSCTL_UNLOAD                \
+    CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 0x800 + 'U', METHOD_NEITHER, FILE_ANY_ACCESS)
 
 /* fsctl internal device codes (usable only in-kernel) */
 #define FSP_FSCTL_TRANSACT_INTERNAL     \
@@ -226,7 +230,7 @@ enum
     UINT32 CasePreservedExtendedAttributes:1;   /* preserve case of EA (default is UPPERCASE) */\
     UINT32 WslFeatures:1;                   /* support features required for WSLinux */\
     UINT32 DirectoryMarkerAsNextOffset:1;   /* directory marker is next offset instead of last name */\
-    UINT32 RejectIrpPriorToTransact0:1;     /* reject IRP's prior to FspFsctlTransact with 0 buffers */\
+    UINT32 RejectIrpPriorToTransact0:1;     /* DEPRECATED: reject IRP's prior to FspFsctlTransact0 */\
     UINT32 SupportsPosixUnlinkRename:1;     /* file system supports POSIX-style unlink and rename */\
     UINT32 PostDispositionWhenNecessaryOnly:1;  /* post Disposition for dirs or READONLY attr check */\
     UINT32 KmReservedFlags:1;\
@@ -679,6 +683,8 @@ FSP_API NTSTATUS FspFsctlCreateVolume(PWSTR DevicePath,
     PHANDLE PVolumeHandle);
 FSP_API NTSTATUS FspFsctlMakeMountdev(HANDLE VolumeHandle,
     BOOLEAN Persistent, GUID *UniqueId);
+FSP_API NTSTATUS FspFsctlUseMountmgr(HANDLE VolumeHandle,
+    PWSTR MountPoint);
 FSP_API NTSTATUS FspFsctlTransact(HANDLE VolumeHandle,
     PVOID ResponseBuf, SIZE_T ResponseBufSize,
     PVOID RequestBuf, SIZE_T *PRequestBufSize,
@@ -690,6 +696,11 @@ FSP_API NTSTATUS FspFsctlNotify(HANDLE VolumeHandle,
 FSP_API NTSTATUS FspFsctlGetVolumeList(PWSTR DevicePath,
     PWCHAR VolumeListBuf, PSIZE_T PVolumeListSize);
 FSP_API NTSTATUS FspFsctlPreflight(PWSTR DevicePath);
+FSP_API NTSTATUS FspFsctlStartService(VOID);
+FSP_API NTSTATUS FspFsctlStopService(VOID);
+FSP_API NTSTATUS FspFsctlEnumServices(
+    VOID (*EnumFn)(PVOID Context, PWSTR ServiceName, BOOLEAN Running),
+    PVOID Context);
 
 typedef struct
 {
