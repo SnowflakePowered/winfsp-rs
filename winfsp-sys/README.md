@@ -13,6 +13,6 @@ feature. The path will automatically be determined via the Registry.
 
 ```toml
 [dependencies.winfsp-sys]
-version = "0.1"
+version = "0.2"
 features = ["system"]
 ```
