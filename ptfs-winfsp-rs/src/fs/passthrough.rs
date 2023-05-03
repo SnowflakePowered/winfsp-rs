@@ -124,14 +124,14 @@ impl PtfsContext {
 impl FileSystemContext for PtfsContext {
     type FileContext = PtfsFileContext;
 
-    fn get_security_by_name<P: AsRef<U16CStr>>(
+    fn get_security_by_name(
         &self,
-        file_name: P,
+        file_name: &U16CStr,
         security_descriptor: PSECURITY_DESCRIPTOR,
         descriptor_len: Option<u64>,
         _reparse_point_resolver: impl FnOnce(&U16CStr) -> Option<FileSecurity>,
     ) -> Result<FileSecurity> {
-        let file_name = OsString::from_wide(file_name.as_ref().as_slice());
+        let file_name = OsString::from_wide(file_name.as_slice());
         let full_path = [self.path.as_os_str(), file_name.as_ref()].join(OsStr::new(""));
 
         let handle = unsafe {
@@ -182,14 +182,14 @@ impl FileSystemContext for PtfsContext {
         })
     }
 
-    fn open<P: AsRef<U16CStr>>(
+    fn open(
         &self,
-        file_name: P,
+        file_name: &U16CStr,
         create_options: u32,
         granted_access: FILE_ACCESS_RIGHTS,
         file_info: &mut OpenFileInfo,
     ) -> Result<Self::FileContext> {
-        let file_name = OsString::from_wide(file_name.as_ref().as_slice());
+        let file_name = OsString::from_wide(file_name.as_slice());
         let full_path = [self.path.as_os_str(), file_name.as_ref()].join(OsStr::new(""));
         if full_path.len() > FULLPATH_SIZE {
             return Err(STATUS_OBJECT_NAME_INVALID.into());
@@ -232,9 +232,9 @@ impl FileSystemContext for PtfsContext {
         drop(context)
     }
 
-    fn create<P: AsRef<U16CStr>>(
+    fn create(
         &self,
-        file_name: P,
+        file_name: &U16CStr,
         create_options: u32,
         granted_access: FILE_ACCESS_RIGHTS,
         mut file_attributes: FILE_FLAGS_AND_ATTRIBUTES,
@@ -244,7 +244,7 @@ impl FileSystemContext for PtfsContext {
         _extra_buffer_is_reparse_point: bool,
         file_info: &mut OpenFileInfo,
     ) -> Result<Self::FileContext> {
-        let file_name = OsString::from_wide(file_name.as_ref().as_slice());
+        let file_name = OsString::from_wide(file_name.as_slice());
 
         let full_path = [self.path.as_os_str(), file_name.as_ref()].join(OsStr::new(""));
         if full_path.len() > FULLPATH_SIZE {
@@ -297,10 +297,10 @@ impl FileSystemContext for PtfsContext {
         })
     }
 
-    fn cleanup<P: AsRef<U16CStr>>(
+    fn cleanup(
         &self,
         context: &Self::FileContext,
-        _file_name: Option<P>,
+        _file_name: Option<&U16CStr>,
         flags: u32,
     ) {
         if flags & FspCleanupFlags::FspCleanupDelete as u32 != 0 {
@@ -453,16 +453,16 @@ impl FileSystemContext for PtfsContext {
         })
     }
 
-    fn read_directory<P: AsRef<U16CStr>>(
+    fn read_directory(
         &self,
         context: &Self::FileContext,
-        pattern: Option<P>,
+        pattern: Option<&U16CStr>,
         marker: DirMarker,
         buffer: &mut [u8],
     ) -> Result<u32> {
         if let Ok(lock) = context.dir_buffer.acquire(marker.is_none(), None) {
             let mut dirinfo = DirInfo::<{ MAX_PATH as usize }>::new();
-            let pattern = pattern.map_or(PCWSTR::from(w!("*")), |p| PCWSTR(p.as_ref().as_ptr()));
+            let pattern = pattern.map_or(PCWSTR::from(w!("*")), |p| PCWSTR(p.as_ptr()));
             let pattern = unsafe { U16CStr::from_ptr_str(pattern.0) };
 
             let mut full_path = [0; FULLPATH_SIZE];
@@ -540,15 +540,15 @@ impl FileSystemContext for PtfsContext {
         Ok(context.dir_buffer.read(marker, buffer))
     }
 
-    fn rename<P: AsRef<U16CStr>>(
+    fn rename(
         &self,
         _context: &Self::FileContext,
-        file_name: P,
-        new_file_name: P,
+        file_name: &U16CStr,
+        new_file_name: &U16CStr,
         replace_if_exists: bool,
     ) -> Result<()> {
         let full_path = {
-            let file_name = OsString::from_wide(file_name.as_ref().as_slice());
+            let file_name = OsString::from_wide(file_name.as_slice());
             let full_path = [self.path.as_os_str(), file_name.as_ref()].join(OsStr::new(""));
             if full_path.len() > FULLPATH_SIZE {
                 return Err(STATUS_OBJECT_NAME_INVALID.into());
@@ -557,7 +557,7 @@ impl FileSystemContext for PtfsContext {
         };
 
         let new_full_path = {
-            let new_file_name = OsString::from_wide(new_file_name.as_ref().as_slice());
+            let new_file_name = OsString::from_wide(new_file_name.as_slice());
             let new_full_path =
                 [self.path.as_os_str(), new_file_name.as_ref()].join(OsStr::new(""));
             if new_full_path.len() > FULLPATH_SIZE {
@@ -612,10 +612,10 @@ impl FileSystemContext for PtfsContext {
         self.get_file_info_internal(context.handle(), file_info)
     }
 
-    fn set_delete<P: AsRef<U16CStr>>(
+    fn set_delete(
         &self,
         context: &Self::FileContext,
-        _file_name: P,
+        _file_name: &U16CStr,
         delete_file: bool,
     ) -> Result<()> {
         let disposition_info = FILE_DISPOSITION_INFO {

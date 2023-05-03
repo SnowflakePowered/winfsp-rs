@@ -192,19 +192,19 @@ impl NtPassthroughContext {
 impl FileSystemContext for NtPassthroughContext {
     type FileContext = NtPassthroughFile;
 
-    fn get_security_by_name<P: AsRef<U16CStr>>(
+    fn get_security_by_name(
         &self,
-        file_name: P,
+        file_name: &U16CStr,
         security_descriptor: PSECURITY_DESCRIPTOR,
         descriptor_len: Option<u64>,
         resolve_reparse_points: impl FnOnce(&U16CStr) -> Option<FileSecurity>,
     ) -> winfsp::Result<FileSecurity> {
-        if let Some(security) = resolve_reparse_points(file_name.as_ref()) {
+        if let Some(security) = resolve_reparse_points(file_name) {
             return Ok(security);
         }
         let handle = lfs::lfs_open_file(
             *self.root_handle,
-            file_name.as_ref(),
+            file_name,
             READ_CONTROL.0,
             FILE_OPEN_FOR_BACKUP_INTENT | FILE_OPEN_REPARSE_POINT,
         )?;
@@ -240,9 +240,9 @@ impl FileSystemContext for NtPassthroughContext {
         })
     }
 
-    fn open<P: AsRef<U16CStr>>(
+    fn open(
         &self,
-        file_name: P,
+        file_name: &U16CStr,
         create_options: u32,
         granted_access: FILE_ACCESS_RIGHTS,
         file_info: &mut OpenFileInfo,
@@ -284,7 +284,7 @@ impl FileSystemContext for NtPassthroughContext {
 
         let result = lfs::lfs_open_file(
             *self.root_handle,
-            file_name.as_ref(),
+            file_name,
             maximum_access.0,
             FILE_OPEN_FOR_BACKUP_INTENT | FILE_OPEN_REPARSE_POINT | create_options,
         );
@@ -298,7 +298,7 @@ impl FileSystemContext for NtPassthroughContext {
                 | STATUS_INVALID_PARAMETER,
             )) if maximum_access.0 == MAXIMUM_ALLOWED => lfs::lfs_open_file(
                 *self.root_handle,
-                file_name.as_ref(),
+                file_name,
                 backup_access,
                 FILE_OPEN_FOR_BACKUP_INTENT | FILE_OPEN_REPARSE_POINT | create_options,
             ),
@@ -315,9 +315,9 @@ impl FileSystemContext for NtPassthroughContext {
         context.close()
     }
 
-    fn create<P: AsRef<U16CStr>>(
+    fn create(
         &self,
-        file_name: P,
+        file_name: &U16CStr,
         create_options: u32,
         granted_access: FILE_ACCESS_RIGHTS,
         file_attributes: FILE_FLAGS_AND_ATTRIBUTES,
@@ -369,7 +369,7 @@ impl FileSystemContext for NtPassthroughContext {
 
         let result = lfs::lfs_create_file(
             *self.root_handle,
-            file_name.as_ref(),
+            file_name,
             maximum_access.0,
             security_descriptor,
             allocation_size.as_mut(),
@@ -386,7 +386,7 @@ impl FileSystemContext for NtPassthroughContext {
             {
                 lfs::lfs_create_file(
                     *self.root_handle,
-                    file_name.as_ref(),
+                    file_name,
                     maximum_access.0,
                     security_descriptor,
                     allocation_size.as_mut(),
@@ -409,10 +409,10 @@ impl FileSystemContext for NtPassthroughContext {
         Ok(Self::FileContext::new(handle, file_size, is_directory))
     }
 
-    fn cleanup<P: AsRef<U16CStr>>(
+    fn cleanup(
         &self,
         context: &Self::FileContext,
-        _file_name: Option<P>,
+        _file_name: Option<&U16CStr>,
         flags: u32,
     ) {
         if FspCleanupDelete.is_flagged(flags) {
@@ -546,10 +546,10 @@ impl FileSystemContext for NtPassthroughContext {
         })
     }
 
-    fn read_directory<P: AsRef<U16CStr>>(
+    fn read_directory(
         &self,
         context: &Self::FileContext,
-        pattern: Option<P>,
+        pattern: Option<&U16CStr>,
         marker: DirMarker,
         buffer: &mut [u8],
     ) -> winfsp::Result<u32> {
@@ -560,7 +560,7 @@ impl FileSystemContext for NtPassthroughContext {
 
         let dir_size = context.dir_size();
         let handle = context.handle();
-        let pattern = pattern.map(|p| PCWSTR(p.as_ref().as_ptr()));
+        let pattern = pattern.map(|p| PCWSTR(p.as_ptr()));
         let mut dirinfo: DirInfo = DirInfo::new();
         if let Ok(dirbuffer) = context
             .dir_buffer()
@@ -617,11 +617,11 @@ impl FileSystemContext for NtPassthroughContext {
         Ok(context.dir_buffer().read(marker, buffer))
     }
 
-    fn rename<P: AsRef<U16CStr>>(
+    fn rename(
         &self,
         context: &Self::FileContext,
-        _file_name: P,
-        new_file_name: P,
+        _file_name: &U16CStr,
+        new_file_name: &U16CStr,
         replace_if_exists: bool,
     ) -> winfsp::Result<()> {
         let replace_mode = if replace_if_exists
@@ -641,7 +641,7 @@ impl FileSystemContext for NtPassthroughContext {
         };
 
         // skip first char
-        let new_file_name = &new_file_name.as_ref()[1..];
+        let new_file_name = &new_file_name[1..];
         lfs::lfs_rename(
             *self.root_handle,
             context.handle(),
@@ -671,10 +671,10 @@ impl FileSystemContext for NtPassthroughContext {
         lfs::lfs_get_file_info(context.handle(), None, file_info)
     }
 
-    fn set_delete<P: AsRef<U16CStr>>(
+    fn set_delete(
         &self,
         context: &Self::FileContext,
-        _file_name: P,
+        _file_name: &U16CStr,
         delete_file: bool,
     ) -> winfsp::Result<()> {
         lfs::lfs_set_delete(context.handle(), delete_file)
@@ -805,9 +805,9 @@ impl FileSystemContext for NtPassthroughContext {
         Ok(buffer_cursor)
     }
 
-    fn get_reparse_point_by_name<P: AsRef<U16CStr>>(
+    fn get_reparse_point_by_name(
         &self,
-        file_name: P,
+        file_name: &U16CStr,
         is_directory: bool,
         buffer: &mut [u8],
     ) -> winfsp::Result<u64> {
@@ -829,10 +829,10 @@ impl FileSystemContext for NtPassthroughContext {
         }
     }
 
-    fn get_reparse_point<P: AsRef<U16CStr>>(
+    fn get_reparse_point(
         &self,
         context: &Self::FileContext,
-        _file_name: P,
+        _file_name: &U16CStr,
         buffer: &mut [u8],
     ) -> winfsp::Result<u64> {
         let result = lfs::lfs_fs_control_file(
@@ -848,10 +848,10 @@ impl FileSystemContext for NtPassthroughContext {
         }
     }
 
-    fn set_reparse_point<P: AsRef<U16CStr>>(
+    fn set_reparse_point(
         &self,
         context: &Self::FileContext,
-        _file_name: P,
+        _file_name: &U16CStr,
         buffer: &[u8],
     ) -> winfsp::Result<()> {
         lfs::lfs_fs_control_file(
@@ -863,10 +863,10 @@ impl FileSystemContext for NtPassthroughContext {
         Ok(())
     }
 
-    fn delete_reparse_point<P: AsRef<U16CStr>>(
+    fn delete_reparse_point(
         &self,
         context: &Self::FileContext,
-        _file_name: P,
+        _file_name: &U16CStr,
         buffer: &[u8],
     ) -> winfsp::Result<()> {
         lfs::lfs_fs_control_file(

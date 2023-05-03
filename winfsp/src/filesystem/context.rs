@@ -67,18 +67,18 @@ pub trait FileSystemContext: Sized {
     ///    Ok(security)
     /// }
     /// ```
-    fn get_security_by_name<P: AsRef<U16CStr>>(
+    fn get_security_by_name(
         &self,
-        file_name: P,
+        file_name: &U16CStr,
         security_descriptor: PSECURITY_DESCRIPTOR,
         descriptor_len: Option<u64>,
         reparse_point_resolver: impl FnOnce(&U16CStr) -> Option<FileSecurity>,
     ) -> Result<FileSecurity>;
 
     /// Opens a file or a directory.
-    fn open<P: AsRef<U16CStr>>(
+    fn open(
         &self,
-        file_name: P,
+        file_name: &U16CStr,
         create_options: u32,
         granted_access: FILE_ACCESS_RIGHTS,
         file_info: &mut OpenFileInfo,
@@ -89,9 +89,9 @@ pub trait FileSystemContext: Sized {
 
     #[allow(clippy::too_many_arguments)]
     /// Create a new file or directory.
-    fn create<P: AsRef<U16CStr>>(
+    fn create(
         &self,
-        file_name: P,
+        file_name: &U16CStr,
         create_options: u32,
         granted_access: FILE_ACCESS_RIGHTS,
         file_attributes: FILE_FLAGS_AND_ATTRIBUTES,
@@ -105,10 +105,10 @@ pub trait FileSystemContext: Sized {
     }
 
     /// Clean up a file.
-    fn cleanup<P: AsRef<U16CStr>>(
+    fn cleanup(
         &self,
         context: &Self::FileContext,
-        file_name: Option<P>,
+        file_name: Option<&U16CStr>,
         flags: u32,
     ) {
     }
@@ -159,10 +159,10 @@ pub trait FileSystemContext: Sized {
     }
 
     /// Read directory entries from a directory handle.
-    fn read_directory<P: AsRef<U16CStr>>(
+    fn read_directory(
         &self,
         context: &Self::FileContext,
-        pattern: Option<P>,
+        pattern: Option<&U16CStr>,
         marker: DirMarker,
         buffer: &mut [u8],
     ) -> Result<u32> {
@@ -170,11 +170,11 @@ pub trait FileSystemContext: Sized {
     }
 
     /// Renames a file or directory.
-    fn rename<P: AsRef<U16CStr>>(
+    fn rename(
         &self,
         context: &Self::FileContext,
-        file_name: P,
-        new_file_name: P,
+        file_name: &U16CStr,
+        new_file_name: &U16CStr,
         replace_if_exists: bool,
     ) -> Result<()> {
         Err(STATUS_INVALID_DEVICE_REQUEST.into())
@@ -201,10 +201,10 @@ pub trait FileSystemContext: Sized {
     /// The file should **never** be deleted in this function. Instead,
     /// set a flag to indicate that the file is to be deleted later by
     /// [`FileSystemContext::cleanup`](crate::filesystem::FileSystemContext::cleanup).
-    fn set_delete<P: AsRef<U16CStr>>(
+    fn set_delete(
         &self,
         context: &Self::FileContext,
-        file_name: P,
+        file_name: &U16CStr,
         delete_file: bool,
     ) -> Result<()> {
         Err(STATUS_INVALID_DEVICE_REQUEST.into())
@@ -249,10 +249,10 @@ pub trait FileSystemContext: Sized {
     /// This method is only called when [VolumeParams::pass_query_directory_filename](crate::host::VolumeParams::pass_query_directory_filename)
     /// is set to true, and the file system was created with [FileSystemParams::use_dir_info_by_name](crate::host::FileSystemParams).
     /// set to true.
-    fn get_dir_info_by_name<P: AsRef<U16CStr>>(
+    fn get_dir_info_by_name(
         &self,
         context: &Self::FileContext,
-        file_name: P,
+        file_name: &U16CStr,
         out_dir_info: &mut DirInfo,
     ) -> Result<()> {
         Err(STATUS_INVALID_DEVICE_REQUEST.into())
@@ -264,9 +264,9 @@ pub trait FileSystemContext: Sized {
     }
 
     /// Set the volume label.
-    fn set_volume_label<P: AsRef<U16CStr>>(
+    fn set_volume_label(
         &self,
-        volume_label: P,
+        volume_label: &U16CStr,
         volume_info: &mut VolumeInfo,
     ) -> Result<()> {
         Err(STATUS_INVALID_DEVICE_REQUEST.into())
@@ -282,9 +282,9 @@ pub trait FileSystemContext: Sized {
     /// In the WinFSP C API, this method is usually called manually by the interface method
     /// `ResolveReparsePoints`. winfsp-rs automatically handles resolution of reparse points
     /// if this method is implemented properly.
-    fn get_reparse_point_by_name<P: AsRef<U16CStr>>(
+    fn get_reparse_point_by_name(
         &self,
-        file_name: P,
+        file_name: &U16CStr,
         is_directory: bool,
         buffer: &mut [u8],
     ) -> Result<u64> {
@@ -292,30 +292,30 @@ pub trait FileSystemContext: Sized {
     }
 
     /// Get reparse point information.
-    fn get_reparse_point<P: AsRef<U16CStr>>(
+    fn get_reparse_point(
         &self,
         context: &Self::FileContext,
-        file_name: P,
+        file_name: &U16CStr,
         buffer: &mut [u8],
     ) -> Result<u64> {
         Err(STATUS_INVALID_DEVICE_REQUEST.into())
     }
 
     /// Set reparse point information.
-    fn set_reparse_point<P: AsRef<U16CStr>>(
+    fn set_reparse_point(
         &self,
         context: &Self::FileContext,
-        file_name: P,
+        file_name: &U16CStr,
         buffer: &[u8],
     ) -> Result<()> {
         Err(STATUS_INVALID_DEVICE_REQUEST.into())
     }
 
     /// Delete reparse point information.
-    fn delete_reparse_point<P: AsRef<U16CStr>>(
+    fn delete_reparse_point(
         &self,
         context: &Self::FileContext,
-        file_name: P,
+        file_name: &U16CStr,
         buffer: &[u8],
     ) -> Result<()> {
         Err(STATUS_INVALID_DEVICE_REQUEST.into())
