@@ -3,7 +3,7 @@ use crate::error::FspError;
 use crate::FspInit;
 use crate::Result;
 use std::cell::UnsafeCell;
-use std::ffi::c_void;
+use std::ffi::{c_void, OsStr};
 use std::marker::PhantomData;
 use std::ptr::NonNull;
 use std::thread::JoinHandle;
@@ -147,9 +147,12 @@ impl<T> FileSystemServiceBuilder<T> {
 
     /// Create the [`FileSystemService`](crate::service::FileSystemService) with the provided
     /// callbacks.
-    pub fn build(self, service_name: &HSTRING, _init: FspInit) -> Result<FileSystemService<T>> {
+    pub fn build(self, service_name: impl AsRef<OsStr>, _init: FspInit) -> Result<FileSystemService<T>> {
         let mut service = std::ptr::null_mut();
+        let service_name = HSTRING::from(service_name.as_ref());
         let result = unsafe {
+            // SAFETY: service_name is never mutated.
+            // https://github.com/winfsp/winfsp/blob/0ab4300738233eba4a37e1302e55fff6f0c4f5ab/src/dll/service.c#L108
             FspServiceCreate(
                 service_name.as_ptr().cast_mut(),
                 Some(on_start::<T>),

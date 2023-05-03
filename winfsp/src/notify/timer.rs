@@ -1,24 +1,25 @@
 use crate::notify::{Notifier, NotifyingFileSystemContext};
 use std::ptr::NonNull;
+use windows::core::Result;
 use windows::Win32::Foundation::{NTSTATUS, STATUS_SUCCESS};
 use windows::Win32::System::Threading::{
-    CloseThreadpoolTimer, CreateThreadpoolTimer, SetThreadpoolTimer, TP_CALLBACK_INSTANCE, TP_TIMER,
+    CloseThreadpoolTimer, CreateThreadpoolTimer, SetThreadpoolTimer, PTP_CALLBACK_INSTANCE, PTP_TIMER,
 };
 use winfsp_sys::{FspFileSystemNotifyBegin, FspFileSystemNotifyEnd, FSP_FILE_SYSTEM};
 
-pub struct Timer(*mut TP_TIMER);
+pub struct Timer(PTP_TIMER);
 
 impl Timer {
     pub fn create<R, T: NotifyingFileSystemContext<R>, const TIMEOUT: u32>(
         fs: NonNull<FSP_FILE_SYSTEM>,
-    ) -> Self {
-        let mut timer = Self(std::ptr::null_mut());
+    ) -> Result<Self> {
+        let mut timer = Self(PTP_TIMER::default());
         timer.0 = unsafe {
             CreateThreadpoolTimer(
                 Some(timer_callback::<R, T, TIMEOUT>),
                 Some(fs.as_ptr().cast()),
                 None,
-            )
+            )?
         };
 
         let timer_due = -(TIMEOUT as i64);
@@ -30,7 +31,7 @@ impl Timer {
                 0,
             );
         }
-        timer
+        Ok(timer)
     }
 }
 
@@ -40,10 +41,10 @@ impl Drop for Timer {
     }
 }
 
-extern "system" fn timer_callback<R, T: NotifyingFileSystemContext<R>, const TIMEOUT: u32>(
-    _instance: *mut TP_CALLBACK_INSTANCE,
+unsafe extern "system" fn timer_callback<R, T: NotifyingFileSystemContext<R>, const TIMEOUT: u32>(
+    _instance: PTP_CALLBACK_INSTANCE,
     context: *mut core::ffi::c_void,
-    _timer: *mut TP_TIMER,
+    _timer: PTP_TIMER,
 ) {
     let fs = context.cast::<FSP_FILE_SYSTEM>();
     if fs.is_null() {

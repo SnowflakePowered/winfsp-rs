@@ -32,7 +32,7 @@ use windows::Win32::Security::{
     PSECURITY_DESCRIPTOR,
 };
 use windows::Win32::Storage::FileSystem::{
-    CreateFileW, FILE_ACCESS_FLAGS, FILE_ATTRIBUTE_NORMAL, FILE_FLAGS_AND_ATTRIBUTES,
+    CreateFileW, FILE_ACCESS_RIGHTS, FILE_ATTRIBUTE_NORMAL, FILE_FLAGS_AND_ATTRIBUTES,
     FILE_FLAG_BACKUP_SEMANTICS, FILE_FLAG_OVERLAPPED, FILE_ID_BOTH_DIR_INFO, FILE_READ_ATTRIBUTES,
     FILE_SHARE_DELETE, FILE_SHARE_READ, FILE_SHARE_WRITE, OPEN_EXISTING, READ_CONTROL, SYNCHRONIZE,
 };
@@ -71,7 +71,7 @@ impl NtPassthroughContext {
         let handle = unsafe {
             CreateFileW(
                 &path,
-                FILE_READ_ATTRIBUTES,
+                FILE_READ_ATTRIBUTES.0,
                 FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
                 None,
                 OPEN_EXISTING,
@@ -244,7 +244,7 @@ impl FileSystemContext for NtPassthroughContext {
         &self,
         file_name: P,
         create_options: u32,
-        granted_access: FILE_ACCESS_FLAGS,
+        granted_access: FILE_ACCESS_RIGHTS,
         file_info: &mut OpenFileInfo,
     ) -> winfsp::Result<Self::FileContext> {
         let backup_access = granted_access.0;
@@ -260,7 +260,7 @@ impl FileSystemContext for NtPassthroughContext {
             granted_access
         } else {
             // MAXIMUM_ALLOWED
-            FILE_ACCESS_FLAGS(MAXIMUM_ALLOWED)
+            FILE_ACCESS_RIGHTS(MAXIMUM_ALLOWED)
         };
 
         let mut create_options =
@@ -319,7 +319,7 @@ impl FileSystemContext for NtPassthroughContext {
         &self,
         file_name: P,
         create_options: u32,
-        granted_access: FILE_ACCESS_FLAGS,
+        granted_access: FILE_ACCESS_RIGHTS,
         file_attributes: FILE_FLAGS_AND_ATTRIBUTES,
         security_descriptor: PSECURITY_DESCRIPTOR,
         allocation_size: u64,
@@ -333,7 +333,7 @@ impl FileSystemContext for NtPassthroughContext {
             granted_access
         } else {
             // MAXIMUM_ALLOWED
-            FILE_ACCESS_FLAGS(MAXIMUM_ALLOWED)
+            FILE_ACCESS_RIGHTS(MAXIMUM_ALLOWED)
         };
 
         let mut create_options =

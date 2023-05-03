@@ -26,8 +26,7 @@ use windows::Win32::Security::PSECURITY_DESCRIPTOR;
 use windows::Win32::Storage::FileSystem::{
     FILE_READ_ATTRIBUTES, FILE_SHARE_DELETE, FILE_SHARE_READ, FILE_SHARE_WRITE,
 };
-use windows::Win32::System::Threading::{CreateEventW, WaitForSingleObject};
-use windows::Win32::System::WindowsProgramming::INFINITE;
+use windows::Win32::System::Threading::{CreateEventW, INFINITE, WaitForSingleObject};
 
 use windows_sys::Win32::Foundation::{BOOLEAN, UNICODE_STRING};
 use windows_sys::Win32::Storage::FileSystem::{

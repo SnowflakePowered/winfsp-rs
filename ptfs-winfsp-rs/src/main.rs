@@ -8,7 +8,6 @@ mod service;
 use clap::Parser;
 use std::path::PathBuf;
 use std::time::Duration;
-use windows::w;
 use windows::Win32::Foundation::STATUS_NONCONTINUABLE_EXCEPTION;
 use winfsp::service::FileSystemServiceBuilder;
 use winfsp::winfsp_init_or_die;
@@ -46,7 +45,7 @@ fn main() {
             service::svc_stop(f);
             Ok(())
         })
-        .build(w!("ptfs-winfsp-rs"), init)
+        .build("ptfs-winfsp-rs", init)
         .expect("failed to build fsp");
 
     fsp.start();

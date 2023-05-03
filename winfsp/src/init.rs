@@ -1,6 +1,6 @@
 #[cfg(feature = "system")]
 use widestring::U16CStr;
-use windows::core::HSTRING;
+use windows::core::PCWSTR;
 use windows::w;
 #[allow(unused_imports)]
 use windows::Win32::Foundation::{ERROR_DELAY_LOAD_FAILED, ERROR_FILE_NOT_FOUND};
@@ -17,7 +17,7 @@ use crate::Result;
 pub struct FspInit;
 
 #[cfg(feature = "system")]
-fn get_system_winfsp() -> Option<HSTRING> {
+fn get_system_winfsp() -> Option<windows::core::HSTRING> {
     use crate::constants::MAX_PATH;
     use windows::Win32::System::Registry::{RegGetValueW, HKEY_LOCAL_MACHINE, RRF_RT_REG_SZ};
 
@@ -57,14 +57,14 @@ fn get_system_winfsp() -> Option<HSTRING> {
         panic!("unsupported arch")
     }
 
-    Some(HSTRING::from(directory))
+    Some(windows::core::HSTRING::from(directory))
 }
 
-fn get_local_winfsp() -> HSTRING {
+fn get_local_winfsp() -> PCWSTR {
     if cfg!(target_arch = "x86_64") {
-        w!("winfsp-x64.dll").clone()
+        w!("winfsp-x64.dll")
     } else if cfg!(target_arch = "i686") {
-        w!("winfsp-x86.dll").clone()
+        w!("winfsp-x86.dll")
     } else {
         panic!("unsupported arch")
     }
@@ -72,7 +72,7 @@ fn get_local_winfsp() -> HSTRING {
 
 fn load_local_winfsp() -> Result<()> {
     unsafe {
-        if LoadLibraryW(&get_local_winfsp()).is_err() {
+        if LoadLibraryW(get_local_winfsp()).is_err() {
             Err(ERROR_DELAY_LOAD_FAILED.into())
         } else {
             Ok(())
