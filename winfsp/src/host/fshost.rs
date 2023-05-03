@@ -190,7 +190,12 @@ impl<'ctx> FileSystemHost<'ctx> {
 
     /// Start the filesystem dispatcher for this filesystem.
     pub fn start(&mut self) -> Result<()> {
-        let result = unsafe { FspFileSystemStartDispatcher(self.0.as_ptr(), 0) };
+        self.start_with_threads(0)
+    }
+
+    /// Start the filesystem dispatcher for this filesystem with the specified number of threads.
+    pub fn start_with_threads(&mut self, num_threads: u32) -> Result<()> {
+        let result = unsafe { FspFileSystemStartDispatcher(self.0.as_ptr(), num_threads) };
         let result = NTSTATUS(result);
         result.ok()
     }
