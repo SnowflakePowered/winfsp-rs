@@ -3,8 +3,8 @@ use crate::filesystem::{DirInfo, DirMarker, FileInfo, OpenFileInfo, VolumeInfo};
 use crate::U16CStr;
 
 use windows::Win32::Foundation::STATUS_INVALID_DEVICE_REQUEST;
-use windows::Win32::Security::PSECURITY_DESCRIPTOR;
-use windows::Win32::Storage::FileSystem::{FILE_ACCESS_RIGHTS, FILE_FLAGS_AND_ATTRIBUTES};
+use windows_sys::Win32::Security::PSECURITY_DESCRIPTOR;
+use windows_sys::Win32::Storage::FileSystem::{FILE_ACCESS_RIGHTS, FILE_FLAGS_AND_ATTRIBUTES};
 
 use winfsp_sys::{FSP_FSCTL_TRANSACT_REQ, FSP_FSCTL_TRANSACT_RSP};
 
