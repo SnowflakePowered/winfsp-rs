@@ -1,6 +1,6 @@
 use std::ffi::OsStr;
 use std::os::windows::ffi::OsStrExt;
-use windows::w;
+use windows::core::w;
 use winfsp_sys::FSP_FSCTL_VOLUME_PARAMS;
 
 #[repr(transparent)]

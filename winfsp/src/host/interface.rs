@@ -5,8 +5,6 @@ use windows::Win32::Foundation::{
     EXCEPTION_NONCONTINUABLE_EXCEPTION, STATUS_INSUFFICIENT_RESOURCES, STATUS_PENDING,
     STATUS_REPARSE, STATUS_SUCCESS,
 };
-use windows::Win32::Security::PSECURITY_DESCRIPTOR;
-use windows::Win32::Storage::FileSystem::{FILE_ACCESS_RIGHTS, FILE_FLAGS_AND_ATTRIBUTES};
 
 use crate::{error, U16CStr};
 use winfsp_sys::{
@@ -161,7 +159,7 @@ unsafe extern "C" fn get_security_by_name<T: FileSystemContext>(
         match T::get_security_by_name(
             context,
             file_name,
-            PSECURITY_DESCRIPTOR(security_descriptor),
+            security_descriptor,
             descriptor_len,
             find_reparse_points,
         ) {
@@ -205,7 +203,7 @@ unsafe extern "C" fn open<T: FileSystemContext>(
                 context,
                 file_name,
                 create_options,
-                FILE_ACCESS_RIGHTS(granted_access),
+                granted_access,
                 // SAFETY: https://winfsp.dev/doc/WinFsp-API-winfsp.h/
                 // The FileInfo parameter to Create and Open is typed as pointer to FSP_FSCTL_FILE_INFO.
                 // The true type of this parameter is pointer to FSP_FSCTL_OPEN_FILE_INFO.
@@ -253,9 +251,9 @@ unsafe extern "C" fn create_ex<T: FileSystemContext>(
                 context,
                 file_name,
                 create_options,
-                FILE_ACCESS_RIGHTS(granted_access),
-                FILE_FLAGS_AND_ATTRIBUTES(file_attributes),
-                PSECURITY_DESCRIPTOR(security_descriptor),
+                granted_access,
+                file_attributes,
+                security_descriptor,
                 allocation_size,
                 extra_buffer,
                 extra_buffer_is_reparse_point != 0,
@@ -349,7 +347,7 @@ unsafe extern "C" fn overwrite_ex<T: FileSystemContext>(
             T::overwrite(
                 context,
                 fctx,
-                FILE_FLAGS_AND_ATTRIBUTES(file_attributes),
+                file_attributes,
                 replace_file_attributes != 0,
                 allocation_size,
                 extra_buffer,
@@ -384,12 +382,9 @@ unsafe extern "C" fn get_security<T: FileSystemContext>(
 ) -> FSP_STATUS {
     catch_panic!({
         require_fctx(fs, fctx, |context, fctx| {
-            let desc_size = T::get_security(
-                context,
-                fctx,
-                PSECURITY_DESCRIPTOR(security_descriptor),
-                unsafe { out_descriptor_size.as_ref().cloned() },
-            )?;
+            let desc_size = T::get_security(context, fctx, security_descriptor, unsafe {
+                out_descriptor_size.as_ref().cloned()
+            })?;
             if !out_descriptor_size.is_null() {
                 unsafe { out_descriptor_size.write(desc_size) }
             }
@@ -586,12 +581,7 @@ unsafe extern "C" fn set_security<T: FileSystemContext>(
 ) -> FSP_STATUS {
     catch_panic!({
         require_fctx(fs, fctx, |context, fctx| {
-            T::set_security(
-                context,
-                fctx,
-                security_information,
-                PSECURITY_DESCRIPTOR(modification_descriptor),
-            )
+            T::set_security(context, fctx, security_information, modification_descriptor)
         })
     })
 }
@@ -1134,7 +1124,7 @@ pub struct Interface {
             dir_info: *mut FSP_FSCTL_DIR_INFO,
         ) -> FSP_STATUS,
     >,
-    dispatcher_stopped: Option<unsafe extern "C" fn(fs: *mut FSP_FILE_SYSTEM, normally: BOOLEAN)>
+    dispatcher_stopped: Option<unsafe extern "C" fn(fs: *mut FSP_FILE_SYSTEM, normally: BOOLEAN)>,
 }
 
 impl Interface {
@@ -1168,7 +1158,7 @@ impl Interface {
             resolve_reparse_points: Some(resolve_reparse_points::<T>),
             get_stream_info: Some(get_stream_info::<T>),
             get_dir_info_by_name: None,
-            dispatcher_stopped: Some(dispatcher_stopped::<T>)
+            dispatcher_stopped: Some(dispatcher_stopped::<T>),
         }
     }
 
@@ -1202,7 +1192,7 @@ impl Interface {
             resolve_reparse_points: Some(resolve_reparse_points::<T>),
             get_stream_info: Some(get_stream_info::<T>),
             get_dir_info_by_name: Some(get_dir_info_by_name::<T>),
-            dispatcher_stopped: Some(dispatcher_stopped::<T>)
+            dispatcher_stopped: Some(dispatcher_stopped::<T>),
         }
     }
 }

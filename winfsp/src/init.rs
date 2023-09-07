@@ -1,7 +1,7 @@
 #[cfg(feature = "system")]
 use widestring::U16CStr;
+use windows::core::w;
 use windows::core::PCWSTR;
-use windows::w;
 #[allow(unused_imports)]
 use windows::Win32::Foundation::{ERROR_DELAY_LOAD_FAILED, ERROR_FILE_NOT_FOUND};
 use windows::Win32::System::LibraryLoader::LoadLibraryW;
@@ -23,7 +23,7 @@ fn get_system_winfsp() -> Option<windows::core::HSTRING> {
 
     let mut path = [0u16; MAX_PATH];
     let mut size = (path.len() * std::mem::size_of::<u16>()) as u32;
-    let winfsp_install = unsafe {
+    let Ok(_) = (unsafe {
         RegGetValueW(
             HKEY_LOCAL_MACHINE,
             w!("SOFTWARE\\WOW6432Node\\WinFsp"),
@@ -33,16 +33,12 @@ fn get_system_winfsp() -> Option<windows::core::HSTRING> {
             Some(path.as_mut_ptr().cast()),
             Some(&mut size),
         )
-        .ok()
+    }) else {
+        return None;
     };
 
-    if winfsp_install.is_err() {
-        return None;
-    }
-
-    let Ok(path) = U16CStr::from_slice(
-        &path[0..(size as usize) / std::mem::size_of::<u16>()]
-    ) else {
+    let Ok(path) = U16CStr::from_slice(&path[0..(size as usize) / std::mem::size_of::<u16>()])
+    else {
         return None;
     };
 

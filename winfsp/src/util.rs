@@ -6,7 +6,8 @@ use std::ops::{Deref, DerefMut};
 
 use crate::constants::MAX_PATH;
 use windows::core::PCWSTR;
-use windows::Win32::Foundation::{CloseHandle, GetLastError, HANDLE, INVALID_HANDLE_VALUE};
+use windows::Wdk::Foundation::NtClose;
+use windows::Win32::Foundation::{CloseHandle, HANDLE, INVALID_HANDLE_VALUE};
 use windows::Win32::Security::{
     GetKernelObjectSecurity, DACL_SECURITY_INFORMATION, GROUP_SECURITY_INFORMATION,
     OWNER_SECURITY_INFORMATION, PSECURITY_DESCRIPTOR,
@@ -16,7 +17,6 @@ use windows::Win32::Storage::FileSystem::{
     FILE_SHARE_READ, FILE_SHARE_WRITE, OPEN_EXISTING, READ_CONTROL,
 };
 use windows::Win32::System::LibraryLoader::GetModuleFileNameW;
-use windows::Win32::System::WindowsProgramming::NtClose;
 
 /// An owned handle that will always be dropped when it goes out of scope.
 ///
@@ -117,16 +117,6 @@ where
     }
 }
 
-macro_rules! win32_try {
-    (unsafe $e:expr) => {
-        if unsafe { !($e).as_bool() } {
-            return Err($crate::error::FspError::from(unsafe {
-                ::windows::Win32::Foundation::GetLastError()
-            }));
-        }
-    };
-}
-
 // unsafe fn get_token_info<T: Default + ?Sized>(token: HANDLE, information_class: TOKEN_INFORMATION_CLASS) -> crate::Result<VariableSizedBox<T>> {
 //     let mut size = unsafe {
 //         let mut size = 0;
@@ -183,23 +173,19 @@ pub fn get_process_security(
             FILE_FLAG_BACKUP_SEMANTICS,
             None,
         )?;
-        if handle.is_invalid() {
-            return Err(FspError::from(GetLastError()));
-        }
         handle
     };
 
     let mut descriptor_len_needed = 0;
-    win32_try!(unsafe GetKernelObjectSecurity(
-        handle,
-        (OWNER_SECURITY_INFORMATION
-            | GROUP_SECURITY_INFORMATION
-            | DACL_SECURITY_INFORMATION)
-            .0,
-        security_descriptor,
-        len.unwrap_or(0),
-        &mut descriptor_len_needed,
-    ));
+    unsafe {
+        GetKernelObjectSecurity(
+            handle,
+            (OWNER_SECURITY_INFORMATION | GROUP_SECURITY_INFORMATION | DACL_SECURITY_INFORMATION).0,
+            security_descriptor,
+            len.unwrap_or(0),
+            &mut descriptor_len_needed,
+        )?;
+    }
 
     Ok(descriptor_len_needed)
 }

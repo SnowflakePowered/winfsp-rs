@@ -3,7 +3,8 @@ use std::ptr::NonNull;
 use windows::core::Result;
 use windows::Win32::Foundation::{NTSTATUS, STATUS_SUCCESS};
 use windows::Win32::System::Threading::{
-    CloseThreadpoolTimer, CreateThreadpoolTimer, SetThreadpoolTimer, PTP_CALLBACK_INSTANCE, PTP_TIMER,
+    CloseThreadpoolTimer, CreateThreadpoolTimer, SetThreadpoolTimer, PTP_CALLBACK_INSTANCE,
+    PTP_TIMER,
 };
 use winfsp_sys::{FspFileSystemNotifyBegin, FspFileSystemNotifyEnd, FSP_FILE_SYSTEM};
 
@@ -41,7 +42,11 @@ impl Drop for Timer {
     }
 }
 
-unsafe extern "system" fn timer_callback<R, T: NotifyingFileSystemContext<R>, const TIMEOUT: u32>(
+unsafe extern "system" fn timer_callback<
+    R,
+    T: NotifyingFileSystemContext<R>,
+    const TIMEOUT: u32,
+>(
     _instance: PTP_CALLBACK_INSTANCE,
     context: *mut core::ffi::c_void,
     _timer: PTP_TIMER,

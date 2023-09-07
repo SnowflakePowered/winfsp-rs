@@ -9,3 +9,8 @@ mod bindings;
 
 #[cfg(feature = "docsrs")]
 pub use bindings::*;
+
+#[allow(non_camel_case_types)]
+pub type FILE_ACCESS_RIGHTS = u32;
+#[allow(non_camel_case_types)]
+pub type FILE_FLAGS_AND_ATTRIBUTES = u32;

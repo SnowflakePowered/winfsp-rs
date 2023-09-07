@@ -147,7 +147,11 @@ impl<T> FileSystemServiceBuilder<T> {
 
     /// Create the [`FileSystemService`](crate::service::FileSystemService) with the provided
     /// callbacks.
-    pub fn build(self, service_name: impl AsRef<OsStr>, _init: FspInit) -> Result<FileSystemService<T>> {
+    pub fn build(
+        self,
+        service_name: impl AsRef<OsStr>,
+        _init: FspInit,
+    ) -> Result<FileSystemService<T>> {
         let mut service = std::ptr::null_mut();
         let service_name = HSTRING::from(service_name.as_ref());
         let result = unsafe {

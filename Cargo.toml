@@ -6,3 +6,5 @@ members = [
     "winfsp",
     "winfsp-sys"
 ]
+
+resolver = "2"

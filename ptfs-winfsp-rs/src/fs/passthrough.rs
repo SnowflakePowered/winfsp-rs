@@ -297,12 +297,7 @@ impl FileSystemContext for PtfsContext {
         })
     }
 
-    fn cleanup(
-        &self,
-        context: &Self::FileContext,
-        _file_name: Option<&U16CStr>,
-        flags: u32,
-    ) {
+    fn cleanup(&self, context: &Self::FileContext, _file_name: Option<&U16CStr>, flags: u32) {
         if flags & FspCleanupFlags::FspCleanupDelete as u32 != 0 {
             context.invalidate();
         }

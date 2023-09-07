@@ -3,10 +3,11 @@ use crate::filesystem::{DirInfo, DirMarker, FileInfo, OpenFileInfo, VolumeInfo};
 use crate::U16CStr;
 
 use windows::Win32::Foundation::STATUS_INVALID_DEVICE_REQUEST;
-use windows_sys::Win32::Security::PSECURITY_DESCRIPTOR;
-use windows_sys::Win32::Storage::FileSystem::{FILE_ACCESS_RIGHTS, FILE_FLAGS_AND_ATTRIBUTES};
 
-use winfsp_sys::{FSP_FSCTL_TRANSACT_REQ, FSP_FSCTL_TRANSACT_RSP};
+use winfsp_sys::{
+    FILE_ACCESS_RIGHTS, FILE_FLAGS_AND_ATTRIBUTES, FSP_FSCTL_TRANSACT_REQ, FSP_FSCTL_TRANSACT_RSP,
+    PSECURITY_DESCRIPTOR,
+};
 
 #[derive(Debug)]
 /// The return value of a request to [`FileSystemContext::get_security_by_name`](crate::filesystem::FileSystemContext::get_security_by_name).
@@ -105,13 +106,7 @@ pub trait FileSystemContext: Sized {
     }
 
     /// Clean up a file.
-    fn cleanup(
-        &self,
-        context: &Self::FileContext,
-        file_name: Option<&U16CStr>,
-        flags: u32,
-    ) {
-    }
+    fn cleanup(&self, context: &Self::FileContext, file_name: Option<&U16CStr>, flags: u32) {}
 
     /// Flush a file or volume.
     ///
@@ -264,11 +259,7 @@ pub trait FileSystemContext: Sized {
     }
 
     /// Set the volume label.
-    fn set_volume_label(
-        &self,
-        volume_label: &U16CStr,
-        volume_info: &mut VolumeInfo,
-    ) -> Result<()> {
+    fn set_volume_label(&self, volume_label: &U16CStr, volume_info: &mut VolumeInfo) -> Result<()> {
         Err(STATUS_INVALID_DEVICE_REQUEST.into())
     }
 
