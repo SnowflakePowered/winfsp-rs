@@ -45,8 +45,8 @@ pub struct Win32HandleDrop;
 pub type Win32SafeHandle = SafeDropHandle<Win32HandleDrop>;
 impl HandleCloseHandler for Win32HandleDrop {
     fn close(handle: HANDLE) {
-        unsafe {
-            CloseHandle(handle);
+        if let Err(e) = unsafe { CloseHandle(handle) } {
+            eprintln!("unable to close win32 handle: {:?}", e)
         }
     }
 }
