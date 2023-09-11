@@ -104,7 +104,7 @@ impl From<windows::core::Error> for FspError {
         let code = e.code().0 as u32;
         // https://learn.microsoft.com/en-us/windows/win32/com/structure-of-com-error-codes
         // N bit indicates mapped NTSTATUS.
-        if code & 0x1000_0000 == 1 {
+        if (code & 0x1000_0000) >> 28 == 1 {
             let nt_status = code & !(1 << 28);
             return FspError::NTSTATUS(NTSTATUS(nt_status as i32));
         }
