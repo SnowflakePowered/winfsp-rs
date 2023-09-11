@@ -136,9 +136,9 @@ pub fn lfs_create_file(
     Ok(handle)
 }
 
-pub fn lfs_open_file<P: AsRef<U16CStr>>(
+pub fn lfs_open_file(
     root_handle: HANDLE,
-    file_name: P,
+    file_name: &U16CStr,
     desired_access: FILE_ACCESS_RIGHTS,
     open_options: NTCREATEFILE_CREATE_OPTIONS,
 ) -> winfsp::Result<NtSafeHandle> {
