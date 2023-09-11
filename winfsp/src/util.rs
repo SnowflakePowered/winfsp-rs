@@ -3,7 +3,8 @@ use crate::error::FspError;
 use std::marker::PhantomData;
 
 use std::ops::{Deref, DerefMut};
-
+use std::sync::Arc;
+use parking_lot::{RwLock, RwLockWriteGuard};
 use crate::constants::MAX_PATH;
 use windows::core::PCWSTR;
 use windows::Wdk::Foundation::NtClose;
@@ -32,6 +33,21 @@ pub struct SafeDropHandle<T>(HANDLE, PhantomData<T>)
 where
     T: HandleCloseHandler;
 
+/// An owned handle that will always be dropped when it goes out of scope.
+///
+/// ## Safety
+/// This handle will become invalid when it goes out of scope.
+/// `SafeDropHandle` implements `Deref<Target=HANDLE>` to make it
+/// usable for APIs that take `HANDLE`. Dereference the `SafeDropHandle`
+/// to obtain a `HANDLE` that is `Copy` without dropping the `SafeDropHandle`
+/// and invalidating the underlying handle.
+#[repr(transparent)]
+#[derive(Debug)]
+pub struct RefCountedHandle<T>(Arc<RwLock<HANDLE>>, PhantomData<T>)
+where
+    T: HandleCloseHandler;
+
+
 /// Trait that defines a method to close a Windows HANDLE.
 pub trait HandleCloseHandler {
     fn close(handle: HANDLE);
@@ -46,7 +62,7 @@ pub type Win32SafeHandle = SafeDropHandle<Win32HandleDrop>;
 impl HandleCloseHandler for Win32HandleDrop {
     fn close(handle: HANDLE) {
         if let Err(e) = unsafe { CloseHandle(handle) } {
-            eprintln!("unable to close win32 handle: {:?}", e)
+            eprintln!("unable to close win32 handle {:x?}: {:?}", handle, e)
         }
     }
 }
@@ -56,10 +72,12 @@ impl HandleCloseHandler for Win32HandleDrop {
 pub struct NtHandleDrop;
 /// An NT HANDLE that is closed when it goes out of scope.
 pub type NtSafeHandle = SafeDropHandle<NtHandleDrop>;
+pub type NtRefHandle = RefCountedHandle<NtHandleDrop>;
+
 impl HandleCloseHandler for NtHandleDrop {
     fn close(handle: HANDLE) {
         if let Err(e) = unsafe { NtClose(handle) } {
-            eprintln!("unable to close nt handle: {:?}", e)
+            eprintln!("unable to close nt handle {:x?}: {:?}", handle, e)
         }
     }
 }
@@ -75,7 +93,31 @@ where
         }
         self.0 = INVALID_HANDLE_VALUE
     }
+
+    /// Leak the handle.
+    pub fn escape(self) -> RefCountedHandle<T> {
+        RefCountedHandle(Arc::new(RwLock::new(self.0)), PhantomData::default())
+    }
 }
+
+impl<T> RefCountedHandle<T>
+where
+    T: HandleCloseHandler,
+{
+    /// Invalidate the handle without dropping it.
+    pub fn invalidate(&self) {
+        if !self.0.read().is_invalid() {
+            let to_close = self.0.write();
+            println!("trying to close{:x?}\n", to_close);
+            T::close(*to_close)
+        }
+    }
+
+    pub fn handle(&self) -> HANDLE {
+        self.0.read().clone()
+    }
+}
+
 
 impl<T> Drop for SafeDropHandle<T>
 where
@@ -98,6 +140,7 @@ where
         &self.0
     }
 }
+
 
 impl<T> DerefMut for SafeDropHandle<T>
 where

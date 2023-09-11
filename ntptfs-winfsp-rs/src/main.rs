@@ -20,7 +20,7 @@ use winfsp::winfsp_init_or_die;
 pub struct Args {
     /// -1: enable all debug logs
     #[clap(short = 'd', default_value = "0")]
-    flags: u32,
+    flags: i32,
 
     /// file path
     #[clap(short = 'D', long)]

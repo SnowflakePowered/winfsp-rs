@@ -1,4 +1,4 @@
-use windows::Wdk::Storage::FileSystem::FILE_DISPOSITION_INFORMATION_EX_FLAGS;
+use windows::{Wdk::Storage::FileSystem::FILE_DISPOSITION_INFORMATION_EX_FLAGS, Win32::Foundation::NTSTATUS, core::HRESULT};
 
 #[repr(C)]
 #[derive(Clone, Copy)]
@@ -17,4 +17,15 @@ pub struct FILE_FS_SIZE_INFORMATION {
 #[allow(non_snake_case)]
 pub struct FILE_DISPOSITION_INFORMATION_EX {
     pub Flags: FILE_DISPOSITION_INFORMATION_EX_FLAGS,
+}
+
+
+pub trait ToNtStatus {
+    fn to_ntstatus(&self) -> NTSTATUS;
+}
+
+impl ToNtStatus for HRESULT {
+    fn to_ntstatus(&self) -> NTSTATUS {
+        NTSTATUS(&self.0 & !(1 << 28))
+    }
 }

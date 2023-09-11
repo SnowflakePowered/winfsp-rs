@@ -51,8 +51,8 @@ use windows::Win32::Storage::FileSystem::{
 use windows::Win32::System::WindowsProgramming::{RtlInitUnicodeString, FILE_INFORMATION_CLASS};
 use windows::Win32::System::IO::IO_STATUS_BLOCK;
 
-use crate::native::nt::FILE_FS_SIZE_INFORMATION;
-use winfsp::filesystem::{FileInfo, OpenFileInfo};
+use crate::native::nt::{FILE_FS_SIZE_INFORMATION, ToNtStatus};
+use winfsp::filesystem::{FileInfo, IoResult, OpenFileInfo};
 use winfsp::util::{NtSafeHandle, VariableSizedBox};
 use winfsp::{FspError, U16CStr};
 
@@ -106,7 +106,7 @@ pub fn lfs_create_file(
         unicode_filename.assume_init()
     };
 
-    let mut object_attrs = initialize_object_attributes(
+    let object_attrs = initialize_object_attributes(
         &mut unicode_filename,
         0,
         Some(root_handle),
@@ -176,10 +176,11 @@ pub fn lfs_open_file<P: AsRef<U16CStr>>(
     Ok(handle)
 }
 
-pub fn lfs_read_file(handle: HANDLE, buffer: &mut [u8], offset: u64) -> winfsp::Result<u64> {
+pub fn lfs_read_file(handle: HANDLE, buffer: &mut [u8], offset: u64) -> winfsp::Result<IoResult> {
     LFS_EVENT.with(|event| {
-        let mut iosb: MaybeUninit<IO_STATUS_BLOCK> = MaybeUninit::uninit();
-        let mut offset = offset as i64;
+        let mut iosb: MaybeUninit<IO_STATUS_BLOCK> = MaybeUninit::zeroed();
+        let mut bytes_read = 0 ;
+        let offset = offset as i64;
 
         let result = unsafe {
             NtReadFile(
@@ -201,19 +202,34 @@ pub fn lfs_read_file(handle: HANDLE, buffer: &mut [u8], offset: u64) -> winfsp::
             }
             let iosb = unsafe { iosb.assume_init() };
             let code = unsafe { iosb.Anonymous.Status };
+            bytes_read = unsafe { iosb.Information as u64 };
+
+            if code == STATUS_PENDING {
+                return Ok(IoResult {
+                    bytes_transferred: bytes_read as u32,
+                    io_pending: true,
+                })
+            }
+
             if code.is_err() {
                 return Err(FspError::from(code));
             }
         }
 
-        Ok(unsafe { iosb.assume_init().Information as u64 })
+        let iosb = unsafe { iosb.assume_init() };
+        bytes_read = iosb.Information as u64;
+        Ok(IoResult {
+            bytes_transferred: bytes_read as u32,
+            io_pending: false,
+        })
     })
 }
 
-pub fn lfs_write_file(handle: HANDLE, buffer: &[u8], offset: u64) -> winfsp::Result<u64> {
+pub fn lfs_write_file(handle: HANDLE, buffer: &[u8], offset: u64) -> winfsp::Result<IoResult> {
     LFS_EVENT.with(|event| {
         let mut iosb: MaybeUninit<IO_STATUS_BLOCK> = MaybeUninit::uninit();
-        let mut offset: i64 = offset as i64;
+        let offset: i64 = offset as i64;
+        let mut bytes_written = 0 ;
 
         let result = unsafe {
             NtWriteFile(
@@ -235,12 +251,25 @@ pub fn lfs_write_file(handle: HANDLE, buffer: &[u8], offset: u64) -> winfsp::Res
             }
             let iosb = unsafe { iosb.assume_init() };
             let code = unsafe { iosb.Anonymous.Status };
+            bytes_written = unsafe { iosb.Information as u64 };
+
+            if code == STATUS_PENDING {
+                return Ok(IoResult {
+                    bytes_transferred: bytes_written as u32,
+                    io_pending: true,
+                })
+            }
+
             if code.is_err() {
                 return Err(FspError::from(code));
             }
         }
 
-        Ok(unsafe { iosb.assume_init().Information as u64 })
+        bytes_written = unsafe { iosb.assume_init().Information as u64 };
+        Ok(IoResult {
+            bytes_transferred: bytes_written as u32,
+            io_pending: false,
+        })
     })
 }
 
@@ -416,7 +445,7 @@ pub fn lfs_get_file_info<'a, P: Into<MaybeOpenFileInfo<'a>>>(
     }
 
     {
-        let mut file_info = maybe_file_info.as_mut();
+        let file_info = maybe_file_info.as_mut();
         file_info.file_attributes = file_all_info.BasicInformation.FileAttributes;
         file_info.reparse_tag = if is_reparse_point {
             file_attr_info.ReparseTag
@@ -431,7 +460,7 @@ pub fn lfs_get_file_info<'a, P: Into<MaybeOpenFileInfo<'a>>>(
         file_info.change_time = file_all_info.BasicInformation.ChangeTime as u64;
         file_info.index_number = file_all_info.InternalInformation.IndexNumber as u64;
         file_info.hard_links = 0;
-        file_info.ea_size = file_all_info.EaInformation.EaSize;
+        file_info.ea_size = lfs_get_ea_size(file_all_info.EaInformation.EaSize);
     }
 
     if let (Some(root_prefix_length_bytes), MaybeOpenFileInfo::OpenFileInfo(open_file))
@@ -486,7 +515,7 @@ pub fn lfs_flush(handle: HANDLE) -> winfsp::Result<()> {
 
 pub fn lfs_set_delete(handle: HANDLE, delete: bool) -> winfsp::Result<()> {
     let mut iosb: MaybeUninit<IO_STATUS_BLOCK> = MaybeUninit::uninit();
-    let mut disp_info_ex = FILE_DISPOSITION_INFORMATION_EX {
+    let disp_info_ex = FILE_DISPOSITION_INFORMATION_EX {
         Flags: if delete {
             FILE_DISPOSITION_INFORMATION_EX_FLAGS(
                 FILE_DISPOSITION_DELETE.0
@@ -517,13 +546,13 @@ pub fn lfs_set_delete(handle: HANDLE, delete: bool) -> winfsp::Result<()> {
     #[allow(non_upper_case_globals)]
     const FileDispositionInformation: FILE_INFORMATION_CLASS = FILE_INFORMATION_CLASS(13);
 
-    let result = match result.code().to_ntstatus() {
+    let _result = match result.code().to_ntstatus() {
         code @ STATUS_ACCESS_DENIED
         | code @ STATUS_DIRECTORY_NOT_EMPTY
         | code @ STATUS_CANNOT_DELETE
         | code @ STATUS_FILE_DELETED => return Err(FspError::NTSTATUS(code)),
         _ => unsafe {
-            let mut disp_info = FILE_DISPOSITION_INFORMATION {
+            let disp_info = FILE_DISPOSITION_INFORMATION {
                 DeleteFile: delete.into(),
             };
 
@@ -597,7 +626,7 @@ pub fn lfs_rename<P: AsRef<[u16]>>(
     #[allow(non_upper_case_globals)]
     const FileRenameInformation: FILE_INFORMATION_CLASS = FILE_INFORMATION_CLASS(10);
 
-    let result = match result.code().to_ntstatus() {
+    let _result = match result.code().to_ntstatus() {
         STATUS_ACCESS_DENIED | STATUS_OBJECT_NAME_COLLISION
             if replace_if_exists != LfsRenameSemantics::PosixReplaceSemantics =>
         {
@@ -652,7 +681,7 @@ pub fn lfs_set_allocation_size(handle: HANDLE, new_size: u64) -> winfsp::Result<
 pub fn lfs_set_eof(handle: HANDLE, new_size: u64) -> winfsp::Result<()> {
     let mut iosb: MaybeUninit<IO_STATUS_BLOCK> = MaybeUninit::uninit();
 
-    let mut info = FILE_END_OF_FILE_INFO {
+    let info = FILE_END_OF_FILE_INFO {
         EndOfFile: new_size as i64,
     };
 
@@ -692,7 +721,7 @@ pub fn lfs_set_basic_info(
         file_attributes
     };
 
-    let mut basic_info = FILE_BASIC_INFORMATION {
+    let basic_info = FILE_BASIC_INFORMATION {
         CreationTime: creation_time,
         LastAccessTime: last_access_time,
         LastWriteTime: last_write_time,
@@ -795,7 +824,7 @@ pub fn lfs_fs_control_file(
                 control_code,
                 input.map(|p| p.as_ptr() as *const c_void),
                 input_len,
-                output.map(|mut p| p.as_mut_ptr() as *mut c_void),
+                output.map(|p| p.as_mut_ptr() as *mut c_void),
                 output_len,
             )
         };
@@ -902,14 +931,4 @@ pub fn lfs_get_stream_info(handle: HANDLE, buffer: &mut [u8]) -> winfsp::Result<
         return Err(FspError::from(e));
     }
     Ok(unsafe { iosb.assume_init().Information })
-}
-
-trait ToNtStatus {
-    fn to_ntstatus(&self) -> NTSTATUS;
-}
-
-impl ToNtStatus for HRESULT {
-    fn to_ntstatus(&self) -> NTSTATUS {
-        NTSTATUS(&self.0 & !(1 << 28))
-    }
 }

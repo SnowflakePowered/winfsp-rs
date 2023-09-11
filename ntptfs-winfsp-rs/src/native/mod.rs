@@ -1,3 +1,3 @@
 pub mod lfs;
-mod nt;
+pub(crate) mod nt;
 pub mod volume;

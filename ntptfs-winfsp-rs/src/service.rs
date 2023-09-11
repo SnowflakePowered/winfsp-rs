@@ -7,9 +7,8 @@ pub fn svc_start(args: Args) -> anyhow::Result<NtPassthroughFilesystem> {
         &args.directory,
         &args.volume_prefix.unwrap_or_else(|| String::from("")),
     )?;
-
     ntptfs.fs.mount(args.mountpoint.as_os_str())?;
-    ntptfs.fs.start()?;
+    ntptfs.fs.start_with_threads(1)?;
     Ok(ntptfs)
 }
 

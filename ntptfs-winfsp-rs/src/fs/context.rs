@@ -11,7 +11,7 @@ use std::ptr::addr_of;
 
 use widestring::{u16cstr, U16CString};
 use windows::Win32::System::Ioctl::{FSCTL_SET_REPARSE_POINT, FSCTL_GET_REPARSE_POINT, FSCTL_DELETE_REPARSE_POINT};
-use windows::Win32::System::SystemServices::MAXIMUM_ALLOWED;
+use windows::Win32::System::SystemServices::{MAXIMUM_ALLOWED, ACCESS_SYSTEM_SECURITY};
 use windows::Win32::System::WindowsProgramming::FILE_INFORMATION_CLASS;
 use windows::core::{HSTRING, PCWSTR};
 use windows::Wdk::Storage::FileSystem::{FILE_OPEN_FOR_BACKUP_INTENT, NTCREATEFILE_CREATE_OPTIONS, FILE_CREATE, FILE_OPEN_REPARSE_POINT, FILE_DIRECTORY_FILE, FILE_NON_DIRECTORY_FILE, FILE_NO_EA_KNOWLEDGE, FILE_SYNCHRONOUS_IO_NONALERT, FILE_SUPERSEDE, FILE_OVERWRITE, FILE_ID_BOTH_DIR_INFORMATION, FILE_STREAM_INFORMATION};
@@ -114,7 +114,7 @@ impl NtPassthroughContext {
             .case_preserved_names(true)
             .unicode_on_disk(true)
             .persistent_acls(true)
-            .post_cleanup_when_modified_only(false)
+            .post_cleanup_when_modified_only(true)
             .always_use_double_buffering(true)
             .pass_query_directory_pattern(true)
             .flush_and_purge_on_cleanup(true)
@@ -122,7 +122,10 @@ impl NtPassthroughContext {
             .reparse_points(true)
             .stream_info_timeout(1000)
             .named_streams(true)
-            .file_info_timeout(1000);
+            .file_info_timeout(1000)
+            .allow_open_in_kernel_mode(true)
+            .supports_posix_unlink_rename(true)
+            .post_disposition_only_when_necessary(true);
 
         Ok(context)
     }
@@ -489,7 +492,7 @@ impl FileSystemContext for NtPassthroughContext {
             },
             PSECURITY_DESCRIPTOR::default(),
             allocation_size.as_mut(),
-            (if replace_file_attributes {
+            if replace_file_attributes {
                 if file_attributes == 0 {
                     FILE_ATTRIBUTE_NORMAL
                 } else {
@@ -497,7 +500,7 @@ impl FileSystemContext for NtPassthroughContext {
                 }
             } else {
                 FILE_FLAGS_AND_ATTRIBUTES(file_attributes)
-            }),
+            },
             if replace_file_attributes {
                 FILE_SUPERSEDE
             } else {
@@ -519,11 +522,8 @@ impl FileSystemContext for NtPassthroughContext {
         buffer: &mut [u8],
         offset: u64,
     ) -> winfsp::Result<IoResult> {
-        let bytes_read = lfs::lfs_read_file(context.handle(), buffer, offset)?;
-        Ok(IoResult {
-            bytes_transferred: bytes_read as u32,
-            io_pending: false,
-        })
+        let result = lfs::lfs_read_file(context.handle(), buffer, offset)?;
+        Ok(result)
     }
 
     fn read_directory(
@@ -698,12 +698,9 @@ impl FileSystemContext for NtPassthroughContext {
             }
         }
 
-        let bytes_read = lfs::lfs_write_file(context.handle(), buffer, offset)?;
+        let result = lfs::lfs_write_file(context.handle(), buffer, offset)?;
         lfs::lfs_get_file_info(context.handle(), None, file_info)?;
-        Ok(IoResult {
-            bytes_transferred: bytes_read as u32,
-            io_pending: false,
-        })
+        Ok(result)
     }
 
     fn get_volume_info(&self, out_volume_info: &mut VolumeInfo) -> winfsp::Result<()> {
