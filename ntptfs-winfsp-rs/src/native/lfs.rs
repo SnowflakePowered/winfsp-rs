@@ -30,7 +30,7 @@ use windows::Wdk::Storage::FileSystem::{
     FILE_STANDARD_INFORMATION, NTCREATEFILE_CREATE_DISPOSITION, NTCREATEFILE_CREATE_OPTIONS,
 };
 use windows::Wdk::System::SystemServices::FILE_ATTRIBUTE_TAG_INFORMATION;
-use windows::Win32::Foundation::NTSTATUS;
+use windows::Win32::Foundation::{NTSTATUS, STATUS_BUFFER_TOO_SMALL};
 use windows::Win32::Foundation::{
      HANDLE, INVALID_HANDLE_VALUE, STATUS_ACCESS_DENIED,
     STATUS_BUFFER_OVERFLOW, STATUS_CANNOT_DELETE, STATUS_DIRECTORY_NOT_EMPTY, STATUS_FILE_DELETED,
@@ -142,7 +142,6 @@ pub fn lfs_open_file(
     desired_access: FILE_ACCESS_RIGHTS,
     open_options: NTCREATEFILE_CREATE_OPTIONS,
 ) -> winfsp::Result<NtSafeHandle> {
-    let file_name = file_name.as_ref();
     let mut unicode_filename = unsafe {
         let mut unicode_filename: MaybeUninit<UNICODE_STRING> = MaybeUninit::uninit();
         // wrapping add to get rid of leading slash..
@@ -171,8 +170,9 @@ pub fn lfs_open_file(
             iosb.as_mut_ptr(),
             (FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE).0,
             open_options.0,
-        )?;
-    }
+        )
+    }?;
+
     Ok(handle)
 }
 
@@ -302,15 +302,17 @@ pub fn lfs_get_security(
 ) -> winfsp::Result<u32> {
     let mut length_needed = 0;
 
-    unsafe {
+    let result = unsafe {
         NtQuerySecurityObject(
             handle,
             security_information,
             security_descriptor,
             security_descriptor_length,
             &mut length_needed,
-        )?;
+        )
     };
+
+    result?;
 
     Ok(length_needed)
 }
@@ -829,18 +831,23 @@ pub fn lfs_fs_control_file(
             )
         };
 
-        if result.is_err_and(|e| e.code().to_ntstatus() == STATUS_PENDING) {
-            unsafe {
-                WaitForSingleObject(*event, INFINITE);
-            }
-            let iosb = unsafe { iosb.assume_init() };
-            let code = unsafe { iosb.Anonymous.Status };
-            if code.is_err() {
-                return Err(FspError::from(code));
-            }
+        match result {
+            Err(e) if e.code().to_ntstatus() == STATUS_PENDING => {
+                unsafe {
+                    WaitForSingleObject(*event, INFINITE);
+                }
+                let iosb = unsafe { iosb.assume_init() };
+                let code = unsafe { iosb.Anonymous.Status };
+                if code.is_err() {
+                    return Err(FspError::from(code));
+                }
+                Ok(unsafe { iosb.Information })
+            },
+            Err(e) if e.code().to_ntstatus() == STATUS_BUFFER_OVERFLOW
+                => Err(FspError::NTSTATUS(STATUS_BUFFER_TOO_SMALL)),
+            Err(e) => Err(FspError::from(e)),
+            Ok(_) => Ok(unsafe { iosb.assume_init().Information })
         }
-
-        Ok(unsafe { iosb.assume_init().Information })
     })
 }
 
