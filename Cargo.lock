@@ -643,7 +643,7 @@ checksum = "d419259aba16b663966e29e6d7c6ecfa0bb8425818bb96f6f1f3c3eb71a6e7b9"
 
 [[package]]
 name = "winfsp"
-version = "0.7.1+winfsp-2.0"
+version = "0.8.0+winfsp-2.0"
 dependencies = [
  "bytemuck",
  "parking_lot",
