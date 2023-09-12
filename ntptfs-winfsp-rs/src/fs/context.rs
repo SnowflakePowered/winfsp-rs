@@ -2,14 +2,14 @@ use crate::fs::file::NtPassthroughFile;
 use crate::native::lfs::LfsRenameSemantics;
 use crate::native::{lfs, volume};
 use std::ffi::OsString;
-use std::mem::size_of;
+use std::mem::{offset_of, size_of};
 
 use std::os::raw::c_void;
 use std::os::windows::fs::MetadataExt;
 use std::path::Path;
 use std::ptr::addr_of;
 
-use widestring::{u16cstr, U16CString};
+use widestring::{u16cstr, U16CString, U16Str};
 use windows::Win32::System::Ioctl::{FSCTL_SET_REPARSE_POINT, FSCTL_GET_REPARSE_POINT, FSCTL_DELETE_REPARSE_POINT};
 use windows::Win32::System::SystemServices::{MAXIMUM_ALLOWED, ACCESS_SYSTEM_SECURITY};
 use windows::Win32::System::WindowsProgramming::FILE_INFORMATION_CLASS;
@@ -33,7 +33,7 @@ use windows::Win32::Storage::FileSystem::{
 
 use winfsp::constants::FspCleanupFlags::FspCleanupDelete;
 use winfsp::filesystem::{
-    DirInfo, DirMarker, FileInfo, FileSecurity, FileSystemContext, IoResult, OpenFileInfo,
+    DirInfo, DirMarker, FileInfo, FileSecurity, FileSystemContext, OpenFileInfo,
     StreamInfo, VolumeInfo, WideNameInfo,
 };
 use winfsp::host::VolumeParams;
@@ -148,6 +148,7 @@ impl NtPassthroughContext {
             )
         };
 
+        eprintln!("DIR: found filename {:?}\n", U16Str::from_slice(file_name_slice));
         dir_info.set_name_raw(file_name_slice)?;
 
         let file_info = dir_info.file_info_mut();
@@ -188,6 +189,8 @@ impl FileSystemContext for NtPassthroughContext {
         descriptor_len: Option<u64>,
         resolve_reparse_points: impl FnOnce(&U16CStr) -> Option<FileSecurity>,
     ) -> winfsp::Result<FileSecurity> {
+        // println!("gsbn: {file_name:?}\n");
+
         if let Some(security) = resolve_reparse_points(file_name) {
             return Ok(security);
         }
@@ -236,6 +239,7 @@ impl FileSystemContext for NtPassthroughContext {
         granted_access: u32,
         file_info: &mut OpenFileInfo,
     ) -> winfsp::Result<Self::FileContext> {
+        // println!("open: {file_name:?}\n");
         let backup_access = FILE_ACCESS_RIGHTS(granted_access);
 
         let is_directory = unsafe {
@@ -316,6 +320,8 @@ impl FileSystemContext for NtPassthroughContext {
         extra_buffer_is_reparse_point: bool,
         file_info: &mut OpenFileInfo,
     ) -> winfsp::Result<Self::FileContext> {
+        // println!("create: {file_name:?}\n");
+
         let is_directory = create_options & FILE_DIRECTORY_FILE.0 != 0;
 
         let mut maximum_access = FILE_ACCESS_RIGHTS(if is_directory {
@@ -521,9 +527,10 @@ impl FileSystemContext for NtPassthroughContext {
         context: &Self::FileContext,
         buffer: &mut [u8],
         offset: u64,
-    ) -> winfsp::Result<IoResult> {
-        let result = lfs::lfs_read_file(context.handle(), buffer, offset)?;
-        Ok(result)
+    ) -> winfsp::Result<u32> {
+        let mut bytes_transferred = 0;
+        lfs::lfs_read_file(context.handle(), buffer, offset, &mut bytes_transferred)?;
+        Ok(bytes_transferred as u32)
     }
 
     fn read_directory(
@@ -683,14 +690,12 @@ impl FileSystemContext for NtPassthroughContext {
         _write_to_eof: bool,
         constrained_io: bool,
         file_info: &mut FileInfo,
-    ) -> winfsp::Result<IoResult> {
+    ) -> winfsp::Result<u32> {
+        let mut bytes_transferred = 0;
         if constrained_io {
             let fsize = lfs::lfs_get_file_size(context.handle())?;
             if offset >= fsize {
-                return Ok(IoResult {
-                    bytes_transferred: 0,
-                    io_pending: false,
-                });
+                return Ok(0);
             }
 
             if offset + buffer.len() as u64 > fsize {
@@ -698,9 +703,9 @@ impl FileSystemContext for NtPassthroughContext {
             }
         }
 
-        let result = lfs::lfs_write_file(context.handle(), buffer, offset)?;
+        lfs::lfs_write_file(context.handle(), buffer, offset, &mut bytes_transferred)?;
         lfs::lfs_get_file_info(context.handle(), None, file_info)?;
-        Ok(result)
+        Ok(bytes_transferred as u32)
     }
 
     fn get_volume_info(&self, out_volume_info: &mut VolumeInfo) -> winfsp::Result<()> {

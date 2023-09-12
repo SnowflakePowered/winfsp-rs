@@ -1,7 +1,7 @@
 [workspace]
 
 members = [
-    "ptfs-winfsp-rs",
+#    "ptfs-winfsp-rs",
     "ntptfs-winfsp-rs",
     "winfsp",
     "winfsp-sys"
