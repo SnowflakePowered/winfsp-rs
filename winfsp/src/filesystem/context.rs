@@ -23,17 +23,6 @@ pub struct FileSecurity {
     pub attributes: u32,
 }
 
-#[derive(Debug)]
-/// The return value of a request to [`FileSystemContext::read`](crate::filesystem::FileSystemContext::read) or
-/// [`FileSystemContext::write`](crate::filesystem::FileSystemContext::write).
-pub struct IoResult {
-    /// The number of bytes transferred in the IO request.
-    pub bytes_transferred: u32,
-
-    /// If the operation is asynchronous, whether or not the request is pending.
-    pub io_pending: bool,
-}
-
 #[allow(unused_variables)]
 /// The core trait that implements file system operations for a WinFSP file system.
 ///
@@ -216,17 +205,17 @@ pub trait FileSystemContext: Sized {
         Err(STATUS_INVALID_DEVICE_REQUEST.into())
     }
 
-    /// Read from a file.
+    /// Read from a file. Return the number of bytes read,
     fn read(
         &self,
         context: &Self::FileContext,
         buffer: &mut [u8],
         offset: u64,
-    ) -> Result<IoResult> {
+    ) -> Result<u32> {
         Err(STATUS_INVALID_DEVICE_REQUEST.into())
     }
 
-    /// Write to a file.
+    /// Write to a file. Return the number of bytes written.
     fn write(
         &self,
         context: &Self::FileContext,
@@ -235,7 +224,7 @@ pub trait FileSystemContext: Sized {
         write_to_eof: bool,
         constrained_io: bool,
         file_info: &mut FileInfo,
-    ) -> Result<IoResult> {
+    ) -> Result<u32> {
         Err(STATUS_INVALID_DEVICE_REQUEST.into())
     }
 

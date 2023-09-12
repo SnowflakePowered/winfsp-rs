@@ -15,7 +15,7 @@ use winfsp_sys::{
 use winfsp_sys::{NTSTATUS as FSP_STATUS, PVOID};
 
 use crate::filesystem::{
-    DirInfo, DirMarker, FileInfo, FileSecurity, FileSystemContext, IoResult, OpenFileInfo,
+    DirInfo, DirMarker, FileInfo, FileSecurity, FileSystemContext, OpenFileInfo,
     VolumeInfo,
 };
 
@@ -71,33 +71,6 @@ where
     let context: &C = unsafe { &*(*fs).UserContext.cast::<C>() };
     match inner(context) {
         Ok(_) => STATUS_SUCCESS.0,
-        Err(e) => e.as_ntstatus(),
-    }
-}
-
-#[inline(always)]
-fn require_fctx_io<C: FileSystemContext, F>(
-    fs: *mut FSP_FILE_SYSTEM,
-    fctx: PVOID,
-    inner: F,
-) -> FSP_STATUS
-where
-    F: FnOnce(&C, &C::FileContext) -> error::Result<IoResult>,
-{
-    assert_ctx!(fs);
-    assert_ctx!(fctx);
-
-    let context: &C = unsafe { &*(*fs).UserContext.cast::<C>() };
-    let fctx = unsafe { &mut *fctx.cast::<C::FileContext>() };
-
-    match inner(context, fctx) {
-        Ok(res) => {
-            if res.io_pending {
-                STATUS_PENDING.0
-            } else {
-                STATUS_SUCCESS.0
-            }
-        }
         Err(e) => e.as_ntstatus(),
     }
 }
@@ -442,7 +415,7 @@ unsafe extern "C" fn read<T: FileSystemContext>(
     bytes_transferred: *mut u32,
 ) -> FSP_STATUS {
     catch_panic!({
-        require_fctx_io(fs, fctx, |context, fctx| {
+        require_fctx(fs, fctx, |context, fctx| {
             if !bytes_transferred.is_null() {
                 unsafe { bytes_transferred.write(0) }
             }
@@ -452,9 +425,9 @@ unsafe extern "C" fn read<T: FileSystemContext>(
                     unsafe { slice::from_raw_parts_mut(buffer as *mut u8, length as usize) };
                 let result = T::read(context, fctx, buffer, offset)?;
                 if !bytes_transferred.is_null() {
-                    unsafe { bytes_transferred.write(result.bytes_transferred) }
+                    unsafe { bytes_transferred.write(result) }
                 }
-                Ok(result)
+                Ok(())
             } else {
                 Err(STATUS_INSUFFICIENT_RESOURCES.into())
             }
@@ -477,7 +450,7 @@ unsafe extern "C" fn write<T: FileSystemContext>(
         return STATUS_INSUFFICIENT_RESOURCES.0;
     }
     catch_panic!({
-        require_fctx_io(fs, fctx, |context, fctx| {
+        require_fctx(fs, fctx, |context, fctx| {
             if !bytes_transferred.is_null() {
                 unsafe { bytes_transferred.write(0) }
             }
@@ -496,9 +469,9 @@ unsafe extern "C" fn write<T: FileSystemContext>(
                         .expect("FSP_FSCTL_FILE_INFO buffer was not allocated."),
                 )?;
                 if !bytes_transferred.is_null() {
-                    unsafe { bytes_transferred.write(result.bytes_transferred) }
+                    unsafe { bytes_transferred.write(result) }
                 }
-                Ok(result)
+                Ok(())
             } else {
                 Err(STATUS_INSUFFICIENT_RESOURCES.into())
             }

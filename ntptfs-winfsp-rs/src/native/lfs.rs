@@ -52,7 +52,7 @@ use windows::Win32::System::WindowsProgramming::{RtlInitUnicodeString, FILE_INFO
 use windows::Win32::System::IO::IO_STATUS_BLOCK;
 
 use crate::native::nt::{FILE_FS_SIZE_INFORMATION, ToNtStatus};
-use winfsp::filesystem::{FileInfo, IoResult, OpenFileInfo};
+use winfsp::filesystem::{FileInfo, OpenFileInfo};
 use winfsp::util::{NtSafeHandle, VariableSizedBox};
 use winfsp::{FspError, U16CStr};
 
@@ -176,10 +176,9 @@ pub fn lfs_open_file(
     Ok(handle)
 }
 
-pub fn lfs_read_file(handle: HANDLE, buffer: &mut [u8], offset: u64) -> winfsp::Result<IoResult> {
+pub fn lfs_read_file(handle: HANDLE, buffer: &mut [u8], offset: u64, bytes_transferred: &mut usize) -> winfsp::Result<()> {
     LFS_EVENT.with(|event| {
         let mut iosb: MaybeUninit<IO_STATUS_BLOCK> = MaybeUninit::zeroed();
-        let mut bytes_read = 0 ;
         let offset = offset as i64;
 
         let result = unsafe {
@@ -202,14 +201,7 @@ pub fn lfs_read_file(handle: HANDLE, buffer: &mut [u8], offset: u64) -> winfsp::
             }
             let iosb = unsafe { iosb.assume_init() };
             let code = unsafe { iosb.Anonymous.Status };
-            bytes_read = unsafe { iosb.Information as u64 };
-
-            if code == STATUS_PENDING {
-                return Ok(IoResult {
-                    bytes_transferred: bytes_read as u32,
-                    io_pending: true,
-                })
-            }
+            *bytes_transferred = iosb.Information;
 
             if code.is_err() {
                 return Err(FspError::from(code));
@@ -217,19 +209,15 @@ pub fn lfs_read_file(handle: HANDLE, buffer: &mut [u8], offset: u64) -> winfsp::
         }
 
         let iosb = unsafe { iosb.assume_init() };
-        bytes_read = iosb.Information as u64;
-        Ok(IoResult {
-            bytes_transferred: bytes_read as u32,
-            io_pending: false,
-        })
+        *bytes_transferred = iosb.Information;
+        Ok(())
     })
 }
 
-pub fn lfs_write_file(handle: HANDLE, buffer: &[u8], offset: u64) -> winfsp::Result<IoResult> {
+pub fn lfs_write_file(handle: HANDLE, buffer: &[u8], offset: u64, bytes_transferred: &mut usize) -> winfsp::Result<()> {
     LFS_EVENT.with(|event| {
         let mut iosb: MaybeUninit<IO_STATUS_BLOCK> = MaybeUninit::uninit();
         let offset: i64 = offset as i64;
-        let mut bytes_written = 0 ;
 
         let result = unsafe {
             NtWriteFile(
@@ -251,25 +239,16 @@ pub fn lfs_write_file(handle: HANDLE, buffer: &[u8], offset: u64) -> winfsp::Res
             }
             let iosb = unsafe { iosb.assume_init() };
             let code = unsafe { iosb.Anonymous.Status };
-            bytes_written = unsafe { iosb.Information as u64 };
 
-            if code == STATUS_PENDING {
-                return Ok(IoResult {
-                    bytes_transferred: bytes_written as u32,
-                    io_pending: true,
-                })
-            }
+            *bytes_transferred = iosb.Information;
 
             if code.is_err() {
                 return Err(FspError::from(code));
             }
         }
 
-        bytes_written = unsafe { iosb.assume_init().Information as u64 };
-        Ok(IoResult {
-            bytes_transferred: bytes_written as u32,
-            io_pending: false,
-        })
+        *bytes_transferred = unsafe { iosb.assume_init().Information };
+        Ok(())
     })
 }
 
