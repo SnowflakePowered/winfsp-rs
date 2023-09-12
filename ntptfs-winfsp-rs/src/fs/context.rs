@@ -559,7 +559,7 @@ impl FileSystemContext for NtPassthroughContext {
                     &pattern,
                     restart_scan,
                 ) {
-                    let mut query_buffer_cursor =
+                    let mut query_info =
                         query_buffer.as_ptr() as *const FILE_ID_BOTH_DIR_INFORMATION;
                     'inner: loop {
                         // SAFETY: FILE_ID_BOTH_DIR_INFO has FileName as the last VST array member, so it's offset is size_of - 1.
@@ -567,22 +567,22 @@ impl FileSystemContext for NtPassthroughContext {
                         if query_buffer
                             .as_ptr()
                             .map_addr(|addr| addr.wrapping_add(bytes_transferred))
-                            < (query_buffer_cursor as *const _ as *const u8).map_addr(|addr| {
-                                addr.wrapping_add(size_of::<FILE_ID_BOTH_DIR_INFORMATION>() - 1)
+                            < (query_info as *const _ as *const u8).map_addr(|addr| {
+                                addr.wrapping_add(offset_of!(FILE_ID_BOTH_DIR_INFORMATION, FileName))
                             })
                         {
                             break 'once;
                         }
-                        Self::copy_query_info_to_dirinfo(query_buffer_cursor, &mut dirinfo)?;
+                        Self::copy_query_info_to_dirinfo(query_info, &mut dirinfo)?;
                         dirbuffer.write(&mut dirinfo)?;
 
                         unsafe {
                             let query_next =
-                                addr_of!((*query_buffer_cursor).NextEntryOffset).read();
+                                addr_of!((*query_info).NextEntryOffset).read();
                             if query_next == 0 {
                                 break 'inner;
                             }
-                            query_buffer_cursor = (query_buffer_cursor as *const _ as *const u8)
+                            query_info = (query_info as *const _ as *const u8)
                                 .map_addr(|addr| addr.wrapping_add(query_next as usize))
                                 .cast();
                         }
