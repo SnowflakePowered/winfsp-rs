@@ -164,15 +164,15 @@ pub fn lfs_read_file(
     bytes_transferred: &mut u32,
 ) -> winfsp::Result<()> {
     LFS_EVENT.with(|event| {
-        let mut iosb: MaybeUninit<ntapi::ntioapi::IO_STATUS_BLOCK> = MaybeUninit::zeroed();
-        let mut offset = unsafe { std::mem::transmute([offset as i64]) };
+        let mut iosb: MaybeUninit<_> = MaybeUninit::zeroed();
+        let mut offset = offset as i64;
 
         let mut result = unsafe {
-            NTSTATUS(ntapi::ntioapi::NtReadFile(
-                ntapi::winapi::shared::ntdef::HANDLE::from(handle.0 as *mut c_void),
-                ntapi::winapi::shared::ntdef::HANDLE::from(event.0 as *mut c_void),
+            NTSTATUS(windows_sys::Wdk::Storage::FileSystem::NtReadFile(
+                handle.0,
+                event.0,
                 None,
-                std::ptr::null_mut(),
+                std::ptr::null(),
                 iosb.as_mut_ptr(),
                 buffer.as_mut_ptr() as *mut _,
                 buffer.len() as u32,
@@ -186,7 +186,7 @@ pub fn lfs_read_file(
                 WaitForSingleObject(event.clone(), INFINITE);
             }
             let iosb = unsafe { iosb.assume_init() };
-            let code = unsafe { iosb.u.Status };
+            let code = unsafe { iosb.Anonymous.Status };
             *bytes_transferred = iosb.Information as u32;
 
             result = NTSTATUS(code);
@@ -210,17 +210,17 @@ pub fn lfs_write_file(
     bytes_transferred: &mut u32,
 ) -> winfsp::Result<()> {
     LFS_EVENT.with(|event| {
-        let mut iosb: MaybeUninit<ntapi::ntioapi::IO_STATUS_BLOCK> = MaybeUninit::zeroed();
-        let mut offset = unsafe { std::mem::transmute([offset as i64]) };
+        let mut iosb: MaybeUninit<_> = MaybeUninit::zeroed();
+        let mut offset = offset as i64;
 
         let mut result = unsafe {
-            NTSTATUS(ntapi::ntioapi::NtWriteFile(
-                ntapi::winapi::shared::ntdef::HANDLE::from(handle.0 as *mut c_void),
-                ntapi::winapi::shared::ntdef::HANDLE::from(event.0 as *mut c_void),
+            NTSTATUS(windows_sys::Wdk::Storage::FileSystem::NtWriteFile(
+                handle.0,
+                event.0,
                 None,
-                std::ptr::null_mut(),
+                std::ptr::null(),
                 iosb.as_mut_ptr(),
-                buffer.as_ptr() as *mut _,
+                buffer.as_ptr() as *const _,
                 buffer.len() as u32,
                 &mut offset,
                 std::ptr::null_mut(),
@@ -232,7 +232,7 @@ pub fn lfs_write_file(
                 WaitForSingleObject(event.clone(), INFINITE);
             }
             let iosb = unsafe { iosb.assume_init() };
-            let code = unsafe { iosb.u.Status };
+            let code = unsafe { iosb.Anonymous.Status };
             *bytes_transferred = iosb.Information as u32;
 
             result = NTSTATUS(code);
