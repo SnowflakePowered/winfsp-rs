@@ -206,12 +206,7 @@ pub trait FileSystemContext: Sized {
     }
 
     /// Read from a file. Return the number of bytes read,
-    fn read(
-        &self,
-        context: &Self::FileContext,
-        buffer: &mut [u8],
-        offset: u64,
-    ) -> Result<u32> {
+    fn read(&self, context: &Self::FileContext, buffer: &mut [u8], offset: u64) -> Result<u32> {
         Err(STATUS_INVALID_DEVICE_REQUEST.into())
     }
 

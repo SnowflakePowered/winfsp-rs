@@ -1,6 +1,7 @@
 use std::ffi::c_void;
 use std::slice;
 
+use widestring::U16CString;
 use windows::Win32::Foundation::{
     EXCEPTION_NONCONTINUABLE_EXCEPTION, STATUS_INSUFFICIENT_RESOURCES, STATUS_PENDING,
     STATUS_REPARSE, STATUS_SUCCESS,
@@ -15,8 +16,7 @@ use winfsp_sys::{
 use winfsp_sys::{NTSTATUS as FSP_STATUS, PVOID};
 
 use crate::filesystem::{
-    DirInfo, DirMarker, FileInfo, FileSecurity, FileSystemContext, OpenFileInfo,
-    VolumeInfo,
+    DirInfo, DirMarker, FileInfo, FileSecurity, FileSystemContext, OpenFileInfo, VolumeInfo,
 };
 
 /// Catch panic and return EXECPTION_NONCONTINUABLE_EXCEPTION
@@ -108,13 +108,15 @@ unsafe extern "C" fn get_security_by_name<T: FileSystemContext>(
         let descriptor_len = unsafe { sz_security_descriptor.as_ref() }.cloned();
         // pass reparse point resolver into function
         let find_reparse_points = |file_name: &U16CStr| {
+            let mut file_name = U16CString::from(file_name);
+
             let mut reparse_index = 0;
             unsafe {
                 if FspFileSystemFindReparsePoint(
                     fs,
                     Some(get_reparse_point_by_name::<T>),
                     std::ptr::null_mut(),
-                    file_name.as_ptr().cast_mut(),
+                    file_name.as_mut_ptr(),
                     &mut reparse_index,
                 ) != 0
                 {

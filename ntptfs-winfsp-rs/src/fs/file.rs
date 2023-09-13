@@ -1,14 +1,14 @@
+use parking_lot::RwLock;
 use std::cell::RefCell;
 use std::ops::Deref;
 use std::sync::Arc;
-use parking_lot::RwLock;
 use windows::Win32::Foundation::HANDLE;
 use winfsp::filesystem::DirBuffer;
-use winfsp::util::{NtSafeHandle, NtRefHandle};
+use winfsp::util::{NtRefHandle, NtSafeHandle};
 
 #[derive(Debug)]
 pub struct NtPassthroughFile {
-    handle: Arc<RwLock<NtSafeHandle>>,
+    handle: NtRefHandle,
     is_directory: bool,
     dir_buffer: DirBuffer,
     file_size_hint: u64,
@@ -17,7 +17,7 @@ pub struct NtPassthroughFile {
 impl NtPassthroughFile {
     pub fn new(handle: NtSafeHandle, file_size_hint: u64, is_directory: bool) -> Self {
         Self {
-            handle: Arc::new(RwLock::new(handle)),
+            handle: handle.escape(),
             file_size_hint,
             is_directory,
             dir_buffer: DirBuffer::new(),
@@ -25,11 +25,11 @@ impl NtPassthroughFile {
     }
 
     pub fn handle(&self) -> HANDLE {
-        *(self.handle).read().deref().deref()
+        self.handle.handle()
     }
 
     pub fn invalidate(&self) {
-        self.handle.write().invalidate()
+        self.handle.invalidate()
     }
 
     pub fn is_directory(&self) -> bool {

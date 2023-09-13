@@ -10,11 +10,13 @@ use std::path::Path;
 use std::ptr::addr_of;
 
 use widestring::{u16cstr, U16CString, U16Str};
-use windows::Win32::System::Ioctl::{FSCTL_SET_REPARSE_POINT, FSCTL_GET_REPARSE_POINT, FSCTL_DELETE_REPARSE_POINT};
-use windows::Win32::System::SystemServices::{MAXIMUM_ALLOWED, ACCESS_SYSTEM_SECURITY};
-use windows::Win32::System::WindowsProgramming::FILE_INFORMATION_CLASS;
 use windows::core::{HSTRING, PCWSTR};
-use windows::Wdk::Storage::FileSystem::{FILE_OPEN_FOR_BACKUP_INTENT, NTCREATEFILE_CREATE_OPTIONS, FILE_CREATE, FILE_OPEN_REPARSE_POINT, FILE_DIRECTORY_FILE, FILE_NON_DIRECTORY_FILE, FILE_NO_EA_KNOWLEDGE, FILE_SYNCHRONOUS_IO_NONALERT, FILE_SUPERSEDE, FILE_OVERWRITE, FILE_ID_BOTH_DIR_INFORMATION, FILE_STREAM_INFORMATION};
+use windows::Wdk::Storage::FileSystem::{
+    FILE_CREATE, FILE_DIRECTORY_FILE, FILE_ID_BOTH_DIR_INFORMATION, FILE_NON_DIRECTORY_FILE,
+    FILE_NO_EA_KNOWLEDGE, FILE_OPEN_FOR_BACKUP_INTENT, FILE_OPEN_REPARSE_POINT, FILE_OVERWRITE,
+    FILE_STREAM_INFORMATION, FILE_SUPERSEDE, FILE_SYNCHRONOUS_IO_NONALERT,
+    NTCREATEFILE_CREATE_OPTIONS,
+};
 use windows::Win32::Foundation::{
     GetLastError, INVALID_HANDLE_VALUE, STATUS_ACCESS_DENIED, STATUS_BUFFER_OVERFLOW,
     STATUS_BUFFER_TOO_SMALL, STATUS_INVALID_PARAMETER, STATUS_MEDIA_WRITE_PROTECTED,
@@ -25,16 +27,21 @@ use windows::Win32::Security::{
     PSECURITY_DESCRIPTOR,
 };
 use windows::Win32::Storage::FileSystem::{
-    CreateFileW, FILE_ACCESS_RIGHTS, FILE_ATTRIBUTE_DIRECTORY, FILE_ATTRIBUTE_NORMAL,
-    FILE_FLAGS_AND_ATTRIBUTES, FILE_FLAG_BACKUP_SEMANTICS, FILE_FLAG_OVERLAPPED,
-     FILE_READ_ATTRIBUTES, FILE_SHARE_DELETE, FILE_SHARE_READ,
-    FILE_SHARE_WRITE, OPEN_EXISTING, READ_CONTROL, SYNCHRONIZE, FILE_ATTRIBUTE_REPARSE_POINT, DELETE, FILE_WRITE_DATA,
+    CreateFileW, DELETE, FILE_ACCESS_RIGHTS, FILE_ATTRIBUTE_DIRECTORY, FILE_ATTRIBUTE_NORMAL,
+    FILE_ATTRIBUTE_REPARSE_POINT, FILE_FLAGS_AND_ATTRIBUTES, FILE_FLAG_BACKUP_SEMANTICS,
+    FILE_FLAG_OVERLAPPED, FILE_READ_ATTRIBUTES, FILE_SHARE_DELETE, FILE_SHARE_READ,
+    FILE_SHARE_WRITE, FILE_WRITE_DATA, OPEN_EXISTING, READ_CONTROL, SYNCHRONIZE,
 };
+use windows::Win32::System::Ioctl::{
+    FSCTL_DELETE_REPARSE_POINT, FSCTL_GET_REPARSE_POINT, FSCTL_SET_REPARSE_POINT,
+};
+use windows::Win32::System::SystemServices::{ACCESS_SYSTEM_SECURITY, MAXIMUM_ALLOWED};
+use windows::Win32::System::WindowsProgramming::FILE_INFORMATION_CLASS;
 
 use winfsp::constants::FspCleanupFlags::FspCleanupDelete;
 use winfsp::filesystem::{
-    DirInfo, DirMarker, FileInfo, FileSecurity, FileSystemContext, OpenFileInfo,
-    StreamInfo, VolumeInfo, WideNameInfo,
+    DirInfo, DirMarker, FileInfo, FileSecurity, FileSystemContext, OpenFileInfo, StreamInfo,
+    VolumeInfo, WideNameInfo,
 };
 use winfsp::host::VolumeParams;
 use winfsp::util::Win32SafeHandle;
@@ -148,7 +155,10 @@ impl NtPassthroughContext {
             )
         };
 
-        eprintln!("DIR: found filename {:?}\n", U16Str::from_slice(file_name_slice));
+        eprintln!(
+            "DIR: found filename {:?}\n",
+            U16Str::from_slice(file_name_slice)
+        );
         dir_info.set_name_raw(file_name_slice)?;
 
         let file_info = dir_info.file_info_mut();
@@ -256,8 +266,8 @@ impl FileSystemContext for NtPassthroughContext {
             FILE_ACCESS_RIGHTS(MAXIMUM_ALLOWED)
         };
 
-        let mut create_options =
-            NTCREATEFILE_CREATE_OPTIONS(create_options) & (FILE_DIRECTORY_FILE | FILE_NON_DIRECTORY_FILE | FILE_NO_EA_KNOWLEDGE);
+        let mut create_options = NTCREATEFILE_CREATE_OPTIONS(create_options)
+            & (FILE_DIRECTORY_FILE | FILE_NON_DIRECTORY_FILE | FILE_NO_EA_KNOWLEDGE);
 
         // WORKAROUND:
         // WOW64 appears to have a bug in some versions of the OS (seen on Win10 1909 and
@@ -331,8 +341,8 @@ impl FileSystemContext for NtPassthroughContext {
             MAXIMUM_ALLOWED
         });
 
-        let mut create_options =
-            NTCREATEFILE_CREATE_OPTIONS(create_options) & (FILE_DIRECTORY_FILE | FILE_NON_DIRECTORY_FILE | FILE_NO_EA_KNOWLEDGE);
+        let mut create_options = NTCREATEFILE_CREATE_OPTIONS(create_options)
+            & (FILE_DIRECTORY_FILE | FILE_NON_DIRECTORY_FILE | FILE_NO_EA_KNOWLEDGE);
 
         // WORKAROUND:
         // WOW64 appears to have a bug in some versions of the OS (seen on Win10 1909 and
@@ -529,8 +539,9 @@ impl FileSystemContext for NtPassthroughContext {
         offset: u64,
     ) -> winfsp::Result<u32> {
         let mut bytes_transferred = 0;
-        lfs::lfs_read_file(context.handle(), buffer, offset, &mut bytes_transferred)?;
-        Ok(bytes_transferred as u32)
+        let handle = context.handle();
+        lfs::lfs_read_file(handle, buffer, offset, &mut bytes_transferred)?;
+        Ok(bytes_transferred)
     }
 
     fn read_directory(
@@ -552,10 +563,10 @@ impl FileSystemContext for NtPassthroughContext {
             let mut query_buffer = vec![0u8; 16 * 1024];
             let mut restart_scan = true;
 
-        
             #[allow(non_upper_case_globals)]
-            const FileIdBothDirectoryInformation: FILE_INFORMATION_CLASS = FILE_INFORMATION_CLASS(37);
-        
+            const FileIdBothDirectoryInformation: FILE_INFORMATION_CLASS =
+                FILE_INFORMATION_CLASS(37);
+
             'once: loop {
                 query_buffer.fill(0);
                 if let Ok(bytes_transferred) = lfs::lfs_query_directory_file(
@@ -575,7 +586,10 @@ impl FileSystemContext for NtPassthroughContext {
                             .as_ptr()
                             .map_addr(|addr| addr.wrapping_add(bytes_transferred))
                             < (query_info as *const _ as *const u8).map_addr(|addr| {
-                                addr.wrapping_add(offset_of!(FILE_ID_BOTH_DIR_INFORMATION, FileName))
+                                addr.wrapping_add(offset_of!(
+                                    FILE_ID_BOTH_DIR_INFORMATION,
+                                    FileName
+                                ))
                             })
                         {
                             break 'once;
@@ -584,8 +598,7 @@ impl FileSystemContext for NtPassthroughContext {
                         dirbuffer.write(&mut dirinfo)?;
 
                         unsafe {
-                            let query_next =
-                                addr_of!((*query_info).NextEntryOffset).read();
+                            let query_next = addr_of!((*query_info).NextEntryOffset).read();
                             if query_next == 0 {
                                 break 'inner;
                             }
@@ -627,7 +640,7 @@ impl FileSystemContext for NtPassthroughContext {
         };
 
         // skip first char
-        let new_file_name = &new_file_name[1..];
+        let new_file_name = &new_file_name[1..].as_slice();
         lfs::lfs_rename(
             *self.root_handle,
             context.handle(),
@@ -758,11 +771,9 @@ impl FileSystemContext for NtPassthroughContext {
             }
 
             unsafe {
-                stream_info.stream_size = addr_of!((*query_buffer_cursor).StreamSize)
-                    .read() as u64;
+                stream_info.stream_size = addr_of!((*query_buffer_cursor).StreamSize).read() as u64;
                 stream_info.stream_alloc_size =
-                    addr_of!((*query_buffer_cursor).StreamAllocationSize)
-                        .read() as u64;
+                    addr_of!((*query_buffer_cursor).StreamAllocationSize).read() as u64;
             }
 
             if !stream_info.append_to_buffer(buffer, &mut buffer_cursor) {
@@ -796,7 +807,12 @@ impl FileSystemContext for NtPassthroughContext {
             FILE_ACCESS_RIGHTS(0),
             FILE_OPEN_FOR_BACKUP_INTENT
                 | FILE_OPEN_REPARSE_POINT
-                | if is_directory { FILE_DIRECTORY_FILE } else { NTCREATEFILE_CREATE_OPTIONS(0)})?;
+                | if is_directory {
+                    FILE_DIRECTORY_FILE
+                } else {
+                    NTCREATEFILE_CREATE_OPTIONS(0)
+                },
+        )?;
         let result =
             lfs::lfs_fs_control_file(*reparse_handle, FSCTL_GET_REPARSE_POINT, None, Some(buffer));
 
