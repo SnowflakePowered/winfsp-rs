@@ -1,17 +1,6 @@
-// use ntapi::ntioapi::{
-//     FileAllInformation, FileAllocationInformation, FileAttributeTagInformation,
-//     FileBasicInformation, FileDispositionInformation, FileDispositionInformationEx,
-//     FileEndOfFileInformation, FileFsSizeInformation, FileNameInformation, FileRenameInformation,
-//     FileRenameInformationEx, FileStandardInformation, FileStreamInformation,
-//     FILE_ALLOCATION_INFORMATION, FILE_ALL_INFORMATION, FILE_ATTRIBUTE_TAG_INFORMATION,
-//     FILE_BASIC_INFORMATION, FILE_DISPOSITION_INFORMATION, FILE_END_OF_FILE_INFORMATION,
-//     FILE_FS_SIZE_INFORMATION, FILE_NAME_INFORMATION, FILE_STANDARD_INFORMATION,
-// };
-// use ntapi::winapi::um::fileapi::INVALID_FILE_ATTRIBUTES;
-//
-// use ntapi::winapi::um::winnt::{FILE_ATTRIBUTE_NORMAL, LARGE_INTEGER};
+use ntapi::winapi::shared::ntdef::LARGE_INTEGER;
 use std::ffi::c_void;
-use std::mem::{size_of, MaybeUninit};
+use std::mem::{offset_of, size_of, MaybeUninit};
 use std::ops::DerefMut;
 use std::ptr::addr_of_mut;
 use std::slice;
@@ -27,35 +16,35 @@ use windows::Wdk::Storage::FileSystem::{
     FILE_DISPOSITION_FORCE_IMAGE_SECTION_CHECK, FILE_DISPOSITION_IGNORE_READONLY_ATTRIBUTE,
     FILE_DISPOSITION_INFORMATION, FILE_DISPOSITION_INFORMATION_EX,
     FILE_DISPOSITION_INFORMATION_EX_FLAGS, FILE_DISPOSITION_POSIX_SEMANTICS, FILE_NAME_INFORMATION,
-    FILE_STANDARD_INFORMATION, NTCREATEFILE_CREATE_DISPOSITION, NTCREATEFILE_CREATE_OPTIONS,
+    FILE_STANDARD_INFORMATION, FILE_SYNCHRONOUS_IO_NONALERT, NTCREATEFILE_CREATE_DISPOSITION,
+    NTCREATEFILE_CREATE_OPTIONS,
 };
 use windows::Wdk::System::SystemServices::FILE_ATTRIBUTE_TAG_INFORMATION;
-use windows::Win32::Foundation::{NTSTATUS, STATUS_BUFFER_TOO_SMALL};
 use windows::Win32::Foundation::{
-     HANDLE, INVALID_HANDLE_VALUE, STATUS_ACCESS_DENIED,
-    STATUS_BUFFER_OVERFLOW, STATUS_CANNOT_DELETE, STATUS_DIRECTORY_NOT_EMPTY, STATUS_FILE_DELETED,
-    STATUS_INVALID_PARAMETER, STATUS_OBJECT_NAME_COLLISION, STATUS_PENDING, 
+    HANDLE, INVALID_HANDLE_VALUE, STATUS_ACCESS_DENIED, STATUS_BUFFER_OVERFLOW,
+    STATUS_CANNOT_DELETE, STATUS_DIRECTORY_NOT_EMPTY, STATUS_FILE_DELETED,
+    STATUS_INVALID_PARAMETER, STATUS_OBJECT_NAME_COLLISION, STATUS_PENDING,
 };
+use windows::Win32::Foundation::{NTSTATUS, STATUS_BUFFER_TOO_SMALL, STATUS_SUCCESS};
 use windows::Win32::Security::PSECURITY_DESCRIPTOR;
 use windows::Win32::Storage::FileSystem::{
-    FILE_ACCESS_RIGHTS, FILE_ATTRIBUTE_REPARSE_POINT, 
-    FILE_END_OF_FILE_INFO, FILE_READ_ATTRIBUTES, FILE_RENAME_INFO, FILE_SHARE_DELETE,
-    FILE_SHARE_READ, FILE_SHARE_WRITE,
+    FILE_ACCESS_RIGHTS, FILE_ATTRIBUTE_REPARSE_POINT, FILE_END_OF_FILE_INFO, FILE_READ_ATTRIBUTES,
+    FILE_RENAME_INFO, FILE_SHARE_DELETE, FILE_SHARE_READ, FILE_SHARE_WRITE, SYNCHRONIZE,
 };
 use windows::Win32::System::Threading::{CreateEventW, WaitForSingleObject, INFINITE};
 
 use windows::Win32::Foundation::{BOOLEAN, UNICODE_STRING};
 use windows::Win32::Storage::FileSystem::{
-   FILE_ATTRIBUTE_NORMAL, FILE_FLAGS_AND_ATTRIBUTES, INVALID_FILE_ATTRIBUTES,
+    FILE_ATTRIBUTE_NORMAL, FILE_FLAGS_AND_ATTRIBUTES, INVALID_FILE_ATTRIBUTES,
 };
 use windows::Win32::System::WindowsProgramming::{RtlInitUnicodeString, FILE_INFORMATION_CLASS};
 use windows::Win32::System::IO::IO_STATUS_BLOCK;
+use winfsp::constants::FSP_FSCTL_TRANSACT_PATH_SIZEMAX;
 
-use crate::native::nt::{FILE_FS_SIZE_INFORMATION, ToNtStatus};
+use crate::native::nt::{ToNtStatus, FILE_FS_SIZE_INFORMATION};
 use winfsp::filesystem::{FileInfo, OpenFileInfo};
 use winfsp::util::{NtSafeHandle, VariableSizedBox};
 use winfsp::{FspError, U16CStr};
-
 
 fn initialize_object_attributes(
     obj_name: &UNICODE_STRING,
@@ -97,11 +86,7 @@ pub fn lfs_create_file(
         // wrapping add to get rid of slash..
         RtlInitUnicodeString(
             unicode_filename.as_mut_ptr(),
-            if !file_name.is_empty() {
-                PCWSTR(file_name[1..].as_ptr())
-            } else {
-                PCWSTR(file_name.as_ptr())
-            },
+            PCWSTR(file_name.as_ptr().wrapping_add(1)),
         );
         unicode_filename.assume_init()
     };
@@ -147,11 +132,7 @@ pub fn lfs_open_file(
         // wrapping add to get rid of leading slash..
         RtlInitUnicodeString(
             unicode_filename.as_mut_ptr(),
-            if !file_name.is_empty() {
-                PCWSTR(file_name[1..].as_ptr())
-            } else {
-                PCWSTR(file_name.as_ptr())
-            },
+            PCWSTR(file_name.as_ptr().wrapping_add(1)),
         );
         unicode_filename.assume_init()
     };
@@ -165,7 +146,7 @@ pub fn lfs_open_file(
     unsafe {
         NtOpenFile(
             handle.deref_mut(),
-            (FILE_READ_ATTRIBUTES | desired_access).0,
+            (FILE_READ_ATTRIBUTES | desired_access | SYNCHRONIZE).0,
             &mut object_attrs,
             iosb.as_mut_ptr(),
             (FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE).0,
@@ -176,84 +157,100 @@ pub fn lfs_open_file(
     Ok(handle)
 }
 
-pub fn lfs_read_file(handle: HANDLE, buffer: &mut [u8], offset: u64, bytes_transferred: &mut usize) -> winfsp::Result<()> {
+pub fn lfs_read_file(
+    handle: HANDLE,
+    buffer: &mut [u8],
+    offset: u64,
+    bytes_transferred: &mut u32,
+) -> winfsp::Result<()> {
     LFS_EVENT.with(|event| {
-        let mut iosb: MaybeUninit<IO_STATUS_BLOCK> = MaybeUninit::zeroed();
-        let offset = offset as i64;
+        let mut iosb: MaybeUninit<ntapi::ntioapi::IO_STATUS_BLOCK> = MaybeUninit::zeroed();
+        let mut offset = unsafe { std::mem::transmute([offset as i64]) };
 
-        let result = unsafe {
-            NtReadFile(
-                handle,
-                *event,
+        let mut result = unsafe {
+            NTSTATUS(ntapi::ntioapi::NtReadFile(
+                ntapi::winapi::shared::ntdef::HANDLE::from(handle.0 as *mut c_void),
+                ntapi::winapi::shared::ntdef::HANDLE::from(event.0 as *mut c_void),
                 None,
-                None,
+                std::ptr::null_mut(),
                 iosb.as_mut_ptr(),
                 buffer.as_mut_ptr() as *mut _,
                 buffer.len() as u32,
-                Some(&offset),
-                None,
-            )
+                &mut offset,
+                std::ptr::null_mut(),
+            ))
         };
 
-        if result.is_err_and(|e| e.code().to_ntstatus() == STATUS_PENDING) {
+        if result == STATUS_PENDING {
             unsafe {
-                WaitForSingleObject(*event, INFINITE);
+                WaitForSingleObject(event.clone(), INFINITE);
             }
             let iosb = unsafe { iosb.assume_init() };
-            let code = unsafe { iosb.Anonymous.Status };
-            *bytes_transferred = iosb.Information;
+            let code = unsafe { iosb.u.Status };
+            *bytes_transferred = iosb.Information as u32;
 
-            if code.is_err() {
-                return Err(FspError::from(code));
-            }
+            result = NTSTATUS(code);
+        }
+
+        if result != STATUS_SUCCESS {
+            return Err(FspError::NTSTATUS(result));
         }
 
         let iosb = unsafe { iosb.assume_init() };
-        *bytes_transferred = iosb.Information;
+        *bytes_transferred = iosb.Information as u32;
+
         Ok(())
     })
 }
 
-pub fn lfs_write_file(handle: HANDLE, buffer: &[u8], offset: u64, bytes_transferred: &mut usize) -> winfsp::Result<()> {
+pub fn lfs_write_file(
+    handle: HANDLE,
+    buffer: &[u8],
+    offset: u64,
+    bytes_transferred: &mut u32,
+) -> winfsp::Result<()> {
     LFS_EVENT.with(|event| {
-        let mut iosb: MaybeUninit<IO_STATUS_BLOCK> = MaybeUninit::uninit();
-        let offset: i64 = offset as i64;
+        let mut iosb: MaybeUninit<ntapi::ntioapi::IO_STATUS_BLOCK> = MaybeUninit::zeroed();
+        let mut offset = unsafe { std::mem::transmute([offset as i64]) };
 
-        let result = unsafe {
-            NtWriteFile(
-                handle,
-                *event,
+        let mut result = unsafe {
+            NTSTATUS(ntapi::ntioapi::NtWriteFile(
+                ntapi::winapi::shared::ntdef::HANDLE::from(handle.0 as *mut c_void),
+                ntapi::winapi::shared::ntdef::HANDLE::from(event.0 as *mut c_void),
                 None,
-                None,
+                std::ptr::null_mut(),
                 iosb.as_mut_ptr(),
-                buffer.as_ptr() as *const _,
+                buffer.as_ptr() as *mut _,
                 buffer.len() as u32,
-                Some(&offset),
-                None,
-            )
+                &mut offset,
+                std::ptr::null_mut(),
+            ))
         };
 
-        if result.is_err_and(|e| e.code().to_ntstatus() == STATUS_PENDING) {
+        if result == STATUS_PENDING {
             unsafe {
-                WaitForSingleObject(*event, INFINITE);
+                WaitForSingleObject(event.clone(), INFINITE);
             }
             let iosb = unsafe { iosb.assume_init() };
-            let code = unsafe { iosb.Anonymous.Status };
+            let code = unsafe { iosb.u.Status };
+            *bytes_transferred = iosb.Information as u32;
 
-            *bytes_transferred = iosb.Information;
-
-            if code.is_err() {
-                return Err(FspError::from(code));
-            }
+            result = NTSTATUS(code);
         }
 
-        *bytes_transferred = unsafe { iosb.assume_init().Information };
+        if result != STATUS_SUCCESS {
+            return Err(FspError::NTSTATUS(result));
+        }
+
+        let iosb = unsafe { iosb.assume_init() };
+        *bytes_transferred = iosb.Information as u32;
+
         Ok(())
     })
 }
 
 pub fn lfs_get_file_attributes(handle: HANDLE) -> winfsp::Result<u32> {
-    let mut iosb: MaybeUninit<IO_STATUS_BLOCK> = MaybeUninit::uninit();
+    let mut iosb: MaybeUninit<IO_STATUS_BLOCK> = MaybeUninit::zeroed();
     let mut file_attr_info: MaybeUninit<FILE_ATTRIBUTE_TAG_INFORMATION> = MaybeUninit::zeroed();
 
     #[allow(non_upper_case_globals)]
@@ -306,9 +303,10 @@ pub fn lfs_get_ea_size(ea_size: u32) -> u32 {
 }
 
 pub fn lfs_get_file_name(handle: HANDLE) -> winfsp::Result<Box<[u16]>> {
-    let mut iosb: MaybeUninit<IO_STATUS_BLOCK> = MaybeUninit::uninit();
+    let mut iosb: MaybeUninit<IO_STATUS_BLOCK> = MaybeUninit::zeroed();
     let mut name_info: VariableSizedBox<FILE_NAME_INFORMATION> = VariableSizedBox::new(
-        winfsp::constants::FSP_FSCTL_TRANSACT_PATH_SIZEMAX + size_of::<FILE_NAME_INFORMATION>() + 1,
+        winfsp::constants::FSP_FSCTL_TRANSACT_PATH_SIZEMAX
+            + offset_of!(FILE_NAME_INFORMATION, FileName),
     );
 
     #[allow(non_upper_case_globals)]
@@ -378,9 +376,10 @@ pub fn lfs_get_file_info<'a, P: Into<MaybeOpenFileInfo<'a>>>(
 ) -> winfsp::Result<()> {
     let mut maybe_file_info: MaybeOpenFileInfo<'_> = file_info.into();
 
-    let mut iosb: MaybeUninit<IO_STATUS_BLOCK> = MaybeUninit::uninit();
+    let mut iosb: MaybeUninit<IO_STATUS_BLOCK> = MaybeUninit::zeroed();
     let mut file_all_info: VariableSizedBox<FILE_ALL_INFORMATION> = VariableSizedBox::new(
-        winfsp::constants::FSP_FSCTL_TRANSACT_PATH_SIZEMAX + size_of::<FILE_ALL_INFORMATION>() + 1,
+        winfsp::constants::FSP_FSCTL_TRANSACT_PATH_SIZEMAX
+            + offset_of!(FILE_ALL_INFORMATION, NameInformation.FileName),
     );
 
     let mut file_attr_info: FILE_ATTRIBUTE_TAG_INFORMATION = FILE_ATTRIBUTE_TAG_INFORMATION {
@@ -446,6 +445,7 @@ pub fn lfs_get_file_info<'a, P: Into<MaybeOpenFileInfo<'a>>>(
 
     if let (Some(root_prefix_length_bytes), MaybeOpenFileInfo::OpenFileInfo(open_file))
             = (root_prefix_length, maybe_file_info)
+                    // result.err() is either None, or  Some(STATUS_BUFFER_OVERFLOW) due to check above.
                 && result.err().map(|e| e.code().to_ntstatus()) != Some(STATUS_BUFFER_OVERFLOW)
                 && root_prefix_length_bytes != u32::MAX
                 && open_file.normalized_name_size() > (size_of::<u16>() as u32 + file_all_info.NameInformation.FileNameLength) as u16
@@ -467,8 +467,8 @@ pub fn lfs_get_file_info<'a, P: Into<MaybeOpenFileInfo<'a>>>(
 }
 
 pub fn lfs_get_file_size(handle: HANDLE) -> winfsp::Result<u64> {
-    let mut file_std_info: MaybeUninit<FILE_STANDARD_INFORMATION> = MaybeUninit::uninit();
-    let mut iosb: MaybeUninit<IO_STATUS_BLOCK> = MaybeUninit::uninit();
+    let mut file_std_info: MaybeUninit<FILE_STANDARD_INFORMATION> = MaybeUninit::zeroed();
+    let mut iosb: MaybeUninit<IO_STATUS_BLOCK> = MaybeUninit::zeroed();
 
     #[allow(non_upper_case_globals)]
     const FileStandardInformation: FILE_INFORMATION_CLASS = FILE_INFORMATION_CLASS(5);
@@ -487,7 +487,7 @@ pub fn lfs_get_file_size(handle: HANDLE) -> winfsp::Result<u64> {
 }
 
 pub fn lfs_flush(handle: HANDLE) -> winfsp::Result<()> {
-    let mut iosb: MaybeUninit<IO_STATUS_BLOCK> = MaybeUninit::uninit();
+    let mut iosb: MaybeUninit<IO_STATUS_BLOCK> = MaybeUninit::zeroed();
     unsafe {
         NtFlushBuffersFileEx(handle, 0, std::ptr::null(), 0, iosb.as_mut_ptr())?;
     }
@@ -495,7 +495,7 @@ pub fn lfs_flush(handle: HANDLE) -> winfsp::Result<()> {
 }
 
 pub fn lfs_set_delete(handle: HANDLE, delete: bool) -> winfsp::Result<()> {
-    let mut iosb: MaybeUninit<IO_STATUS_BLOCK> = MaybeUninit::uninit();
+    let mut iosb: MaybeUninit<IO_STATUS_BLOCK> = MaybeUninit::zeroed();
     let disp_info_ex = FILE_DISPOSITION_INFORMATION_EX {
         Flags: if delete {
             FILE_DISPOSITION_INFORMATION_EX_FLAGS(
@@ -557,19 +557,19 @@ pub enum LfsRenameSemantics {
     PosixReplaceSemantics,
 }
 
-pub fn lfs_rename<P: AsRef<[u16]>>(
+pub fn lfs_rename(
     root_handle: HANDLE,
     handle: HANDLE,
-    new_file_name: P,
+    new_file_name: &[u16],
     replace_if_exists: LfsRenameSemantics,
 ) -> winfsp::Result<()> {
-    let new_file_name = new_file_name.as_ref();
-    let mut iosb: MaybeUninit<IO_STATUS_BLOCK> = MaybeUninit::uninit();
+    let mut iosb: MaybeUninit<IO_STATUS_BLOCK> = MaybeUninit::zeroed();
     // length in bytes
     let file_path_len = (new_file_name.len()) * size_of::<u16>();
 
-    let mut rename_info: VariableSizedBox<FILE_RENAME_INFO> =
-        VariableSizedBox::new(file_path_len + std::mem::size_of::<FILE_RENAME_INFO>() + 1);
+    let mut rename_info: VariableSizedBox<FILE_RENAME_INFO> = VariableSizedBox::new(
+        FSP_FSCTL_TRANSACT_PATH_SIZEMAX + offset_of!(FILE_RENAME_INFO, FileName),
+    );
 
     if winfsp::constants::FSP_FSCTL_TRANSACT_PATH_SIZEMAX < file_path_len {
         return Err(STATUS_INVALID_PARAMETER.into());
@@ -607,7 +607,7 @@ pub fn lfs_rename<P: AsRef<[u16]>>(
     #[allow(non_upper_case_globals)]
     const FileRenameInformation: FILE_INFORMATION_CLASS = FILE_INFORMATION_CLASS(10);
 
-    let _result = match result.code().to_ntstatus() {
+    match result.code().to_ntstatus() {
         STATUS_ACCESS_DENIED | STATUS_OBJECT_NAME_COLLISION
             if replace_if_exists != LfsRenameSemantics::PosixReplaceSemantics =>
         {
@@ -623,21 +623,19 @@ pub fn lfs_rename<P: AsRef<[u16]>>(
                 },
             );
 
-            NtSetInformationFile(
+            return Ok(NtSetInformationFile(
                 handle,
                 iosb.as_mut_ptr(),
                 rename_info.as_mut_ptr().cast(),
                 rename_info.len() as u32,
                 FileRenameInformation,
-            )?;
+            )?);
         },
     };
-
-    Ok(())
 }
 
 pub fn lfs_set_allocation_size(handle: HANDLE, new_size: u64) -> winfsp::Result<()> {
-    let mut iosb: MaybeUninit<IO_STATUS_BLOCK> = MaybeUninit::uninit();
+    let mut iosb: MaybeUninit<IO_STATUS_BLOCK> = MaybeUninit::zeroed();
 
     let info = FILE_ALLOCATION_INFORMATION {
         AllocationSize: new_size as i64,
@@ -660,7 +658,7 @@ pub fn lfs_set_allocation_size(handle: HANDLE, new_size: u64) -> winfsp::Result<
 }
 
 pub fn lfs_set_eof(handle: HANDLE, new_size: u64) -> winfsp::Result<()> {
-    let mut iosb: MaybeUninit<IO_STATUS_BLOCK> = MaybeUninit::uninit();
+    let mut iosb: MaybeUninit<IO_STATUS_BLOCK> = MaybeUninit::zeroed();
 
     let info = FILE_END_OF_FILE_INFO {
         EndOfFile: new_size as i64,
@@ -690,7 +688,7 @@ pub fn lfs_set_basic_info(
     last_write_time: i64,
     change_time: i64,
 ) -> winfsp::Result<()> {
-    let mut iosb: MaybeUninit<IO_STATUS_BLOCK> = MaybeUninit::uninit();
+    let mut iosb: MaybeUninit<IO_STATUS_BLOCK> = MaybeUninit::zeroed();
     #[allow(non_upper_case_globals)]
     const FileBasicInformation: FILE_INFORMATION_CLASS = FILE_INFORMATION_CLASS(4);
 
@@ -732,9 +730,9 @@ pub fn lfs_query_directory_file(
     restart_scan: bool,
 ) -> winfsp::Result<usize> {
     LFS_EVENT.with(|event| {
-        let mut iosb: MaybeUninit<IO_STATUS_BLOCK> = MaybeUninit::uninit();
+        let mut iosb: MaybeUninit<IO_STATUS_BLOCK> = MaybeUninit::zeroed();
         let unicode_filename = file_name.map(|f| unsafe {
-            let mut unicode_filename: MaybeUninit<UNICODE_STRING> = MaybeUninit::uninit();
+            let mut unicode_filename: MaybeUninit<UNICODE_STRING> = MaybeUninit::zeroed();
             RtlInitUnicodeString(unicode_filename.as_mut_ptr(), f);
             unicode_filename.assume_init()
         });
@@ -791,7 +789,7 @@ pub fn lfs_fs_control_file(
     output: Option<&mut [u8]>,
 ) -> winfsp::Result<usize> {
     LFS_EVENT.with(|event| {
-        let mut iosb: MaybeUninit<IO_STATUS_BLOCK> = MaybeUninit::uninit();
+        let mut iosb: MaybeUninit<IO_STATUS_BLOCK> = MaybeUninit::zeroed();
         let input_len = input.as_ref().map_or(0, |f| f.len()) as u32;
         let output_len = output.as_ref().map_or(0, |f| f.len() as u32);
 
@@ -821,11 +819,12 @@ pub fn lfs_fs_control_file(
                     return Err(FspError::from(code));
                 }
                 Ok(unsafe { iosb.Information })
-            },
-            Err(e) if e.code().to_ntstatus() == STATUS_BUFFER_OVERFLOW
-                => Err(FspError::NTSTATUS(STATUS_BUFFER_TOO_SMALL)),
+            }
+            Err(e) if e.code().to_ntstatus() == STATUS_BUFFER_OVERFLOW => {
+                Err(FspError::NTSTATUS(STATUS_BUFFER_TOO_SMALL))
+            }
             Err(e) => Err(FspError::from(e)),
-            Ok(_) => Ok(unsafe { iosb.assume_init().Information })
+            Ok(_) => Ok(unsafe { iosb.assume_init().Information }),
         }
     })
 }
@@ -837,8 +836,8 @@ pub struct LfsVolumeInfo {
 }
 
 pub fn lfs_get_volume_info(root_handle: HANDLE) -> winfsp::Result<LfsVolumeInfo> {
-    let mut iosb: MaybeUninit<IO_STATUS_BLOCK> = MaybeUninit::uninit();
-    let mut fsize_info: MaybeUninit<FILE_FS_SIZE_INFORMATION> = MaybeUninit::uninit();
+    let mut iosb: MaybeUninit<IO_STATUS_BLOCK> = MaybeUninit::zeroed();
+    let mut fsize_info: MaybeUninit<FILE_FS_SIZE_INFORMATION> = MaybeUninit::zeroed();
 
     let fsize_info = unsafe {
         NtQueryVolumeInformationFile(
@@ -862,8 +861,8 @@ pub fn lfs_get_volume_info(root_handle: HANDLE) -> winfsp::Result<LfsVolumeInfo>
     })
 }
 
-pub fn lfs_get_ea(handle: HANDLE, buffer: &mut [u8]) -> u64 {
-    let mut iosb: MaybeUninit<IO_STATUS_BLOCK> = MaybeUninit::uninit();
+pub fn lfs_get_ea(handle: HANDLE, buffer: &mut [u8]) -> usize {
+    let mut iosb: MaybeUninit<IO_STATUS_BLOCK> = MaybeUninit::zeroed();
 
     if let Err(e) = unsafe {
         ZwQueryEaFile(
@@ -882,7 +881,7 @@ pub fn lfs_get_ea(handle: HANDLE, buffer: &mut [u8]) -> u64 {
     }
 
     let iosb = unsafe { iosb.assume_init() };
-    iosb.Information as u64
+    iosb.Information
 }
 
 pub fn lfs_set_ea(handle: HANDLE, buffer: &[u8]) -> winfsp::Result<()> {

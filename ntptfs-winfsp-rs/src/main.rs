@@ -2,7 +2,6 @@
 #![feature(let_chains)]
 #![feature(strict_provenance)]
 #![feature(offset_of)]
-
 #![deny(unsafe_op_in_unsafe_fn)]
 
 pub mod fs;

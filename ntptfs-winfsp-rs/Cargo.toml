@@ -18,6 +18,6 @@ winfsp = { path = "../winfsp", features = ["debug", "system"] }
 anyhow = "1"
 parking_lot = "0.12"
 
+ntapi = "0.4.1"
 [build-dependencies]
 winfsp = { path = "../winfsp", features = ["delayload"] }
-

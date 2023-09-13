@@ -2,10 +2,11 @@
 use crate::error::FspError;
 use std::marker::PhantomData;
 
+use crate::constants::MAX_PATH;
+use parking_lot::{RwLock, RwLockWriteGuard};
+use std::mem::ManuallyDrop;
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
-use parking_lot::{RwLock, RwLockWriteGuard};
-use crate::constants::MAX_PATH;
 use windows::core::PCWSTR;
 use windows::Wdk::Foundation::NtClose;
 use windows::Win32::Foundation::{CloseHandle, HANDLE, INVALID_HANDLE_VALUE};
@@ -43,10 +44,9 @@ where
 /// and invalidating the underlying handle.
 #[repr(transparent)]
 #[derive(Debug)]
-pub struct RefCountedHandle<T>(Arc<RwLock<HANDLE>>, PhantomData<T>)
+pub struct RefCountedHandle<T>(Arc<RwLock<ManuallyDrop<SafeDropHandle<T>>>>)
 where
     T: HandleCloseHandler;
-
 
 /// Trait that defines a method to close a Windows HANDLE.
 pub trait HandleCloseHandler {
@@ -96,7 +96,7 @@ where
 
     /// Leak the handle.
     pub fn escape(self) -> RefCountedHandle<T> {
-        RefCountedHandle(Arc::new(RwLock::new(self.0)), PhantomData::default())
+        RefCountedHandle(Arc::new(RwLock::new(ManuallyDrop::new(self))))
     }
 }
 
@@ -106,18 +106,13 @@ where
 {
     /// Invalidate the handle without dropping it.
     pub fn invalidate(&self) {
-        if !self.0.read().is_invalid() {
-            let to_close = self.0.write();
-            println!("trying to close{:x?}\n", to_close);
-            T::close(*to_close)
-        }
+        self.0.write().invalidate();
     }
 
     pub fn handle(&self) -> HANDLE {
         self.0.read().clone()
     }
 }
-
 
 impl<T> Drop for SafeDropHandle<T>
 where
@@ -140,7 +135,6 @@ where
         &self.0
     }
 }
-
 
 impl<T> DerefMut for SafeDropHandle<T>
 where

@@ -244,12 +244,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "ntapi"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e8a3895c6391c39d7fe7ebc444a87eb2991b2a0bc718fdabd071eec617fc68e4"
+dependencies = [
+ "winapi",
+]
+
+[[package]]
 name = "ntptfs-winfsp-rs"
 version = "0.1.0-alpha"
 dependencies = [
  "anyhow",
  "bytemuck",
  "clap",
+ "ntapi",
  "parking_lot",
  "widestring",
  "windows",
