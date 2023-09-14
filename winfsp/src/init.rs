@@ -49,6 +49,8 @@ fn get_system_winfsp() -> Option<windows::core::HSTRING> {
         directory.push("winfsp-x64.dll");
     } else if cfg!(target_arch = "i686") {
         directory.push("winfsp-x86.dll");
+    } else if cfg!(target_arch = "aarch64") {
+        directory.push("winfsp-a64.dll");
     } else {
         panic!("unsupported arch")
     }
@@ -61,6 +63,8 @@ fn get_local_winfsp() -> PCWSTR {
         w!("winfsp-x64.dll")
     } else if cfg!(target_arch = "i686") {
         w!("winfsp-x86.dll")
+    } else if cfg!(target_arch = "aarch64") {
+        w!("winfsp-a64.dll");
     } else {
         panic!("unsupported arch")
     }
