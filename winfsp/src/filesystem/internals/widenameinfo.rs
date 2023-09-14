@@ -59,7 +59,7 @@ pub trait WideNameInfo<const BUFFER_SIZE: usize = 255>:
         }
         self.name_buffer()[0..std::cmp::min(file_name.len(), BUFFER_SIZE)]
             .copy_from_slice(&file_name[0..std::cmp::min(file_name.len(), BUFFER_SIZE)]);
-        self.set_size((std::mem::size_of::<u16>() * file_name.len()) as u16);
+        self.set_size(std::mem::size_of_val(file_name) as u16);
         Ok(())
     }
 
