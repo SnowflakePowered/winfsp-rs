@@ -10,8 +10,8 @@ use std::os::windows::fs::MetadataExt;
 use std::path::Path;
 use widestring::{u16cstr, U16CStr, U16CString, U16String};
 
-use windows::core::{HSTRING, PCWSTR};
-use windows::w;
+use windows::core::{HSTRING, PCWSTR, w};
+use windows::Wdk::Storage::FileSystem::{FILE_DELETE_ON_CLOSE, FILE_DIRECTORY_FILE};
 use windows::Win32::Foundation::{
     GetLastError, BOOLEAN, HANDLE, MAX_PATH, STATUS_INVALID_PARAMETER, STATUS_OBJECT_NAME_INVALID,
 };
@@ -20,25 +20,13 @@ use windows::Win32::Security::{
     GROUP_SECURITY_INFORMATION, OWNER_SECURITY_INFORMATION, PSECURITY_DESCRIPTOR,
     SECURITY_ATTRIBUTES,
 };
-use windows::Win32::Storage::FileSystem::{
-    CreateFileW, FileAllocationInfo, FileAttributeTagInfo, FileBasicInfo, FileDispositionInfo,
-    FileEndOfFileInfo, FindClose, FindFirstFileW, FindNextFileW, FlushFileBuffers,
-    GetDiskFreeSpaceExW, GetFileInformationByHandle, GetFileInformationByHandleEx, GetFileSizeEx,
-    GetFinalPathNameByHandleW, GetVolumePathNameW, MoveFileExW, ReadFile,
-    SetFileInformationByHandle, WriteFile, BY_HANDLE_FILE_INFORMATION, CREATE_NEW,
-    FILE_ACCESS_RIGHTS, FILE_ALLOCATION_INFO, FILE_ATTRIBUTE_DIRECTORY, FILE_ATTRIBUTE_NORMAL,
-    FILE_ATTRIBUTE_TAG_INFO, FILE_BASIC_INFO, FILE_DISPOSITION_INFO, FILE_END_OF_FILE_INFO,
-    FILE_FLAGS_AND_ATTRIBUTES, FILE_FLAG_BACKUP_SEMANTICS, FILE_FLAG_DELETE_ON_CLOSE,
-    FILE_FLAG_POSIX_SEMANTICS, FILE_NAME, FILE_READ_ATTRIBUTES, FILE_SHARE_DELETE, FILE_SHARE_MODE,
-    FILE_SHARE_READ, FILE_SHARE_WRITE, INVALID_FILE_ATTRIBUTES, MOVEFILE_REPLACE_EXISTING,
-    MOVE_FILE_FLAGS, OPEN_EXISTING, READ_CONTROL, WIN32_FIND_DATAW,
-};
-use windows::Win32::System::WindowsProgramming::{FILE_DELETE_ON_CLOSE, FILE_DIRECTORY_FILE};
+use windows::Win32::Storage::FileSystem::{CreateFileW, FileAllocationInfo, FileAttributeTagInfo, FileBasicInfo, FileDispositionInfo, FileEndOfFileInfo, FindClose, FindFirstFileW, FindNextFileW, FlushFileBuffers, GetDiskFreeSpaceExW, GetFileInformationByHandle, GetFileInformationByHandleEx, GetFileSizeEx, GetFinalPathNameByHandleW, GetVolumePathNameW, MoveFileExW, ReadFile, SetFileInformationByHandle, WriteFile, BY_HANDLE_FILE_INFORMATION, CREATE_NEW, FILE_ACCESS_RIGHTS, FILE_ALLOCATION_INFO, FILE_ATTRIBUTE_DIRECTORY, FILE_ATTRIBUTE_NORMAL, FILE_ATTRIBUTE_TAG_INFO, FILE_BASIC_INFO, FILE_DISPOSITION_INFO, FILE_END_OF_FILE_INFO, FILE_FLAGS_AND_ATTRIBUTES, FILE_FLAG_BACKUP_SEMANTICS, FILE_FLAG_DELETE_ON_CLOSE, FILE_FLAG_POSIX_SEMANTICS, FILE_READ_ATTRIBUTES, FILE_SHARE_DELETE, FILE_SHARE_MODE, FILE_SHARE_READ, FILE_SHARE_WRITE, INVALID_FILE_ATTRIBUTES, MOVEFILE_REPLACE_EXISTING, MOVE_FILE_FLAGS, OPEN_EXISTING, READ_CONTROL, WIN32_FIND_DATAW, FILE_NAME_NORMALIZED};
 use windows::Win32::System::IO::{OVERLAPPED, OVERLAPPED_0, OVERLAPPED_0_0};
+use windows_sys::Win32::Storage::FileSystem::FILE_NAME;
 
 use winfsp::constants::FspCleanupFlags;
 use winfsp::filesystem::{
-    DirBuffer, DirInfo, DirMarker, FileInfo, FileSecurity, FileSystemContext, IoResult,
+    DirBuffer, DirInfo, DirMarker, FileInfo, FileSecurity, FileSystemContext,
     OpenFileInfo, VolumeInfo, WideNameInfo,
 };
 use winfsp::host::{FileContextMode, FileSystemHost, VolumeParams};
@@ -82,9 +70,7 @@ const fn quadpart(hi: u32, lo: u32) -> u64 {
 
 macro_rules! win32_try {
     (unsafe $e:expr) => {
-        if unsafe { !($e).as_bool() } {
-            return Err(::winfsp::FspError::from(unsafe { GetLastError() }));
-        }
+        $e?
     };
 }
 
@@ -422,7 +408,7 @@ impl FileSystemContext for PtfsContext {
         context: &Self::FileContext,
         buffer: &mut [u8],
         offset: u64,
-    ) -> Result<IoResult> {
+    ) -> Result<usize> {
         let mut overlapped = OVERLAPPED {
             Anonymous: OVERLAPPED_0 {
                 Anonymous: OVERLAPPED_0_0 {
@@ -442,10 +428,7 @@ impl FileSystemContext for PtfsContext {
             Some(&mut overlapped),
         ));
 
-        Ok(IoResult {
-            bytes_transferred: bytes_read,
-            io_pending: false,
-        })
+        Ok(bytes_read)
     }
 
     fn read_directory(
@@ -465,7 +448,7 @@ impl FileSystemContext for PtfsContext {
                 GetFinalPathNameByHandleW(
                     context.handle(),
                     &mut full_path[0..FULLPATH_SIZE - 1],
-                    FILE_NAME::default(),
+                    FILE_NAME_NORMALIZED,
                 )
             };
 
@@ -514,19 +497,19 @@ impl FileSystemContext for PtfsContext {
 
                     if let Err(e) = lock.write(&mut dirinfo) {
                         unsafe {
-                            FindClose(find_handle);
+                            FindClose(find_handle)?;
                         }
                         drop(lock);
                         return Err(e);
                     }
-                    if unsafe {
-                        !FindNextFileW(find_handle, &mut find_data).as_bool()
-                    } {
+                    if let Err(e) =
+                        unsafe { FindNextFileW(find_handle, &mut find_data) }
+                     {
                         break;
                     }
                 }
                 unsafe {
-                    FindClose(find_handle);
+                    FindClose(find_handle)?;
                 }
                 drop(lock);
             }
@@ -664,16 +647,13 @@ impl FileSystemContext for PtfsContext {
         _write_to_eof: bool,
         constrained_io: bool,
         file_info: &mut FileInfo,
-    ) -> Result<IoResult> {
+    ) -> Result<u32> {
         if constrained_io {
             let mut fsize = 0;
             win32_try!(unsafe GetFileSizeEx(context.handle(), &mut fsize));
 
             if offset >= fsize as u64 {
-                return Ok(IoResult {
-                    bytes_transferred: 0,
-                    io_pending: false,
-                });
+                return Ok(0);
             }
 
             if offset + buffer.len() as u64 > fsize as u64 {
@@ -700,10 +680,7 @@ impl FileSystemContext for PtfsContext {
         ));
 
         self.get_file_info_internal(context.handle(), file_info)?;
-        Ok(IoResult {
-            bytes_transferred,
-            io_pending: false,
-        })
+        Ok(bytes_transferred)
     }
 
     fn get_volume_info(&self, out_volume_info: &mut VolumeInfo) -> Result<()> {
