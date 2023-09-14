@@ -16,7 +16,6 @@ bytemuck = "1.12.1"
 widestring = "1"
 winfsp = { path = "../../winfsp", features = ["debug", "system"] }
 anyhow = "1"
-parking_lot = "0.12"
 
 ntapi = "0.4.1"
 [build-dependencies]
