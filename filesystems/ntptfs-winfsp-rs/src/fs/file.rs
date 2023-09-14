@@ -2,6 +2,7 @@ use windows::Win32::Foundation::HANDLE;
 use winfsp::filesystem::DirBuffer;
 use winfsp::util::{AtomicHandle, NtHandleDrop, NtSafeHandle};
 
+/// A file context in the passthrough file system.
 #[derive(Debug)]
 pub struct NtPassthroughFile {
     handle: AtomicHandle<NtHandleDrop>,
@@ -11,6 +12,7 @@ pub struct NtPassthroughFile {
 }
 
 impl NtPassthroughFile {
+    /// Create a new entry from an NT handle.
     pub fn new(handle: NtSafeHandle, file_size_hint: u64, is_directory: bool) -> Self {
         Self {
             handle: handle.into(),
@@ -20,22 +22,27 @@ impl NtPassthroughFile {
         }
     }
 
+    /// Get a HANDLE to this file entry.
     pub fn handle(&self) -> HANDLE {
         self.handle.handle()
     }
 
+    /// Invalidate the underlying handle for this file entry.
     pub fn invalidate(&self) {
         self.handle.invalidate()
     }
 
+    /// Whether or not this entry is a directory.
     pub fn is_directory(&self) -> bool {
         self.is_directory
     }
 
-    pub fn dir_size(&self) -> u32 {
+    /// The size of the file in bytes.
+    pub fn size(&self) -> u32 {
         self.file_size_hint as u32
     }
 
+    /// Get a reference to the directory buffer for this entry.
     pub fn dir_buffer(&self) -> &DirBuffer {
         &self.dir_buffer
     }
