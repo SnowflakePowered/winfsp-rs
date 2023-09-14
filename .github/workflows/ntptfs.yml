@@ -10,11 +10,24 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build:
+  test:
     runs-on: windows-latest
     steps:
     - uses: actions/checkout@v3
+    - name: Install nightly Rust
+      uses: actions-rs/toolchain@v1.0.6
+      with:
+        toolchain: nightly
+        override: true
     - name: Install WinFSP
       run: choco install winfsp
-    - name: Build winfsp-rs
-      run: cargo build --verbose
+    - name: Build ntptfs
+      run: cargo build -p ntptfs-winfsp-rs --verbose
+    - name: Start ntptfs in background
+      run: |
+        mkdir D:\a\test
+        start /b "" cargo run --bin ntptfs-winfsp-rs -- -p D:\a\test -m R:
+    - name: Run winfsp-test
+      run: |
+        R:
+        ${{ github.workspace }}\test\winfsp-test\winfsp-tests-x64 --external --resilient +* --case-insensitive-cmp -delete_access_test -getfileattr_test -exec_rename_dir_test -rename_flipflop_test -stream_rename_flipflop_test -stream_getstreaminfo_test -ea*
