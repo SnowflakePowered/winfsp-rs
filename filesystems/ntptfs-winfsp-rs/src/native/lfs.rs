@@ -1,32 +1,31 @@
-use ntapi::winapi::shared::ntdef::LARGE_INTEGER;
 use std::ffi::c_void;
 use std::mem::{offset_of, size_of, MaybeUninit};
 use std::ops::DerefMut;
 use std::ptr::{addr_of, addr_of_mut};
 use std::slice;
 
-use windows::core::{HRESULT, PCWSTR};
+use windows::core::PCWSTR;
 use windows::Wdk::Foundation::OBJECT_ATTRIBUTES;
 use windows::Wdk::Storage::FileSystem::{
-    FILE_DISPOSITION_DELETE, FILE_DISPOSITION_DO_NOT_DELETE,
+    FileFsSizeInformation, FILE_ALLOCATION_INFORMATION, FILE_ALL_INFORMATION,
+    FILE_BASIC_INFORMATION, FILE_DISPOSITION_DELETE, FILE_DISPOSITION_DO_NOT_DELETE,
     FILE_DISPOSITION_FORCE_IMAGE_SECTION_CHECK, FILE_DISPOSITION_IGNORE_READONLY_ATTRIBUTE,
-    FileFsSizeInformation, FILE_DISPOSITION_POSIX_SEMANTICS, FILE_ALLOCATION_INFORMATION, FILE_ALL_INFORMATION,
-    FILE_BASIC_INFORMATION,
     FILE_DISPOSITION_INFORMATION, FILE_DISPOSITION_INFORMATION_EX,
-    FILE_DISPOSITION_INFORMATION_EX_FLAGS, FILE_NAME_INFORMATION,
-    FILE_STANDARD_INFORMATION, NTCREATEFILE_CREATE_DISPOSITION,
-    NTCREATEFILE_CREATE_OPTIONS,
+    FILE_DISPOSITION_INFORMATION_EX_FLAGS, FILE_DISPOSITION_POSIX_SEMANTICS, FILE_NAME_INFORMATION,
+    FILE_STANDARD_INFORMATION, NTCREATEFILE_CREATE_DISPOSITION, NTCREATEFILE_CREATE_OPTIONS,
 };
-
 
 use windows::Wdk::Storage::FileSystem::{
-    NtCreateFile, NtFlushBuffersFileEx, NtFsControlFile, NtOpenFile,
-    NtQueryDirectoryFile, NtQueryInformationFile, NtQuerySecurityObject,
-    NtQueryVolumeInformationFile, NtReadFile, NtSetInformationFile, NtSetSecurityObject,
-    NtWriteFile, ZwQueryEaFile, ZwSetEaFile,
+    NtCreateFile, NtFlushBuffersFileEx, NtOpenFile, NtQueryInformationFile, NtQuerySecurityObject,
+    NtQueryVolumeInformationFile, NtSetInformationFile, NtSetSecurityObject, ZwQueryEaFile,
+    ZwSetEaFile,
 };
 use windows::Wdk::System::SystemServices::FILE_ATTRIBUTE_TAG_INFORMATION;
-use windows::Win32::Foundation::{GetLastError, HANDLE, INVALID_HANDLE_VALUE, STATUS_ACCESS_DENIED, STATUS_BUFFER_OVERFLOW, STATUS_CANNOT_DELETE, STATUS_DIRECTORY_NOT_EMPTY, STATUS_FILE_DELETED, STATUS_INVALID_PARAMETER, STATUS_OBJECT_NAME_COLLISION, STATUS_PENDING};
+use windows::Win32::Foundation::{
+    GetLastError, HANDLE, INVALID_HANDLE_VALUE, STATUS_ACCESS_DENIED, STATUS_BUFFER_OVERFLOW,
+    STATUS_CANNOT_DELETE, STATUS_DIRECTORY_NOT_EMPTY, STATUS_FILE_DELETED,
+    STATUS_INVALID_PARAMETER, STATUS_OBJECT_NAME_COLLISION, STATUS_PENDING,
+};
 use windows::Win32::Foundation::{NTSTATUS, STATUS_BUFFER_TOO_SMALL, STATUS_SUCCESS};
 use windows::Win32::Security::PSECURITY_DESCRIPTOR;
 use windows::Win32::Storage::FileSystem::{
@@ -35,13 +34,13 @@ use windows::Win32::Storage::FileSystem::{
 };
 use windows::Win32::System::Threading::{CreateEventW, WaitForSingleObject, INFINITE};
 
+use windows::Win32::Foundation::WAIT_FAILED;
 use windows::Win32::Foundation::{BOOLEAN, UNICODE_STRING};
 use windows::Win32::Storage::FileSystem::{
     FILE_ATTRIBUTE_NORMAL, FILE_FLAGS_AND_ATTRIBUTES, INVALID_FILE_ATTRIBUTES,
 };
 use windows::Win32::System::WindowsProgramming::{RtlInitUnicodeString, FILE_INFORMATION_CLASS};
 use windows::Win32::System::IO::IO_STATUS_BLOCK;
-use windows::Win32::Foundation::WAIT_FAILED;
 use winfsp::constants::FSP_FSCTL_TRANSACT_PATH_SIZEMAX;
 
 use crate::native::nt::{ToNtStatus, FILE_FS_SIZE_INFORMATION};
@@ -72,7 +71,6 @@ fn new_thread_event() -> windows::core::Result<HANDLE> {
 thread_local! {
     static LFS_EVENT: HANDLE = new_thread_event().unwrap();
 }
-
 
 pub fn lfs_create_file(
     root_handle: HANDLE,
@@ -162,11 +160,13 @@ pub fn lfs_open_file(
     Ok(handle)
 }
 
-fn nt_check_pending(status: NTSTATUS, event: &HANDLE, iosb: &MaybeUninit<IO_STATUS_BLOCK>) -> winfsp::Result<NTSTATUS> {
+fn nt_check_pending(
+    status: NTSTATUS,
+    event: &HANDLE,
+    iosb: &MaybeUninit<IO_STATUS_BLOCK>,
+) -> winfsp::Result<NTSTATUS> {
     if status == STATUS_PENDING {
-        let wait_result = unsafe {
-            WaitForSingleObject(*event, INFINITE)
-        };
+        let wait_result = unsafe { WaitForSingleObject(*event, INFINITE) };
         if wait_result == WAIT_FAILED {
             unsafe { GetLastError()? };
         }
@@ -175,7 +175,6 @@ fn nt_check_pending(status: NTSTATUS, event: &HANDLE, iosb: &MaybeUninit<IO_STAT
     } else {
         Ok(status)
     }
-
 }
 
 pub fn lfs_read_file(
@@ -188,7 +187,7 @@ pub fn lfs_read_file(
         let mut iosb: MaybeUninit<IO_STATUS_BLOCK> = MaybeUninit::zeroed();
         let mut offset = offset as i64;
 
-        let mut result = unsafe {
+        let result = unsafe {
             NTSTATUS(windows_sys::Wdk::Storage::FileSystem::NtReadFile(
                 handle.0,
                 event.0,
@@ -225,7 +224,7 @@ pub fn lfs_write_file(
         let mut iosb: MaybeUninit<IO_STATUS_BLOCK> = MaybeUninit::zeroed();
         let mut offset = offset as i64;
 
-        let mut result = unsafe {
+        let result = unsafe {
             NTSTATUS(windows_sys::Wdk::Storage::FileSystem::NtWriteFile(
                 handle.0,
                 event.0,
@@ -606,17 +605,18 @@ pub fn lfs_rename(
     };
 
     if result == STATUS_SUCCESS {
-        return Ok(())
+        return Ok(());
     }
 
     #[allow(non_upper_case_globals)]
     const FileRenameInformation: FILE_INFORMATION_CLASS = FILE_INFORMATION_CLASS(10);
 
     return match result {
-        STATUS_ACCESS_DENIED | STATUS_OBJECT_NAME_COLLISION if replace_if_exists == LfsRenameSemantics::NtReplaceSemantics =>
-            {
-                Err(FspError::NTSTATUS(STATUS_ACCESS_DENIED))
-            }
+        STATUS_ACCESS_DENIED | STATUS_OBJECT_NAME_COLLISION
+            if replace_if_exists == LfsRenameSemantics::NtReplaceSemantics =>
+        {
+            Err(FspError::NTSTATUS(STATUS_ACCESS_DENIED))
+        }
         _ => unsafe {
             addr_of_mut!((*rename_info.as_mut_ptr()).Anonymous.Flags).write(0);
             addr_of_mut!((*rename_info.as_mut_ptr()).Anonymous.ReplaceIfExists).write(
@@ -754,7 +754,8 @@ pub fn lfs_query_directory_file(
                 buffer.len() as u32,
                 class.0,
                 BOOLEAN::from(return_single_entry).0,
-                unicode_filename.map_or(std::ptr::null(), |p| p as *const UNICODE_STRING as *const _),
+                unicode_filename
+                    .map_or(std::ptr::null(), |p| p as *const UNICODE_STRING as *const _),
                 BOOLEAN::from(restart_scan).0,
             ))
         };
@@ -809,10 +810,10 @@ pub fn lfs_fs_control_file(
 
         let result = nt_check_pending(result, &event, &iosb)?;
         if result == STATUS_BUFFER_OVERFLOW {
-            return Err(FspError::NTSTATUS(STATUS_BUFFER_TOO_SMALL))
+            return Err(FspError::NTSTATUS(STATUS_BUFFER_TOO_SMALL));
         }
         if result != STATUS_SUCCESS {
-            return Err(FspError::NTSTATUS(result))
+            return Err(FspError::NTSTATUS(result));
         }
 
         Ok(unsafe { iosb.assume_init().Information })
@@ -907,4 +908,3 @@ pub fn lfs_get_stream_info(handle: HANDLE, buffer: &mut [u8]) -> winfsp::Result<
     }
     Ok(unsafe { iosb.assume_init().Information })
 }
-
