@@ -1,6 +1,7 @@
 use crate::error::Result;
 use crate::filesystem::{DirInfo, DirMarker, FileInfo, OpenFileInfo, VolumeInfo};
 use crate::U16CStr;
+use std::ffi::c_void;
 
 use windows::Win32::Foundation::STATUS_INVALID_DEVICE_REQUEST;
 
@@ -8,6 +9,18 @@ use winfsp_sys::{
     FILE_ACCESS_RIGHTS, FILE_FLAGS_AND_ATTRIBUTES, FSP_FSCTL_TRANSACT_REQ, FSP_FSCTL_TRANSACT_RSP,
     PSECURITY_DESCRIPTOR,
 };
+
+/// A security descriptor pointer used to update an existing security descriptor.
+/// The internal layout of this struct should not be relied on.
+#[repr(transparent)]
+pub struct ModificationDescriptor(pub(crate) PSECURITY_DESCRIPTOR);
+
+impl ModificationDescriptor {
+    /// Returns a `PSECURITY_DESCRIPTOR` pointer to the descriptor.
+    pub fn as_mut_ptr(&self) -> PSECURITY_DESCRIPTOR {
+        self.0
+    }
+}
 
 #[derive(Debug)]
 /// The return value of a request to [`FileSystemContext::get_security_by_name`](crate::filesystem::FileSystemContext::get_security_by_name).
@@ -60,8 +73,7 @@ pub trait FileSystemContext: Sized {
     fn get_security_by_name(
         &self,
         file_name: &U16CStr,
-        security_descriptor: PSECURITY_DESCRIPTOR,
-        descriptor_len: Option<u64>,
+        security_descriptor: Option<&mut [c_void]>,
         reparse_point_resolver: impl FnOnce(&U16CStr) -> Option<FileSecurity>,
     ) -> Result<FileSecurity>;
 
@@ -85,7 +97,7 @@ pub trait FileSystemContext: Sized {
         create_options: u32,
         granted_access: FILE_ACCESS_RIGHTS,
         file_attributes: FILE_FLAGS_AND_ATTRIBUTES,
-        security_descriptor: PSECURITY_DESCRIPTOR,
+        security_descriptor: Option<&[c_void]>,
         allocation_size: u64,
         extra_buffer: Option<&[u8]>,
         extra_buffer_is_reparse_point: bool,
@@ -113,8 +125,7 @@ pub trait FileSystemContext: Sized {
     fn get_security(
         &self,
         context: &Self::FileContext,
-        security_descriptor: PSECURITY_DESCRIPTOR,
-        descriptor_len: Option<u64>,
+        security_descriptor: Option<&mut [c_void]>,
     ) -> Result<u64> {
         Err(STATUS_INVALID_DEVICE_REQUEST.into())
     }
@@ -124,7 +135,7 @@ pub trait FileSystemContext: Sized {
         &self,
         context: &Self::FileContext,
         security_information: u32,
-        modification_descriptor: PSECURITY_DESCRIPTOR,
+        modification_descriptor: ModificationDescriptor,
     ) -> Result<()> {
         Err(STATUS_INVALID_DEVICE_REQUEST.into())
     }
