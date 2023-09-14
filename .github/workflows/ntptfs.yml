@@ -32,4 +32,4 @@ jobs:
         echo "Waiting 45 seconds for ntptfs to start"
         waitfor /T 45 pause 2>NUL
         R:
-        ${{ github.workspace }}\test\winfsp-test\winfsp-tests-x64 --external --resilient +* --case-insensitive-cmp -delete_access_test -getfileattr_test -exec_rename_dir_test -rename_flipflop_test -stream_rename_flipflop_test -stream_getstreaminfo_test -ea*
+        ${{ github.workspace }}\test\winfsp-test\winfsp-tests-x64 --external --resilient +* --case-insensitive-cmp -delete_access_test -getfileattr_test -exec_rename_dir_test -rename_flipflop_test -stream_rename_flipflop_test -stream_getstreaminfo_test -create_backup_test -create_restore_test -reparse* -ea*
