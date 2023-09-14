@@ -49,6 +49,7 @@ use winfsp::FspError;
 use winfsp::U16CStr;
 #[repr(C)]
 #[derive(Debug)]
+/// The filesystem context for the NT passthrough filesystem.
 pub struct NtPassthroughContext {
     root_handle: Win32SafeHandle,
     root_prefix_len: u32,
@@ -528,18 +529,6 @@ impl FileSystemContext for NtPassthroughContext {
         lfs::lfs_get_file_info(context.handle(), None, file_info)
     }
 
-    fn read(
-        &self,
-        context: &Self::FileContext,
-        buffer: &mut [u8],
-        offset: u64,
-    ) -> winfsp::Result<u32> {
-        let mut bytes_transferred = 0;
-        let handle = context.handle();
-        lfs::lfs_read_file(handle, buffer, offset, &mut bytes_transferred)?;
-        Ok(bytes_transferred)
-    }
-
     fn read_directory(
         &self,
         context: &Self::FileContext,
@@ -547,7 +536,7 @@ impl FileSystemContext for NtPassthroughContext {
         marker: DirMarker,
         buffer: &mut [u8],
     ) -> winfsp::Result<u32> {
-        let dir_size = context.dir_size();
+        let dir_size = context.size();
         let handle = context.handle();
         let pattern = pattern.map(|p| PCWSTR(p.as_ptr()));
         let mut dirinfo: DirInfo = DirInfo::new();
@@ -689,6 +678,18 @@ impl FileSystemContext for NtPassthroughContext {
         }
 
         lfs::lfs_get_file_info(context.handle(), None, file_info)
+    }
+
+    fn read(
+        &self,
+        context: &Self::FileContext,
+        buffer: &mut [u8],
+        offset: u64,
+    ) -> winfsp::Result<u32> {
+        let mut bytes_transferred = 0;
+        let handle = context.handle();
+        lfs::lfs_read_file(handle, buffer, offset, &mut bytes_transferred)?;
+        Ok(bytes_transferred)
     }
 
     fn write(

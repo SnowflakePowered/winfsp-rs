@@ -5,7 +5,9 @@ use std::path::Path;
 
 use winfsp::host::{DebugMode, FileContextMode, FileSystemHost, FileSystemParams, VolumeParams};
 
+/// An passthrough filesystem using the NT API.
 pub struct NtPassthroughFilesystem {
+    /// The host for this filesystem.
     pub fs: FileSystemHost<'static>,
 }
 
