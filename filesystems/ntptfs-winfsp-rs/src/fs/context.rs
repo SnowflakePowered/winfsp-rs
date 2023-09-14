@@ -39,10 +39,7 @@ use windows::Win32::System::SystemServices::MAXIMUM_ALLOWED;
 use windows::Win32::System::WindowsProgramming::FILE_INFORMATION_CLASS;
 
 use winfsp::constants::FspCleanupFlags::FspCleanupDelete;
-use winfsp::filesystem::{
-    DirInfo, DirMarker, FileInfo, FileSecurity, FileSystemContext, OpenFileInfo, StreamInfo,
-    VolumeInfo, WideNameInfo,
-};
+use winfsp::filesystem::{DirInfo, DirMarker, FileInfo, FileSecurity, FileSystemContext, ModificationDescriptor, OpenFileInfo, StreamInfo, VolumeInfo, WideNameInfo};
 use winfsp::host::VolumeParams;
 use winfsp::util::Win32SafeHandle;
 use winfsp::FspError;
@@ -192,8 +189,7 @@ impl FileSystemContext for NtPassthroughContext {
     fn get_security_by_name(
         &self,
         file_name: &U16CStr,
-        security_descriptor: *mut c_void,
-        descriptor_len: Option<u64>,
+        security_descriptor: Option<&mut [c_void]>,
         resolve_reparse_points: impl FnOnce(&U16CStr) -> Option<FileSecurity>,
     ) -> winfsp::Result<FileSecurity> {
         // println!("gsbn: {file_name:?}\n");
@@ -218,15 +214,15 @@ impl FileSystemContext for NtPassthroughContext {
             .unwrap();
         }
 
-        let needed_size = if let Some(descriptor_len) = descriptor_len {
+        let needed_size = if let Some(security_descriptor) = security_descriptor {
             lfs::lfs_get_security(
                 *handle,
                 (OWNER_SECURITY_INFORMATION
                     | GROUP_SECURITY_INFORMATION
                     | DACL_SECURITY_INFORMATION)
                     .0,
-                PSECURITY_DESCRIPTOR(security_descriptor),
-                descriptor_len as u32,
+                PSECURITY_DESCRIPTOR(security_descriptor.as_mut_ptr()),
+                security_descriptor.len() as u32,
             )?
         } else {
             0
@@ -321,7 +317,7 @@ impl FileSystemContext for NtPassthroughContext {
         create_options: u32,
         granted_access: u32,
         file_attributes: u32,
-        security_descriptor: *mut c_void,
+        security_descriptor: Option<&[c_void]>,
         allocation_size: u64,
         extra_buffer: Option<&[u8]>,
         extra_buffer_is_reparse_point: bool,
@@ -369,11 +365,14 @@ impl FileSystemContext for NtPassthroughContext {
             FILE_FLAGS_AND_ATTRIBUTES(file_attributes)
         };
 
+        let security_descriptor = PSECURITY_DESCRIPTOR(
+            security_descriptor.map_or(std::ptr::null_mut(), |c| c.as_ptr().cast_mut()),
+        );
         let result = lfs::lfs_create_file(
             *self.root_handle,
             file_name,
             maximum_access,
-            PSECURITY_DESCRIPTOR(security_descriptor),
+            security_descriptor,
             allocation_size.as_mut(),
             file_attributes,
             FILE_CREATE,
@@ -390,7 +389,7 @@ impl FileSystemContext for NtPassthroughContext {
                     *self.root_handle,
                     file_name,
                     maximum_access,
-                    PSECURITY_DESCRIPTOR(security_descriptor),
+                    security_descriptor,
                     allocation_size.as_mut(),
                     file_attributes,
                     FILE_CREATE,
@@ -447,18 +446,17 @@ impl FileSystemContext for NtPassthroughContext {
     fn get_security(
         &self,
         context: &Self::FileContext,
-        security_descriptor: *mut c_void,
-        descriptor_len: Option<u64>,
+        security_descriptor: Option<&mut [c_void]>,
     ) -> winfsp::Result<u64> {
-        let needed_size = if let Some(descriptor_len) = descriptor_len {
+        let needed_size = if let Some(security_descriptor) = security_descriptor {
             lfs::lfs_get_security(
                 context.handle(),
                 (OWNER_SECURITY_INFORMATION
                     | GROUP_SECURITY_INFORMATION
                     | DACL_SECURITY_INFORMATION)
                     .0,
-                PSECURITY_DESCRIPTOR(security_descriptor),
-                descriptor_len as u32,
+                PSECURITY_DESCRIPTOR(security_descriptor.as_mut_ptr()),
+                security_descriptor.len() as u32,
             )?
         } else {
             0
@@ -471,12 +469,12 @@ impl FileSystemContext for NtPassthroughContext {
         &self,
         context: &Self::FileContext,
         security_information: u32,
-        modification_descriptor: *mut c_void,
+        modification_descriptor: ModificationDescriptor,
     ) -> winfsp::Result<()> {
         lfs::lfs_set_security(
             context.handle(),
             security_information,
-            PSECURITY_DESCRIPTOR(modification_descriptor),
+            PSECURITY_DESCRIPTOR(modification_descriptor.as_mut_ptr()),
         )
     }
 

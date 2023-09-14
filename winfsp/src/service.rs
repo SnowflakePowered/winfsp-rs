@@ -30,7 +30,7 @@ struct AssertThreadSafe<T>(*mut T);
 unsafe impl<T> Send for AssertThreadSafe<T> {}
 unsafe impl<T> Sync for AssertThreadSafe<T> {}
 
-/// A service that runs a filesystem implemented by a [`FileSystemHost`](crate::filesystem::FileSystemHost).
+/// A service that runs a filesystem implemented by a [`FileSystemHost`](crate::host::FileSystemHost).
 pub struct FileSystemService<T>(NonNull<FSP_SERVICE>, PhantomData<T>);
 impl<T> FileSystemService<T> {
     /// # Safety

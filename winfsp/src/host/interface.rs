@@ -6,6 +6,7 @@ use windows::Win32::Foundation::{
     EXCEPTION_NONCONTINUABLE_EXCEPTION, STATUS_INSUFFICIENT_RESOURCES, STATUS_REPARSE,
     STATUS_SUCCESS,
 };
+use windows::Win32::Security::{GetSecurityDescriptorLength, PSECURITY_DESCRIPTOR};
 
 use crate::{error, U16CStr};
 use winfsp_sys::{
@@ -16,7 +17,8 @@ use winfsp_sys::{
 use winfsp_sys::{NTSTATUS as FSP_STATUS, PVOID};
 
 use crate::filesystem::{
-    DirInfo, DirMarker, FileInfo, FileSecurity, FileSystemContext, OpenFileInfo, VolumeInfo,
+    DirInfo, DirMarker, FileInfo, FileSecurity, FileSystemContext, ModificationDescriptor,
+    OpenFileInfo, VolumeInfo,
 };
 
 /// Catch panic and return EXECPTION_NONCONTINUABLE_EXCEPTION
@@ -106,6 +108,14 @@ unsafe extern "C" fn get_security_by_name<T: FileSystemContext>(
         let file_name = unsafe { U16CStr::from_ptr_str_mut(file_name) };
 
         let descriptor_len = unsafe { sz_security_descriptor.as_ref() }.cloned();
+        let security_descriptor_slice = if security_descriptor.is_null() {
+            None
+        } else {
+            descriptor_len.map(|len| unsafe {
+                std::slice::from_raw_parts_mut(security_descriptor, len as usize)
+            })
+        };
+
         // pass reparse point resolver into function
         let find_reparse_points = |file_name: &U16CStr| {
             let mut file_name = U16CString::from(file_name);
@@ -134,8 +144,7 @@ unsafe extern "C" fn get_security_by_name<T: FileSystemContext>(
         match T::get_security_by_name(
             context,
             file_name,
-            security_descriptor,
-            descriptor_len,
+            security_descriptor_slice,
             find_reparse_points,
         ) {
             Ok(FileSecurity {
@@ -220,6 +229,15 @@ unsafe extern "C" fn create_ex<T: FileSystemContext>(
                 }
             } else {
                 None
+            };
+
+            let security_descriptor = if security_descriptor.is_null() {
+                None
+            } else {
+                let size = unsafe {
+                    GetSecurityDescriptorLength(PSECURITY_DESCRIPTOR(security_descriptor))
+                };
+                Some(unsafe { std::slice::from_raw_parts(security_descriptor, size as usize) })
             };
 
             let fctx = T::create(
@@ -357,9 +375,16 @@ unsafe extern "C" fn get_security<T: FileSystemContext>(
 ) -> FSP_STATUS {
     catch_panic!({
         require_fctx(fs, fctx, |context, fctx| {
-            let desc_size = T::get_security(context, fctx, security_descriptor, unsafe {
-                out_descriptor_size.as_ref().cloned()
-            })?;
+            let descriptor_len = unsafe { out_descriptor_size.as_ref() }.cloned();
+            let security_descriptor_slice = if security_descriptor.is_null() {
+                None
+            } else {
+                descriptor_len.map(|len| unsafe {
+                    std::slice::from_raw_parts_mut(security_descriptor, len as usize)
+                })
+            };
+
+            let desc_size = T::get_security(context, fctx, security_descriptor_slice)?;
             if !out_descriptor_size.is_null() {
                 unsafe { out_descriptor_size.write(desc_size) }
             }
@@ -556,7 +581,12 @@ unsafe extern "C" fn set_security<T: FileSystemContext>(
 ) -> FSP_STATUS {
     catch_panic!({
         require_fctx(fs, fctx, |context, fctx| {
-            T::set_security(context, fctx, security_information, modification_descriptor)
+            T::set_security(
+                context,
+                fctx,
+                security_information,
+                ModificationDescriptor(modification_descriptor),
+            )
         })
     })
 }
