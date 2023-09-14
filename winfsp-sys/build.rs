@@ -68,7 +68,10 @@ fn main() {
     {
         println!("cargo:rustc-link-lib=dylib=winfsp-x86");
         println!("cargo:rustc-link-arg=/DELAYLOAD:winfsp-x86.dll");
-    } else {
+    } else if cfg!(target_arch = "aarch64") {
+        println!("cargo:rustc-link-lib=dylib=winfsp-a64");
+        println!("cargo:rustc-link-arg=/DELAYLOAD:winfsp-a64.dll");
+    }else {
         panic!("unsupported triple {}", env::var("TARGET").unwrap())
     }
 
@@ -104,7 +107,13 @@ fn main() {
             && cfg!(target_env = "msvc")
         {
             bindings.clang_arg("--target=i686-pc-windows-msvc")
-        } else {
+        } else if cfg!(target_os = "windows")
+            && cfg!(target_arch = "aarch64")
+            && cfg!(target_env = "msvc")
+        {
+            bindings.clang_arg("--target=aarch64-pc-windows-msvc")
+        }
+        else {
             panic!("unsupported triple {}", env::var("TARGET").unwrap())
         };
 
