@@ -165,7 +165,7 @@ impl<'ctx> FileSystemHost<'ctx> {
         context: T,
     ) -> Result<Self> {
         let fsp_struct = Self::new_filesystem_inner(options, context)?;
-        Ok(FileSystemHost(fsp_struct, None, PhantomData::default()))
+        Ok(FileSystemHost(fsp_struct, None, PhantomData))
     }
 
     /// Create a `FileSystemHost` with the provided notifying context implementation,
@@ -181,11 +181,7 @@ impl<'ctx> FileSystemHost<'ctx> {
     ) -> Result<Self> {
         let fsp_struct = Self::new_filesystem_inner(options, context)?;
         let timer = Timer::create::<R, T, INTERVAL>(fsp_struct)?;
-        Ok(FileSystemHost(
-            fsp_struct,
-            Some(timer),
-            PhantomData::default(),
-        ))
+        Ok(FileSystemHost(fsp_struct, Some(timer), PhantomData))
     }
 
     /// Start the filesystem dispatcher for this filesystem.

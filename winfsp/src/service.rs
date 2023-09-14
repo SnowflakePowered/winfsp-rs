@@ -79,6 +79,7 @@ impl<T> FileSystemService<T> {
     pub fn start(&self) -> JoinHandle<Result<()>> {
         let ptr = AssertThreadSafe(self.0.as_ptr());
         std::thread::spawn(|| {
+            #[allow(clippy::redundant_locals)]
             let ptr = ptr;
             let result = unsafe {
                 FspServiceAllowConsoleMode(ptr.0);

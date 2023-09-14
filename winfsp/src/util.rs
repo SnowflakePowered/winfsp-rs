@@ -110,7 +110,7 @@ where
     }
 
     pub fn handle(&self) -> HANDLE {
-        self.0.read().clone()
+        ***self.0.read()
     }
 }
 
@@ -150,7 +150,7 @@ where
     T: HandleCloseHandler,
 {
     fn from(h: HANDLE) -> Self {
-        Self(h, PhantomData::default())
+        Self(h, PhantomData)
     }
 }
 
@@ -201,7 +201,7 @@ pub fn get_process_security(
     };
 
     let handle = unsafe {
-        let handle = CreateFileW(
+        CreateFileW(
             PCWSTR(path.as_ptr()),
             (FILE_READ_ATTRIBUTES | READ_CONTROL).0,
             FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
@@ -209,8 +209,7 @@ pub fn get_process_security(
             OPEN_EXISTING,
             FILE_FLAG_BACKUP_SEMANTICS,
             None,
-        )?;
-        handle
+        )?
     };
 
     let mut descriptor_len_needed = 0;
