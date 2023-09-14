@@ -28,6 +28,6 @@ pub trait ToNtStatus {
 
 impl ToNtStatus for HRESULT {
     fn to_ntstatus(&self) -> NTSTATUS {
-        NTSTATUS(&self.0 & !(1 << 28))
+        NTSTATUS(self.0 & !(1 << 28))
     }
 }

@@ -83,7 +83,7 @@ pub fn lfs_create_file(
     create_options: NTCREATEFILE_CREATE_OPTIONS,
     ea_buffer: &Option<&[u8]>,
 ) -> winfsp::Result<NtSafeHandle> {
-    let mut unicode_filename = unsafe {
+    let unicode_filename = unsafe {
         let mut unicode_filename: MaybeUninit<UNICODE_STRING> = MaybeUninit::uninit();
         // wrapping add to get rid of slash..
         RtlInitUnicodeString(
@@ -94,7 +94,7 @@ pub fn lfs_create_file(
     };
 
     let object_attrs = initialize_object_attributes(
-        &mut unicode_filename,
+        &unicode_filename,
         0,
         Some(root_handle),
         Some(security_descriptor),
@@ -130,7 +130,7 @@ pub fn lfs_open_file(
     desired_access: FILE_ACCESS_RIGHTS,
     open_options: NTCREATEFILE_CREATE_OPTIONS,
 ) -> winfsp::Result<NtSafeHandle> {
-    let mut unicode_filename = unsafe {
+    let unicode_filename = unsafe {
         let mut unicode_filename: MaybeUninit<UNICODE_STRING> = MaybeUninit::uninit();
         // wrapping add to get rid of leading slash..
         RtlInitUnicodeString(
@@ -140,8 +140,7 @@ pub fn lfs_open_file(
         unicode_filename.assume_init()
     };
 
-    let mut object_attrs =
-        initialize_object_attributes(&mut unicode_filename, 0, Some(root_handle), None);
+    let object_attrs = initialize_object_attributes(&unicode_filename, 0, Some(root_handle), None);
 
     let mut iosb: MaybeUninit<IO_STATUS_BLOCK> = MaybeUninit::uninit();
     let mut handle = NtSafeHandle::from(INVALID_HANDLE_VALUE);
@@ -150,7 +149,7 @@ pub fn lfs_open_file(
         NtOpenFile(
             handle.deref_mut(),
             (FILE_READ_ATTRIBUTES | desired_access | SYNCHRONIZE).0,
-            &mut object_attrs,
+            &object_attrs,
             iosb.as_mut_ptr(),
             (FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE).0,
             open_options.0,
@@ -185,7 +184,7 @@ pub fn lfs_read_file(
 ) -> winfsp::Result<()> {
     LFS_EVENT.with(|event| {
         let mut iosb: MaybeUninit<IO_STATUS_BLOCK> = MaybeUninit::zeroed();
-        let mut offset = offset as i64;
+        let offset = offset as i64;
 
         let result = unsafe {
             NTSTATUS(windows_sys::Wdk::Storage::FileSystem::NtReadFile(
@@ -196,12 +195,12 @@ pub fn lfs_read_file(
                 iosb.as_mut_ptr() as *mut _,
                 buffer.as_mut_ptr() as *mut _,
                 buffer.len() as u32,
-                &mut offset,
+                &offset,
                 std::ptr::null_mut(),
             ))
         };
 
-        let result = nt_check_pending(result, &event, &iosb)?;
+        let result = nt_check_pending(result, event, &iosb)?;
 
         if result != STATUS_SUCCESS {
             return Err(FspError::NTSTATUS(result));
@@ -222,7 +221,7 @@ pub fn lfs_write_file(
 ) -> winfsp::Result<()> {
     LFS_EVENT.with(|event| {
         let mut iosb: MaybeUninit<IO_STATUS_BLOCK> = MaybeUninit::zeroed();
-        let mut offset = offset as i64;
+        let offset = offset as i64;
 
         let result = unsafe {
             NTSTATUS(windows_sys::Wdk::Storage::FileSystem::NtWriteFile(
@@ -233,12 +232,12 @@ pub fn lfs_write_file(
                 iosb.as_mut_ptr() as *mut _,
                 buffer.as_ptr() as *const _,
                 buffer.len() as u32,
-                &mut offset,
+                &offset,
                 std::ptr::null_mut(),
             ))
         };
 
-        let result = nt_check_pending(result, &event, &iosb)?;
+        let result = nt_check_pending(result, event, &iosb)?;
 
         if result != STATUS_SUCCESS {
             return Err(FspError::NTSTATUS(result));
@@ -529,7 +528,7 @@ pub fn lfs_set_delete(handle: HANDLE, delete: bool) -> winfsp::Result<()> {
     #[allow(non_upper_case_globals)]
     const FileDispositionInformation: FILE_INFORMATION_CLASS = FILE_INFORMATION_CLASS(13);
 
-    let _result = match result.code().to_ntstatus() {
+    match result.code().to_ntstatus() {
         code @ STATUS_ACCESS_DENIED
         | code @ STATUS_DIRECTORY_NOT_EMPTY
         | code @ STATUS_CANNOT_DELETE
@@ -567,7 +566,7 @@ pub fn lfs_rename(
 ) -> winfsp::Result<()> {
     let mut iosb: MaybeUninit<IO_STATUS_BLOCK> = MaybeUninit::zeroed();
     // length in bytes
-    let file_path_len = (new_file_name.len()) * size_of::<u16>();
+    let file_path_len = std::mem::size_of_val(new_file_name);
 
     let mut rename_info: VariableSizedBox<FILE_RENAME_INFO> = VariableSizedBox::new(
         FSP_FSCTL_TRANSACT_PATH_SIZEMAX + offset_of!(FILE_RENAME_INFO, FileName),
@@ -611,7 +610,7 @@ pub fn lfs_rename(
     #[allow(non_upper_case_globals)]
     const FileRenameInformation: FILE_INFORMATION_CLASS = FILE_INFORMATION_CLASS(10);
 
-    return match result {
+    match result {
         STATUS_ACCESS_DENIED | STATUS_OBJECT_NAME_COLLISION
             if replace_if_exists == LfsRenameSemantics::NtReplaceSemantics =>
         {
@@ -635,7 +634,7 @@ pub fn lfs_rename(
                 FileRenameInformation,
             )?)
         },
-    };
+    }
 }
 
 pub fn lfs_set_allocation_size(handle: HANDLE, new_size: u64) -> winfsp::Result<()> {
@@ -760,7 +759,7 @@ pub fn lfs_query_directory_file(
             ))
         };
 
-        let result = nt_check_pending(result, &event, &iosb)?;
+        let result = nt_check_pending(result, event, &iosb)?;
 
         if result != STATUS_SUCCESS {
             return Err(FspError::NTSTATUS(result));
@@ -808,7 +807,7 @@ pub fn lfs_fs_control_file(
             ))
         };
 
-        let result = nt_check_pending(result, &event, &iosb)?;
+        let result = nt_check_pending(result, event, &iosb)?;
         if result == STATUS_BUFFER_OVERFLOW {
             return Err(FspError::NTSTATUS(STATUS_BUFFER_TOO_SMALL));
         }
