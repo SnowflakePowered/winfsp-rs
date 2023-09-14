@@ -64,7 +64,7 @@ fn get_local_winfsp() -> PCWSTR {
     } else if cfg!(target_arch = "i686") {
         w!("winfsp-x86.dll")
     } else if cfg!(target_arch = "aarch64") {
-        w!("winfsp-a64.dll");
+        w!("winfsp-a64.dll")
     } else {
         panic!("unsupported arch")
     }
