@@ -2,11 +2,11 @@
 <module type="CPP_MODULE" version="4">
   <component name="NewModuleRootManager">
     <content url="file://$MODULE_DIR$">
-      <sourceFolder url="file://$MODULE_DIR$/ntptfs-winfsp-rs/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/winfsp-sys/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/winfsp/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/unsound-fs/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/deprecated/ptfs-winfsp-rs/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/filesystems/ntptfs-winfsp-rs/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
     </content>
     <orderEntry type="inheritedJdk" />
