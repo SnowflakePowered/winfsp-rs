@@ -14,10 +14,10 @@ windows-sys = { version = "0.52.0", features = ["Win32_Foundation", "Win32_Syste
     "Wdk_Foundation", "Wdk_Storage_FileSystem", "Wdk_System_IO", "Wdk_Storage_FileSystem_Minifilters", "Wdk_System_SystemServices", "Win32_System_Ioctl", "Win32_System_SystemServices"], git = "https://github.com/microsoft/windows-rs",  branch = "master" }
 bytemuck = "1.12.1"
 widestring = "1"
-winfsp = { path = "../winfsp", features = ["debug", "system"] }
+winfsp = { path = "../../winfsp", features = ["debug", "system"] }
 anyhow = "1"
 parking_lot = "0.12"
 
 ntapi = "0.4.1"
 [build-dependencies]
-winfsp = { path = "../winfsp", features = ["delayload"] }
+winfsp = { path = "../../winfsp", features = ["delayload"] }
