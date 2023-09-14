@@ -155,10 +155,6 @@ impl NtPassthroughContext {
             )
         };
 
-        eprintln!(
-            "DIR: found filename {:?}\n",
-            U16Str::from_slice(file_name_slice)
-        );
         dir_info.set_name_raw(file_name_slice)?;
 
         let file_info = dir_info.file_info_mut();
