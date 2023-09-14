@@ -9,7 +9,7 @@ use std::os::windows::fs::MetadataExt;
 use std::path::Path;
 use std::ptr::addr_of;
 
-use widestring::{u16cstr, U16CString, U16Str};
+use widestring::{u16cstr, U16CString};
 use windows::core::{HSTRING, PCWSTR};
 use windows::Wdk::Storage::FileSystem::{
     FILE_CREATE, FILE_DIRECTORY_FILE, FILE_ID_BOTH_DIR_INFORMATION, FILE_NON_DIRECTORY_FILE,
@@ -35,7 +35,7 @@ use windows::Win32::Storage::FileSystem::{
 use windows::Win32::System::Ioctl::{
     FSCTL_DELETE_REPARSE_POINT, FSCTL_GET_REPARSE_POINT, FSCTL_SET_REPARSE_POINT,
 };
-use windows::Win32::System::SystemServices::{ACCESS_SYSTEM_SECURITY, MAXIMUM_ALLOWED};
+use windows::Win32::System::SystemServices::MAXIMUM_ALLOWED;
 use windows::Win32::System::WindowsProgramming::FILE_INFORMATION_CLASS;
 
 use winfsp::constants::FspCleanupFlags::FspCleanupDelete;

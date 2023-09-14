@@ -1,9 +1,9 @@
 //! Helpful utility wrappers around OS constructs.
-use crate::error::FspError;
+
 use std::marker::PhantomData;
 
 use crate::constants::MAX_PATH;
-use parking_lot::{RwLock, RwLockWriteGuard};
+use parking_lot::RwLock;
 use std::mem::ManuallyDrop;
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;

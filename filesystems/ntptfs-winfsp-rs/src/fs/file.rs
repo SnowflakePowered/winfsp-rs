@@ -1,7 +1,3 @@
-use parking_lot::RwLock;
-use std::cell::RefCell;
-use std::ops::Deref;
-use std::sync::Arc;
 use windows::Win32::Foundation::HANDLE;
 use winfsp::filesystem::DirBuffer;
 use winfsp::util::{NtRefHandle, NtSafeHandle};
