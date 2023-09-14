@@ -1,10 +1,10 @@
 use windows::Win32::Foundation::HANDLE;
 use winfsp::filesystem::DirBuffer;
-use winfsp::util::{NtRefHandle, NtSafeHandle};
+use winfsp::util::{AtomicHandle, NtHandleDrop, NtSafeHandle};
 
 #[derive(Debug)]
 pub struct NtPassthroughFile {
-    handle: NtRefHandle,
+    handle: AtomicHandle<NtHandleDrop>,
     is_directory: bool,
     dir_buffer: DirBuffer,
     file_size_hint: u64,
@@ -13,7 +13,7 @@ pub struct NtPassthroughFile {
 impl NtPassthroughFile {
     pub fn new(handle: NtSafeHandle, file_size_hint: u64, is_directory: bool) -> Self {
         Self {
-            handle: handle.escape(),
+            handle: handle.into(),
             file_size_hint,
             is_directory,
             dir_buffer: DirBuffer::new(),

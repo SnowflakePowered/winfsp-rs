@@ -3,10 +3,9 @@
 use std::marker::PhantomData;
 
 use crate::constants::MAX_PATH;
-use parking_lot::RwLock;
 use std::mem::ManuallyDrop;
 use std::ops::{Deref, DerefMut};
-use std::sync::Arc;
+use std::sync::atomic::{AtomicIsize, Ordering};
 use windows::core::PCWSTR;
 use windows::Wdk::Foundation::NtClose;
 use windows::Win32::Foundation::{CloseHandle, HANDLE, INVALID_HANDLE_VALUE};
@@ -34,17 +33,15 @@ pub struct SafeDropHandle<T>(HANDLE, PhantomData<T>)
 where
     T: HandleCloseHandler;
 
-/// An owned handle that will always be dropped when it goes out of scope.
+/// A handle that can be atomically invalidated.
 ///
 /// ## Safety
 /// This handle will become invalid when it goes out of scope.
-/// `SafeDropHandle` implements `Deref<Target=HANDLE>` to make it
-/// usable for APIs that take `HANDLE`. Dereference the `SafeDropHandle`
-/// to obtain a `HANDLE` that is `Copy` without dropping the `SafeDropHandle`
-/// and invalidating the underlying handle.
+/// Use [`AtomicHandle::handle`](AtomicHandle::handle) to obtain a `HANDLE` that is `Copy`
+/// without dropping the `AtomicHandle` and invalidating the underlying handle.
 #[repr(transparent)]
 #[derive(Debug)]
-pub struct RefCountedHandle<T>(Arc<RwLock<ManuallyDrop<SafeDropHandle<T>>>>)
+pub struct AtomicHandle<T>(AtomicIsize, PhantomData<T>)
 where
     T: HandleCloseHandler;
 
@@ -72,8 +69,6 @@ impl HandleCloseHandler for Win32HandleDrop {
 pub struct NtHandleDrop;
 /// An NT HANDLE that is closed when it goes out of scope.
 pub type NtSafeHandle = SafeDropHandle<NtHandleDrop>;
-pub type NtRefHandle = RefCountedHandle<NtHandleDrop>;
-
 impl HandleCloseHandler for NtHandleDrop {
     fn close(handle: HANDLE) {
         if let Err(e) = unsafe { NtClose(handle) } {
@@ -93,25 +88,6 @@ where
         }
         self.0 = INVALID_HANDLE_VALUE
     }
-
-    /// Leak the handle.
-    pub fn escape(self) -> RefCountedHandle<T> {
-        RefCountedHandle(Arc::new(RwLock::new(ManuallyDrop::new(self))))
-    }
-}
-
-impl<T> RefCountedHandle<T>
-where
-    T: HandleCloseHandler,
-{
-    /// Invalidate the handle without dropping it.
-    pub fn invalidate(&self) {
-        self.0.write().invalidate();
-    }
-
-    pub fn handle(&self) -> HANDLE {
-        ***self.0.read()
-    }
 }
 
 impl<T> Drop for SafeDropHandle<T>
@@ -122,6 +98,44 @@ where
         if !self.is_invalid() {
             T::close(self.0)
         }
+    }
+}
+
+impl<T> Drop for AtomicHandle<T>
+where
+    T: HandleCloseHandler,
+{
+    fn drop(&mut self) {
+        let handle = HANDLE(self.0.load(Ordering::Acquire));
+        if !handle.is_invalid() {
+            T::close(handle)
+        }
+    }
+}
+
+impl<T> AtomicHandle<T>
+where
+    T: HandleCloseHandler,
+{
+    /// Atomically load the handle with acquire ordering
+    pub fn handle(&self) -> HANDLE {
+        let handle = self.0.load(Ordering::Acquire);
+        HANDLE(handle)
+    }
+
+    /// Whether or not this handle is invalid.
+    pub fn is_invalid(&self) -> bool {
+        self.handle().is_invalid()
+    }
+
+    /// Invalidate the handle without dropping it.
+    pub fn invalidate(&self) {
+        let handle = self.handle();
+
+        if !handle.is_invalid() {
+            T::close(handle)
+        }
+        self.0.store(INVALID_HANDLE_VALUE.0, Ordering::Relaxed);
     }
 }
 
@@ -151,6 +165,26 @@ where
 {
     fn from(h: HANDLE) -> Self {
         Self(h, PhantomData)
+    }
+}
+
+impl<T> From<HANDLE> for AtomicHandle<T>
+where
+    T: HandleCloseHandler,
+{
+    fn from(h: HANDLE) -> Self {
+        Self(AtomicIsize::new(h.0), PhantomData)
+    }
+}
+
+impl<T> From<SafeDropHandle<T>> for AtomicHandle<T>
+where
+    T: HandleCloseHandler,
+{
+    fn from(h: SafeDropHandle<T>) -> Self {
+        // forbid SafeDropHandle from running `Drop`
+        let h = ManuallyDrop::new(h);
+        Self(AtomicIsize::new(h.0 .0), PhantomData)
     }
 }
 
