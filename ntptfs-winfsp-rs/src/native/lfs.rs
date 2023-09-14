@@ -596,26 +596,27 @@ pub fn lfs_rename(
     const FileRenameInformationEx: FILE_INFORMATION_CLASS = FILE_INFORMATION_CLASS(65);
 
     let result = unsafe {
-        NtSetInformationFile(
-            handle,
-            iosb.as_mut_ptr(),
+        NTSTATUS(windows_sys::Wdk::Storage::FileSystem::NtSetInformationFile(
+            handle.0,
+            iosb.as_mut_ptr() as *mut _,
             rename_info.as_mut_ptr().cast(),
             rename_info.len() as u32,
-            FileRenameInformationEx,
-        )
+            FileRenameInformationEx.0,
+        ))
     };
 
-    let Err(result) = result else { return Ok(()) };
+    if result == STATUS_SUCCESS {
+        return Ok(())
+    }
 
     #[allow(non_upper_case_globals)]
     const FileRenameInformation: FILE_INFORMATION_CLASS = FILE_INFORMATION_CLASS(10);
 
-    match result.code().to_ntstatus() {
-        STATUS_ACCESS_DENIED | STATUS_OBJECT_NAME_COLLISION
-            if replace_if_exists != LfsRenameSemantics::PosixReplaceSemantics =>
-        {
-            return Err(FspError::NTSTATUS(STATUS_ACCESS_DENIED))
-        }
+    return match result {
+        STATUS_ACCESS_DENIED | STATUS_OBJECT_NAME_COLLISION if replace_if_exists == LfsRenameSemantics::NtReplaceSemantics =>
+            {
+                Err(FspError::NTSTATUS(STATUS_ACCESS_DENIED))
+            }
         _ => unsafe {
             addr_of_mut!((*rename_info.as_mut_ptr()).Anonymous.Flags).write(0);
             addr_of_mut!((*rename_info.as_mut_ptr()).Anonymous.ReplaceIfExists).write(
@@ -626,13 +627,13 @@ pub fn lfs_rename(
                 },
             );
 
-            return Ok(NtSetInformationFile(
+            Ok(NtSetInformationFile(
                 handle,
                 iosb.as_mut_ptr(),
                 rename_info.as_mut_ptr().cast(),
                 rename_info.len() as u32,
                 FileRenameInformation,
-            )?);
+            )?)
         },
     };
 }
