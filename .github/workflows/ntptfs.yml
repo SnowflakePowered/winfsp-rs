@@ -25,10 +25,12 @@ jobs:
     - name: Build ntptfs
       run: cargo build -p ntptfs-winfsp-rs --verbose
     - name: Start ntptfs in background
+      shell: cmd
       run: |
         mkdir D:\a\test
         start /b "" cargo run --bin ntptfs-winfsp-rs -- -p D:\a\test -m R:
     - name: Run winfsp-test
+      shell: cmd
       run: |
         R:
         ${{ github.workspace }}\test\winfsp-test\winfsp-tests-x64 --external --resilient +* --case-insensitive-cmp -delete_access_test -getfileattr_test -exec_rename_dir_test -rename_flipflop_test -stream_rename_flipflop_test -stream_getstreaminfo_test -ea*
