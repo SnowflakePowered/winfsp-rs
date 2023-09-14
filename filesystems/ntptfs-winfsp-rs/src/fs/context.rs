@@ -714,7 +714,7 @@ impl FileSystemContext for NtPassthroughContext {
 
         lfs::lfs_write_file(context.handle(), buffer, offset, &mut bytes_transferred)?;
         lfs::lfs_get_file_info(context.handle(), None, file_info)?;
-        Ok(bytes_transferred as u32)
+        Ok(bytes_transferred)
     }
 
     fn get_volume_info(&self, out_volume_info: &mut VolumeInfo) -> winfsp::Result<()> {
