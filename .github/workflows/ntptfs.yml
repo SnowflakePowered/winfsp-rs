@@ -29,5 +29,6 @@ jobs:
       run: |
         mkdir D:\a\test
         start /b "" cargo run --bin ntptfs-winfsp-rs -- -p D:\a\test -m R:
+        timeout 45
         R:
         ${{ github.workspace }}\test\winfsp-test\winfsp-tests-x64 --external --resilient +* --case-insensitive-cmp -delete_access_test -getfileattr_test -exec_rename_dir_test -rename_flipflop_test -stream_rename_flipflop_test -stream_getstreaminfo_test -ea*
