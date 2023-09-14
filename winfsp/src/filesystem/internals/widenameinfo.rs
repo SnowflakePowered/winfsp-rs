@@ -54,7 +54,7 @@ pub trait WideNameInfo<const BUFFER_SIZE: usize = 255>:
     /// `STATUS_INSUFFICIENT_RESOURCES`.
     fn set_name_raw<'a, P: Into<&'a [u16]>>(&mut self, file_name: P) -> Result<()> {
         let file_name = file_name.into();
-        if file_name.len() >= BUFFER_SIZE {
+        if file_name.len() > BUFFER_SIZE {
             return Err(STATUS_INSUFFICIENT_RESOURCES.into());
         }
         self.name_buffer()[0..std::cmp::min(file_name.len(), BUFFER_SIZE)]
