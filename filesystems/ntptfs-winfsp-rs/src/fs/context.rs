@@ -427,9 +427,10 @@ impl FileSystemContext for NtPassthroughContext {
         context: Option<&Self::FileContext>,
         file_info: &mut FileInfo,
     ) -> winfsp::Result<()> {
-        if context.is_none() {
-            return Ok(());
-        }
+        let Some(context) = context else {
+            return Ok(())
+        };
+
         let context = context.unwrap();
         lfs::lfs_flush(context.handle())?;
         lfs::lfs_get_file_info(context.handle(), None, file_info)
