@@ -41,7 +41,7 @@ use windows::Win32::System::WindowsProgramming::FILE_INFORMATION_CLASS;
 use winfsp::constants::FspCleanupFlags::FspCleanupDelete;
 use winfsp::filesystem::{DirInfo, DirMarker, FileInfo, FileSecurity, FileSystemContext, ModificationDescriptor, OpenFileInfo, StreamInfo, VolumeInfo, WideNameInfo};
 use winfsp::host::VolumeParams;
-use winfsp::handle::Win32SafeHandle;
+use winfsp::util::Win32SafeHandle;
 use winfsp::FspError;
 use winfsp::U16CStr;
 #[repr(C)]
