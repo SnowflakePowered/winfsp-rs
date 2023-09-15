@@ -8,7 +8,7 @@ use windows::Wdk::Storage::FileSystem::{
 use windows::Win32::Foundation::HANDLE;
 use windows::Win32::System::IO::IO_STATUS_BLOCK;
 use winfsp::constants::MAX_PATH;
-use winfsp::util::VariableSizedBox;
+use winfsp::handle::VariableSizedBox;
 
 pub fn get_attr(handle: HANDLE) -> winfsp::Result<VariableSizedBox<FILE_FS_ATTRIBUTE_INFORMATION>> {
     let mut iosb: MaybeUninit<IO_STATUS_BLOCK> = MaybeUninit::uninit();

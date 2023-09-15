@@ -45,7 +45,7 @@ use winfsp::constants::FSP_FSCTL_TRANSACT_PATH_SIZEMAX;
 
 use crate::native::nt::{ToNtStatus, FILE_FS_SIZE_INFORMATION};
 use winfsp::filesystem::{FileInfo, OpenFileInfo};
-use winfsp::util::{NtSafeHandle, VariableSizedBox};
+use winfsp::handle::{NtSafeHandle, VariableSizedBox};
 use winfsp::{FspError, U16CStr};
 
 fn initialize_object_attributes(

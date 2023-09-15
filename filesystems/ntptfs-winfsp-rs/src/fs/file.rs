@@ -1,6 +1,6 @@
 use windows::Win32::Foundation::HANDLE;
 use winfsp::filesystem::DirBuffer;
-use winfsp::util::{AtomicHandle, NtHandleDrop, NtSafeHandle};
+use winfsp::handle::{AtomicHandle, NtHandleDrop, NtSafeHandle};
 
 /// A file context in the passthrough file system.
 #[derive(Debug)]
