@@ -431,7 +431,6 @@ impl FileSystemContext for NtPassthroughContext {
             return Ok(())
         };
 
-        let context = context.unwrap();
         lfs::lfs_flush(context.handle())?;
         lfs::lfs_get_file_info(context.handle(), None, file_info)
     }
