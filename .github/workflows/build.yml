@@ -12,15 +12,15 @@ env:
 
 jobs:
   build:
+    strategy:
+      matrix:
+        profile: ['dev', 'release']
     runs-on: windows-latest
     steps:
     - uses: actions/checkout@v3
     - name: Install nightly Rust
-      uses: actions-rs/toolchain@v1.0.6
-      with:
-        toolchain: nightly
-        override: true
+      uses: dtolnay/rust-toolchain@nightly
     - name: Install WinFSP
       run: choco install winfsp
     - name: Build winfsp-rs
-      run: cargo build -p winfsp --verbose
+      run: cargo build --profile ${{ matrix.profile }} -p winfsp --verbose

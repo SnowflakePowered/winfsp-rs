@@ -12,23 +12,23 @@ env:
 
 jobs:
   test:
+    strategy:
+      matrix:
+        profile: [ 'dev', 'release' ]
     runs-on: windows-latest
     steps:
     - uses: actions/checkout@v3
     - name: Install nightly Rust
-      uses: actions-rs/toolchain@v1.0.6
-      with:
-        toolchain: nightly
-        override: true
+      uses: dtolnay/rust-toolchain@nightly
     - name: Install WinFSP
       run: choco install winfsp
     - name: Build ntptfs
-      run: cargo build -p ntptfs-winfsp-rs --verbose
+      run: cargo build --profile ${{ matrix.profile }} -p ntptfs-winfsp-rs --verbose
     - name: Test ntptfs
       shell: cmd
       run: |
         mkdir D:\a\test
-        start /b "" cargo run --bin ntptfs-winfsp-rs -- -p D:\a\test -m R:
+        start /b "" cargo run --profile ${{ matrix.profile }} --bin ntptfs-winfsp-rs -- -p D:\a\test -m R:
         echo "Waiting 45 seconds for ntptfs to start"
         waitfor /T 45 pause 2>NUL
         R:
