@@ -39,7 +39,10 @@ use windows::Win32::System::SystemServices::MAXIMUM_ALLOWED;
 use windows::Win32::System::WindowsProgramming::FILE_INFORMATION_CLASS;
 
 use winfsp::constants::FspCleanupFlags::FspCleanupDelete;
-use winfsp::filesystem::{DirInfo, DirMarker, FileInfo, FileSecurity, FileSystemContext, ModificationDescriptor, OpenFileInfo, StreamInfo, VolumeInfo, WideNameInfo};
+use winfsp::filesystem::{
+    DirInfo, DirMarker, FileInfo, FileSecurity, FileSystemContext, ModificationDescriptor,
+    OpenFileInfo, StreamInfo, VolumeInfo, WideNameInfo,
+};
 use winfsp::host::VolumeParams;
 use winfsp::util::Win32SafeHandle;
 use winfsp::FspError;
@@ -428,7 +431,7 @@ impl FileSystemContext for NtPassthroughContext {
         file_info: &mut FileInfo,
     ) -> winfsp::Result<()> {
         let Some(context) = context else {
-            return Ok(())
+            return Ok(());
         };
 
         lfs::lfs_flush(context.handle())?;

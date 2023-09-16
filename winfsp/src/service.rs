@@ -5,7 +5,7 @@ use crate::Result;
 use std::cell::UnsafeCell;
 use std::ffi::{c_void, OsStr};
 use std::marker::PhantomData;
-use std::ptr::NonNull;
+use std::ptr::{addr_of_mut, NonNull};
 use std::thread::JoinHandle;
 use windows::core::HSTRING;
 use windows::Win32::Foundation::{NTSTATUS, STATUS_INVALID_PARAMETER, STATUS_SUCCESS};
@@ -153,7 +153,7 @@ impl<T> FileSystemServiceBuilder<T> {
         service_name: impl AsRef<OsStr>,
         _init: FspInit,
     ) -> Result<FileSystemService<T>> {
-        let mut service = std::ptr::null_mut();
+        let mut service = UnsafeCell::new(std::ptr::null_mut());
         let service_name = HSTRING::from(service_name.as_ref());
         let result = unsafe {
             // SAFETY: service_name is never mutated.
@@ -163,19 +163,25 @@ impl<T> FileSystemServiceBuilder<T> {
                 Some(on_start::<T>),
                 Some(on_stop::<T>),
                 Some(on_control::<T>),
-                &mut service,
+                service.get(),
             )
         };
 
-        unsafe { service.as_mut() }.unwrap().UserContext =
-            Box::into_raw(Box::new(UnsafeCell::new(FileSystemServiceContext::<T> {
-                start: self.start,
-                stop: self.stop,
-                control: self.control,
-                context: None,
-            }))) as *mut _;
-        if result == STATUS_SUCCESS.0 && !service.is_null() {
-            Ok(unsafe { FileSystemService::from_raw_unchecked(service) })
+        unsafe {
+            addr_of_mut!((*(*service.get())).UserContext).write(Box::into_raw(Box::new(
+                UnsafeCell::new(FileSystemServiceContext::<T> {
+                    start: self.start,
+                    stop: self.stop,
+                    control: self.control,
+                    context: None,
+                }),
+            )) as *mut _)
+        }
+        if result == STATUS_SUCCESS.0
+            && !service.get().is_null()
+            && unsafe { !service.get().read().is_null() }
+        {
+            Ok(unsafe { FileSystemService::from_raw_unchecked(service.get().read()) })
         } else {
             Err(FspError::NTSTATUS(NTSTATUS(result)))
         }
