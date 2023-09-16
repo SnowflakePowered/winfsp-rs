@@ -662,7 +662,7 @@ source = "git+https://github.com/microsoft/windows-rs?branch=master#58eaa528e13b
 
 [[package]]
 name = "winfsp"
-version = "0.9.1+winfsp-2.0"
+version = "0.9.3+winfsp-2.0"
 dependencies = [
  "bytemuck",
  "paste",
