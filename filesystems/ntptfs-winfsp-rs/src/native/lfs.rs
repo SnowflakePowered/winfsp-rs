@@ -207,7 +207,7 @@ pub fn lfs_read_file(
         let result = nt_check_pending(result, event, &iosb)?;
 
         if result != STATUS_SUCCESS {
-            return Err(FspError::NTSTATUS(result));
+            return Err(FspError::from(result));
         }
 
         let iosb = unsafe { iosb.assume_init() };
@@ -244,7 +244,7 @@ pub fn lfs_write_file(
         let result = nt_check_pending(result, event, &iosb)?;
 
         if result != STATUS_SUCCESS {
-            return Err(FspError::NTSTATUS(result));
+            return Err(FspError::from(result));
         }
 
         let iosb = unsafe { iosb.assume_init() };
@@ -407,7 +407,7 @@ pub fn lfs_get_file_info<'a, P: Into<MaybeOpenFileInfo<'a>>>(
     };
 
     if result.is_err() && result != STATUS_BUFFER_OVERFLOW {
-        return Err(FspError::NTSTATUS(result));
+        return Err(FspError::from(result));
     }
 
     let file_all_info = unsafe { file_all_info.as_ref() };
@@ -543,7 +543,7 @@ pub fn lfs_set_delete(handle: HANDLE, delete: bool) -> winfsp::Result<()> {
         code @ STATUS_ACCESS_DENIED
         | code @ STATUS_DIRECTORY_NOT_EMPTY
         | code @ STATUS_CANNOT_DELETE
-        | code @ STATUS_FILE_DELETED => return Err(FspError::NTSTATUS(code)),
+        | code @ STATUS_FILE_DELETED => return Err(FspError::from(code)),
         _ => unsafe {
             let disp_info = FILE_DISPOSITION_INFORMATION {
                 DeleteFile: delete.into(),
@@ -626,7 +626,7 @@ pub fn lfs_rename(
         STATUS_ACCESS_DENIED | STATUS_OBJECT_NAME_COLLISION
             if replace_if_exists == LfsRenameSemantics::NtReplaceSemantics =>
         {
-            Err(FspError::NTSTATUS(STATUS_ACCESS_DENIED))
+            Err(FspError::from(STATUS_ACCESS_DENIED))
         }
         _ => unsafe {
             addr_of_mut!((*rename_info.as_mut_ptr()).Anonymous.Flags).write(0);
@@ -777,7 +777,7 @@ pub fn lfs_query_directory_file(
         let result = nt_check_pending(result, event, &iosb)?;
 
         if result != STATUS_SUCCESS {
-            return Err(FspError::NTSTATUS(result));
+            return Err(FspError::from(result));
         }
 
         Ok(unsafe { iosb.assume_init().Information })
@@ -824,10 +824,10 @@ pub fn lfs_fs_control_file(
 
         let result = nt_check_pending(result, event, &iosb)?;
         if result == STATUS_BUFFER_OVERFLOW {
-            return Err(FspError::NTSTATUS(STATUS_BUFFER_TOO_SMALL));
+            return Err(FspError::from(STATUS_BUFFER_TOO_SMALL));
         }
         if result != STATUS_SUCCESS {
-            return Err(FspError::NTSTATUS(result));
+            return Err(FspError::from(result));
         }
 
         Ok(unsafe { iosb.assume_init().Information })
@@ -925,7 +925,7 @@ pub fn lfs_get_stream_info(handle: HANDLE, buffer: &mut [u8]) -> winfsp::Result<
     };
 
     if result.is_err() && result != STATUS_BUFFER_OVERFLOW {
-        return Err(FspError::NTSTATUS(result));
+        return Err(FspError::from(result));
     }
 
     Ok(unsafe { iosb.assume_init().Information })

@@ -288,17 +288,20 @@ impl FileSystemContext for NtPassthroughContext {
 
         let handle = match result {
             Ok(handle) => Ok(handle),
-            Err(FspError::NTSTATUS(
-                STATUS_ACCESS_DENIED
-                | STATUS_MEDIA_WRITE_PROTECTED
-                | STATUS_SHARING_VIOLATION
-                | STATUS_INVALID_PARAMETER,
-            )) if maximum_access.0 == MAXIMUM_ALLOWED => lfs::lfs_open_file(
-                *self.root_handle,
-                file_name,
-                backup_access,
-                FILE_OPEN_FOR_BACKUP_INTENT | FILE_OPEN_REPARSE_POINT | create_options,
-            ),
+            Err(err)
+                if maximum_access.0 == MAXIMUM_ALLOWED
+                    && (err.to_ntstatus() == STATUS_ACCESS_DENIED.0
+                        || err.to_ntstatus() == STATUS_MEDIA_WRITE_PROTECTED.0
+                        || err.to_ntstatus() == STATUS_SHARING_VIOLATION.0
+                        || err.to_ntstatus() == STATUS_INVALID_PARAMETER.0) =>
+            {
+                lfs::lfs_open_file(
+                    *self.root_handle,
+                    file_name,
+                    backup_access,
+                    FILE_OPEN_FOR_BACKUP_INTENT | FILE_OPEN_REPARSE_POINT | create_options,
+                )
+            }
             Err(e) => Err(e),
         }?;
 
@@ -383,8 +386,9 @@ impl FileSystemContext for NtPassthroughContext {
 
         let handle = match result {
             Ok(handle) => Ok(handle),
-            Err(FspError::NTSTATUS(STATUS_INVALID_PARAMETER))
-                if maximum_access.0 == MAXIMUM_ALLOWED =>
+            Err(e)
+                if maximum_access.0 == MAXIMUM_ALLOWED
+                    && e.to_ntstatus() == STATUS_INVALID_PARAMETER.0 =>
             {
                 lfs::lfs_create_file(
                     *self.root_handle,
@@ -813,7 +817,9 @@ impl FileSystemContext for NtPassthroughContext {
             lfs::lfs_fs_control_file(*reparse_handle, FSCTL_GET_REPARSE_POINT, None, Some(buffer));
 
         match result {
-            Err(FspError::NTSTATUS(STATUS_BUFFER_OVERFLOW)) => Err(STATUS_BUFFER_TOO_SMALL.into()),
+            Err(e) if e.to_ntstatus() == STATUS_BUFFER_OVERFLOW.0 => {
+                Err(FspError::from(STATUS_BUFFER_TOO_SMALL))
+            }
             Err(e) => Err(e),
             Ok(bytes) => Ok(bytes as u64),
         }
@@ -832,7 +838,9 @@ impl FileSystemContext for NtPassthroughContext {
             Some(buffer),
         );
         match result {
-            Err(FspError::NTSTATUS(STATUS_BUFFER_OVERFLOW)) => Err(STATUS_BUFFER_TOO_SMALL.into()),
+            Err(e) if e.to_ntstatus() == STATUS_BUFFER_OVERFLOW.0 => {
+                Err(FspError::from(STATUS_BUFFER_TOO_SMALL))
+            }
             Err(e) => Err(e),
             Ok(bytes) => Ok(bytes as u64),
         }

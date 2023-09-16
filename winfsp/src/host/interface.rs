@@ -59,7 +59,7 @@ where
 
     match inner(context, fctx) {
         Ok(_) => STATUS_SUCCESS.0,
-        Err(e) => e.as_ntstatus(),
+        Err(e) => e.to_ntstatus(),
     }
 }
 
@@ -73,7 +73,7 @@ where
     let context: &C = unsafe { &*(*fs).UserContext.cast::<C>() };
     match inner(context) {
         Ok(_) => STATUS_SUCCESS.0,
-        Err(e) => e.as_ntstatus(),
+        Err(e) => e.to_ntstatus(),
     }
 }
 
@@ -164,7 +164,7 @@ unsafe extern "C" fn get_security_by_name<T: FileSystemContext>(
                     STATUS_SUCCESS.0
                 }
             }
-            Err(e) => e.as_ntstatus(),
+            Err(e) => e.to_ntstatus(),
         }
     })
 }
