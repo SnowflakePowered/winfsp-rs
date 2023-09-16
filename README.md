@@ -19,7 +19,7 @@ feature. The path will automatically be determined via the Registry.
 
 ```toml
 [dependencies.winfsp]
-version = "0.8"
+version = "0.10"
 features = ["system"]
 ```
 ### Delay-loading
@@ -29,7 +29,7 @@ the build script. This is required for winfsp-rs.
 #### Cargo.toml
 ```toml
 [build-dependencies]
-winfsp = "0.8"
+winfsp = "0.10"
 ```
 
 #### build.rs
@@ -54,10 +54,19 @@ on stable Rust without support for these features.
 ```toml
 [dependencies.winfsp]
 default-features = false
-# notify if you need filesystem notifications, delayload is needed for build-time helpers.
-features = ["notify", "delayload"]
+features = ["stable"]
 ```
 
+### Using with `windows-sys`
+With default features, the `winfsp` crate includes helper utilities and `From` implementations for error types in the
+version of the `windows` crate at the time of publishing. If you wish to use `winfsp` without `windows` types,
+disable the `windows-rs` crate feature.
+
+```toml
+[dependencies.winfsp]
+default-features = false
+features = ["stable", "nightly"]
+```
 
 ## Testing
 `ntptfs-winfsp-rs`, a port of `ntptfs` to `winfsp-rs` is used to test the bindings. It passes all tests that `ntptfs`

@@ -89,7 +89,7 @@ impl<T> FileSystemService<T> {
             if result == STATUS_SUCCESS.0 {
                 Ok(())
             } else {
-                Err(FspError::NTSTATUS(NTSTATUS(result)))
+                Err(FspError::NTSTATUS(result))
             }
         })
     }
@@ -183,7 +183,7 @@ impl<T> FileSystemServiceBuilder<T> {
         {
             Ok(unsafe { FileSystemService::from_raw_unchecked(service.get().read()) })
         } else {
-            Err(FspError::NTSTATUS(NTSTATUS(result)))
+            Err(FspError::NTSTATUS(result))
         }
     }
 }
