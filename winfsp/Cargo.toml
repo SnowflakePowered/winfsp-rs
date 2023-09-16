@@ -20,14 +20,16 @@ static_assertions = "1.1"
 bytemuck = "1.13"
 
 [features]
-default = ["stable", "nightly"]
+default = ["stable", "nightly", "windows-rs"]
 debug = []
 system = ["windows/Win32_System_Registry", "winfsp-sys/system"]
 notify = []
 build = []
 delayload = ["build"]
 docsrs = ["winfsp-sys/docsrs"]
-stable = ["notify", "delayload", "handle-util"]
+stable = ["notify", "delayload"]
+windows-rs = ["handle-util", "windows-rs-error"]
+windows-rs-error = []
 nightly = ["io-error", "strict-provenance"]
 strict-provenance = []
 io-error = []
