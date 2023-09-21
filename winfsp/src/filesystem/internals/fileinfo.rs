@@ -6,16 +6,30 @@ use winfsp_sys::{FSP_FSCTL_FILE_INFO, FSP_FSCTL_OPEN_FILE_INFO};
 #[derive(Default, Clone, Debug)]
 /// A struct that holds information about a file.
 pub struct FileInfo {
+    /// Specifies one or more FILE_ATTRIBUTE_XXX flags. For descriptions of these flags,
+    /// see [File Attribute Constants](https://learn.microsoft.com/en-us/windows/win32/fileio/file-attribute-constants) in the Microsoft Windows SDK.
     pub file_attributes: u32,
+    /// Specifies the reparse point tag. If the `file_attributes` member includes the FILE_ATTRIBUTE_REPARSE_POINT attribute flag,
+    /// this member specifies the reparse tag. Otherwise, this member is unused.
     pub reparse_tag: u32,
+    /// The file allocation size in bytes. Usually, this value is a multiple of the sector or cluster size of the underlying physical device.
     pub allocation_size: u64,
+    /// The end of file location as a byte offset.
     pub file_size: u64,
+    /// Specifies the time that the file was created.
     pub creation_time: u64,
+    /// Specifies the time that the file was last accessed.
     pub last_access_time: u64,
+    /// Specifies the time that the file was last written to.
     pub last_write_time: u64,
+    /// Specifies the last time the file was changed.
     pub change_time: u64,
+    /// The 8-byte file reference number for the file. This number is assigned by the file system and is file-system-specific.
+    /// (Note that this is not the same as the 16-byte "file object ID" that was added to NTFS for Microsoft Windows 2000.)
     pub index_number: u64,
+    /// The number of hard links to the file. This is unimplemented in WinFSP and should always be 0.
     pub hard_links: u32,
+    /// Specifies the combined length, in bytes, of the extended attributes for the file.
     pub ea_size: u32,
 }
 

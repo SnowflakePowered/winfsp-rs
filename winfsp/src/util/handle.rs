@@ -35,6 +35,7 @@ where
 
 /// Trait that defines a method to close a Windows HANDLE.
 pub trait HandleCloseHandler {
+    /// Close the handle.
     fn close(handle: HANDLE);
 }
 
