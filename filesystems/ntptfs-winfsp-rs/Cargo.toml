@@ -17,6 +17,5 @@ widestring = "1"
 winfsp = { path = "../../winfsp", features = ["debug", "system"] }
 anyhow = "1"
 
-ntapi = "0.4.1"
 [build-dependencies]
 winfsp = { path = "../../winfsp", features = ["delayload"] }

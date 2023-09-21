@@ -3,7 +3,7 @@ use std::io::ErrorKind;
 
 use std::path::Path;
 
-use winfsp::host::{DebugMode, FileContextMode, FileSystemHost, FileSystemParams, VolumeParams};
+use winfsp::host::{DebugMode, FileSystemHost, FileSystemParams, VolumeParams};
 
 /// An passthrough filesystem using the NT API.
 pub struct NtPassthroughFilesystem {
@@ -19,7 +19,7 @@ impl NtPassthroughFilesystem {
         }
         let canonical_path = std::fs::canonicalize(&path)?;
 
-        let mut volume_params = VolumeParams::new(FileContextMode::Descriptor);
+        let mut volume_params = VolumeParams::new();
         volume_params
             .prefix(volume_prefix)
             .filesystem_name("ntptfs");

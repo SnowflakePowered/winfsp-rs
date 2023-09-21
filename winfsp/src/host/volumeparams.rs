@@ -8,22 +8,6 @@ use winfsp_sys::FSP_FSCTL_VOLUME_PARAMS;
 /// Parameters that control how the WinFSP volume is mounted and processes requests.
 pub struct VolumeParams(pub(crate) FSP_FSCTL_VOLUME_PARAMS);
 
-/// Sets whether the FileContext represents a file node, or a file descriptor.
-///
-/// A file node uniquely identifies an open file, and opening the same file name should always yield
-/// the same file node value for as long as the file with that name remains open anywhere in the system.
-///
-/// A file descriptor identifies an open instance of a file. Opening the same file name may yield
-/// a different file descriptor. This is WinFSP's `UmFileContextIsUserContext2` mode.
-///
-/// WinFSP's `UmFileContextIsFullContext` mode is not supported.
-pub enum FileContextMode {
-    /// The file context is a node, and opening the same file name will always yield the same value.
-    Node,
-    /// The file context is a descriptor, and opening the same file name may yield a different value.
-    Descriptor,
-}
-
 macro_rules! make_setters {
     (
         $(
@@ -56,20 +40,20 @@ macro_rules! make_setters {
         )+
     };
 }
+
+impl Default for VolumeParams {
+    fn default() -> Self {
+        VolumeParams::new()
+    }
+}
+
 impl VolumeParams {
-    pub fn new(mode: FileContextMode) -> Self {
+    pub fn new() -> Self {
         let mut params = FSP_FSCTL_VOLUME_PARAMS::default();
 
-        match mode {
-            FileContextMode::Node => {
-                params.set_UmFileContextIsFullContext(0);
-                params.set_UmFileContextIsUserContext2(0)
-            }
-            FileContextMode::Descriptor => {
-                params.set_UmFileContextIsFullContext(0);
-                params.set_UmFileContextIsUserContext2(1);
-            }
-        }
+        // descriptor mode
+        params.set_UmFileContextIsFullContext(0);
+        params.set_UmFileContextIsUserContext2(1);
         VolumeParams(params)
     }
 
