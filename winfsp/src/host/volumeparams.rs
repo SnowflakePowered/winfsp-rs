@@ -18,6 +18,7 @@ pub struct VolumeParams(pub(crate) FSP_FSCTL_VOLUME_PARAMS);
 ///
 /// WinFSP's `UmFileContextIsFullContext` mode is not supported.
 pub enum FileContextMode {
+    #[deprecated = "FileContextMode::Node is unsound."]
     /// The file context is a node, and opening the same file name will always yield the same value.
     Node,
     /// The file context is a descriptor, and opening the same file name may yield a different value.
@@ -62,8 +63,7 @@ impl VolumeParams {
 
         match mode {
             FileContextMode::Node => {
-                params.set_UmFileContextIsFullContext(0);
-                params.set_UmFileContextIsUserContext2(0)
+                panic!("FileContextMode::Node is unsound.")
             }
             FileContextMode::Descriptor => {
                 params.set_UmFileContextIsFullContext(0);
