@@ -2,6 +2,7 @@
 
 members = [
     "filesystems/ntptfs-winfsp-rs",
+    "filesystems/winfsp-repro",
     "winfsp",
     "winfsp-sys"
 ]
