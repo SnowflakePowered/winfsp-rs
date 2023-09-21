@@ -153,7 +153,7 @@ impl<T> FileSystemServiceBuilder<T> {
         service_name: impl AsRef<OsStr>,
         _init: FspInit,
     ) -> Result<FileSystemService<T>> {
-        let mut service = UnsafeCell::new(std::ptr::null_mut());
+        let service = UnsafeCell::new(std::ptr::null_mut());
         let service_name = HSTRING::from(service_name.as_ref());
         let result = unsafe {
             // SAFETY: service_name is never mutated.
