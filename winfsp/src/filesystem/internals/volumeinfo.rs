@@ -6,7 +6,9 @@ use winfsp_sys::FSP_FSCTL_VOLUME_INFO;
 /// A struct that holds information about the volume.
 #[repr(C)]
 pub struct VolumeInfo {
+    /// The total size of the volume.
     pub total_size: u64,
+    /// The free size remaining in the volume.
     pub free_size: u64,
     volume_label_length: u16,
     volume_label: [u16; 32],
