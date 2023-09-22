@@ -1,7 +1,9 @@
 use crate::error::Result;
 use crate::filesystem::{DirInfo, DirMarker, FileInfo, OpenFileInfo, VolumeInfo};
 use crate::U16CStr;
+use async_trait::async_trait;
 use std::ffi::c_void;
+use std::future::Future;
 
 use windows::Win32::Foundation::STATUS_INVALID_DEVICE_REQUEST;
 
@@ -45,8 +47,7 @@ pub struct FileSecurity {
 /// Any non-implemented optional methods will return `STATUS_INVALID_DEVICE_REQUEST` (0xC0000010).
 ///
 /// Notice that once created, `FileContext` is only accessible through a shared, immutable
-/// reference. Especially when using [`FileContextMode::Node`](crate::host::FileContextMode::Node),
-/// this may be an obstacle when the `FileContext` needs to be mutated. This is because the filesystem
+/// reference. This may be an obstacle when the `FileContext` needs to be mutated. This is because the filesystem
 /// driver can call any of the trait methods on any thread, and `&mut` aliasing rules can not be guaranteed.
 /// Instead, interior mutability wrappers should be used whenever a `FileContext` field needs to be mutated.
 /// As an example, [`DirBuffer`](crate::filesystem::DirBuffer) implements interior mutability for the filesystem
@@ -384,4 +385,86 @@ pub trait FileSystemContext: Sized {
         }
         None
     }
+}
+
+/// The trait that implements asynchronous file system operations for a WinFSP file system.
+///
+/// If an implementor of this trait panics in any of the methods,
+/// the caller will receive `STATUS_NONCONTINUABLE_EXCEPTION` (0xC0000025).
+///
+/// Any non-implemented optional methods will return `STATUS_INVALID_DEVICE_REQUEST` (0xC0000010).
+///
+/// Filesystems that implement this trait should use `#[async_trait]` in their implementations.
+/// The default implementations simply call [`read`](FileSystemContext::read), [`write`](FileSystemContext::write),
+/// and [`read_directory`](FileSystemContext::read_directory) on the base
+/// `FileSystemContext` trait.
+///
+/// The filesystem host must be created with [`FileSystemHost::new_async`](crate::host::FileSystemHost::new_async)
+/// or [`FileSystemHost::new_with_options_async`](crate::host::FileSystemHost::new_with_options_async), otherwise
+/// the synchronous implementations will be used.
+///
+/// `AsyncFileSystemContext` is executor agnostic. Futures produced by [`read_async`](AsyncFileSystemContext::read_async),
+/// [`write_async`](AsyncFileSystemContext::read_async), and
+/// [`read_directory_async`](AsyncFileSystemContext::read_directory_async) will be passed to [`AsyncFileSystemContext::spawn_task`],
+/// which is responsible for dispatching the task to the executor of the implementor's choice. It is recommended, but not required,
+/// that the task executes on a separate thread, executing on the same thread may cause deadlocks.
+#[async_trait]
+#[allow(unused_variables)]
+pub trait AsyncFileSystemContext: FileSystemContext + 'static + Sync
+where
+    <Self as FileSystemContext>::FileContext: Sync,
+{
+    /// Read from a file asynchronously. Return the number of bytes read.
+    ///
+    /// The default implementation for this simply calls the base `FileSystemContext::read`
+    /// implementation.
+    async fn read_async(
+        &self,
+        context: &Self::FileContext,
+        buffer: &mut [u8],
+        offset: u64,
+    ) -> Result<u32> {
+        Self::read(self, context, buffer, offset)
+    }
+
+    /// Write to a file asynchronously. Return the number of bytes written.
+    ///
+    /// The default implementation for this simply calls the base `FileSystemContext::write`
+    /// implementation.
+    async fn write_async(
+        &self,
+        context: &Self::FileContext,
+        buffer: &[u8],
+        offset: u64,
+        write_to_eof: bool,
+        constrained_io: bool,
+        file_info: &mut FileInfo,
+    ) -> Result<u32> {
+        Self::write(
+            self,
+            context,
+            buffer,
+            offset,
+            write_to_eof,
+            constrained_io,
+            file_info,
+        )
+    }
+
+    /// Read directory entries from a directory handle asynchronously.
+    async fn read_directory_async(
+        &self,
+        context: &Self::FileContext,
+        pattern: Option<&U16CStr>,
+        marker: DirMarker<'_>,
+        buffer: &mut [u8],
+    ) -> Result<u32> {
+        Self::read_directory(self, context, pattern, marker, buffer)
+    }
+
+    /// Spawn a task onto the local executor.
+    ///
+    /// The implementations of `read_async`, `write_async`, and `read_directory_async` must
+    /// be compatible with the executor the future is spawned on.
+    fn spawn_task(&self, future: impl Future<Output = ()> + Send + 'static);
 }

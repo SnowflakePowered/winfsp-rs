@@ -14,7 +14,7 @@ use winfsp_sys::{
     FSP_FILE_SYSTEM_OPERATION_GUARD_STRATEGY_FSP_FILE_SYSTEM_OPERATION_GUARD_STRATEGY_FINE,
 };
 
-use crate::filesystem::FileSystemContext;
+use crate::filesystem::{AsyncFileSystemContext, FileSystemContext};
 use crate::host::interface::{FileSystemUserContext, Interface};
 use crate::host::{DebugMode, VolumeParams};
 
@@ -81,6 +81,106 @@ pub struct FileSystemHost<'ctx>(
     Option<Timer>,
     PhantomData<&'ctx FSP_FILE_SYSTEM>,
 );
+
+impl FileSystemHost<'static> {
+    fn new_filesystem_inner_async<T: AsyncFileSystemContext>(
+        options: FileSystemParams,
+        context: T,
+    ) -> Result<NonNull<FSP_FILE_SYSTEM>>
+    where
+        <T as FileSystemContext>::FileContext: Sync,
+    {
+        #[allow(unused_variables)]
+        let FileSystemParams {
+            use_dir_info_by_name,
+            volume_params,
+            guard_strategy,
+            debug_mode,
+        } = options;
+
+        let mut fsp_struct = std::ptr::null_mut();
+
+        let interface = if use_dir_info_by_name {
+            Interface::create_with_dirinfo_by_name_async::<T>()
+        } else {
+            Interface::create_with_read_directory_async::<T>()
+        };
+
+        let interface: FSP_FILE_SYSTEM_INTERFACE = interface.into();
+        let interface = Box::into_raw(Box::new(UnsafeCell::new(interface)));
+        // SAFETY: WinFSP owns the allocation that fsp_struct points to.
+        let result = unsafe {
+            FspFileSystemCreate(
+                volume_params.get_winfsp_device_name(),
+                &volume_params.0,
+                // SAFETY: UnsafeCell<T> and T are transmutable.
+                interface.cast(),
+                &mut fsp_struct,
+            )
+        };
+
+        let result = NTSTATUS(result);
+        result.ok()?;
+
+        #[cfg(feature = "debug")]
+        unsafe {
+            use windows::Win32::System::Console::{GetStdHandle, STD_ERROR_HANDLE};
+            // pointer crimes
+            winfsp_sys::FspDebugLogSetHandle(
+                GetStdHandle(STD_ERROR_HANDLE).unwrap().0 as *mut std::ffi::c_void,
+            );
+            winfsp_sys::FspFileSystemSetDebugLogF(fsp_struct, debug_mode.into());
+        }
+
+        unsafe {
+            (*fsp_struct).UserContext = Box::into_raw(Box::new(UnsafeCell::new(
+                FileSystemUserContext::new(context),
+            ))) as *mut _;
+
+            match guard_strategy {
+                OperationGuardStrategy::Fine => FspFileSystemSetOperationGuardStrategyF(fsp_struct, FSP_FILE_SYSTEM_OPERATION_GUARD_STRATEGY_FSP_FILE_SYSTEM_OPERATION_GUARD_STRATEGY_FINE),
+                OperationGuardStrategy::Coarse => FspFileSystemSetOperationGuardStrategyF(fsp_struct, FSP_FILE_SYSTEM_OPERATION_GUARD_STRATEGY_FSP_FILE_SYSTEM_OPERATION_GUARD_STRATEGY_COARSE),
+            }
+        }
+
+        assert!(!fsp_struct.is_null());
+        Ok(NonNull::new(fsp_struct).expect("FSP_FILE_SYSTEM pointer was created but was null!"))
+    }
+
+    /// Create a `FileSystemHost` with the default settings
+    /// for the provided context implementation.
+    pub fn new_async<T: AsyncFileSystemContext>(
+        volume_params: VolumeParams,
+        context: T,
+    ) -> Result<Self>
+    where
+        <T as FileSystemContext>::FileContext: Sync,
+    {
+        Self::new_with_options_async::<T>(
+            FileSystemParams {
+                use_dir_info_by_name: false,
+                volume_params,
+                guard_strategy: OperationGuardStrategy::Fine,
+                debug_mode: DebugMode::none(),
+            },
+            context,
+        )
+    }
+
+    /// Create a `FileSystemHost` with the provided context implementation, and
+    /// host options.
+    pub fn new_with_options_async<T: AsyncFileSystemContext>(
+        options: FileSystemParams,
+        context: T,
+    ) -> Result<Self>
+    where
+        <T as FileSystemContext>::FileContext: Sync,
+    {
+        let fsp_struct = Self::new_filesystem_inner_async(options, context)?;
+        Ok(FileSystemHost(fsp_struct, None, PhantomData))
+    }
+}
+
 impl<'ctx> FileSystemHost<'ctx> {
     fn new_filesystem_inner<T: FileSystemContext + 'ctx>(
         options: FileSystemParams,
@@ -129,7 +229,9 @@ impl<'ctx> FileSystemHost<'ctx> {
         }
 
         unsafe {
-            (*fsp_struct).UserContext = Box::into_raw(Box::new(UnsafeCell::new(FileSystemUserContext::new(context)))) as *mut _;
+            (*fsp_struct).UserContext = Box::into_raw(Box::new(UnsafeCell::new(
+                FileSystemUserContext::new(context),
+            ))) as *mut _;
 
             match guard_strategy {
                 OperationGuardStrategy::Fine => FspFileSystemSetOperationGuardStrategyF(fsp_struct, FSP_FILE_SYSTEM_OPERATION_GUARD_STRATEGY_FSP_FILE_SYSTEM_OPERATION_GUARD_STRATEGY_FINE),

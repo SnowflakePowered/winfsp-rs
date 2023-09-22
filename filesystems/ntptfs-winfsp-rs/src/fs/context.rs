@@ -2,6 +2,7 @@ use crate::fs::file::NtPassthroughFile;
 use crate::native::lfs::LfsRenameSemantics;
 use crate::native::{lfs, volume};
 use std::ffi::OsString;
+use std::future::Future;
 use std::mem::{offset_of, size_of};
 
 use std::os::raw::c_void;
@@ -40,8 +41,8 @@ use windows::Win32::System::WindowsProgramming::FILE_INFORMATION_CLASS;
 
 use winfsp::constants::FspCleanupFlags::FspCleanupDelete;
 use winfsp::filesystem::{
-    DirInfo, DirMarker, FileInfo, FileSecurity, FileSystemContext, ModificationDescriptor,
-    OpenFileInfo, StreamInfo, VolumeInfo, WideNameInfo,
+    AsyncFileSystemContext, DirInfo, DirMarker, FileInfo, FileSecurity, FileSystemContext,
+    ModificationDescriptor, OpenFileInfo, StreamInfo, VolumeInfo, WideNameInfo,
 };
 use winfsp::host::VolumeParams;
 use winfsp::util::Win32SafeHandle;
@@ -56,6 +57,7 @@ pub struct NtPassthroughContext {
     root_prefix: U16CString,
     root_osstring: OsString,
     set_alloc_size_on_cleanup: bool,
+    executor: tokio::runtime::Runtime,
 }
 
 impl NtPassthroughContext {
@@ -95,6 +97,7 @@ impl NtPassthroughContext {
             root_osstring: root.as_ref().to_path_buf().into_os_string(),
             root_prefix: U16CString::from_vec(root_prefix).expect("invalid root path"),
             set_alloc_size_on_cleanup: true,
+            executor: tokio::runtime::Runtime::new().expect("couldn't boot tokio"),
         })
     }
 
@@ -892,5 +895,13 @@ impl FileSystemContext for NtPassthroughContext {
     ) -> winfsp::Result<()> {
         lfs::lfs_set_ea(context.handle(), buffer)?;
         lfs::lfs_get_file_info(context.handle(), None, file_info)
+    }
+}
+
+use async_trait::async_trait;
+#[async_trait]
+impl AsyncFileSystemContext for NtPassthroughContext {
+    fn spawn_task(&self, future: impl Future<Output = ()> + Send + 'static) {
+        let _ = self.executor.spawn(future);
     }
 }
