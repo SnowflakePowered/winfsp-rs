@@ -15,7 +15,7 @@ use winfsp_sys::{
 };
 
 use crate::filesystem::FileSystemContext;
-use crate::host::interface::Interface;
+use crate::host::interface::{FileSystemUserContext, Interface};
 use crate::host::{DebugMode, VolumeParams};
 
 use crate::notify::NotifyingFileSystemContext;
@@ -129,7 +129,7 @@ impl<'ctx> FileSystemHost<'ctx> {
         }
 
         unsafe {
-            (*fsp_struct).UserContext = Box::into_raw(Box::new(UnsafeCell::new(context))) as *mut _;
+            (*fsp_struct).UserContext = Box::into_raw(Box::new(UnsafeCell::new(FileSystemUserContext::new(context)))) as *mut _;
 
             match guard_strategy {
                 OperationGuardStrategy::Fine => FspFileSystemSetOperationGuardStrategyF(fsp_struct, FSP_FILE_SYSTEM_OPERATION_GUARD_STRATEGY_FSP_FILE_SYSTEM_OPERATION_GUARD_STRATEGY_FINE),
