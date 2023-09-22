@@ -1,5 +1,6 @@
 //! Interfaces to the WinFSP service API to run a filesystem.
 use crate::error::FspError;
+use crate::util::AssertThreadSafe;
 use crate::FspInit;
 use crate::Result;
 use std::cell::UnsafeCell;
@@ -25,10 +26,6 @@ struct FileSystemServiceContext<T> {
     control: FileSystemControlCallback<T>,
     context: Option<Box<T>>,
 }
-
-struct AssertThreadSafe<T>(*mut T);
-unsafe impl<T> Send for AssertThreadSafe<T> {}
-unsafe impl<T> Sync for AssertThreadSafe<T> {}
 
 /// A service that runs a filesystem implemented by a [`FileSystemHost`](crate::host::FileSystemHost).
 pub struct FileSystemService<T>(NonNull<FSP_SERVICE>, PhantomData<T>);

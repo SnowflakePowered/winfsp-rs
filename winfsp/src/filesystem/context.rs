@@ -1,7 +1,9 @@
 use crate::error::Result;
 use crate::filesystem::{DirInfo, DirMarker, FileInfo, OpenFileInfo, VolumeInfo};
 use crate::U16CStr;
+use async_trait::async_trait;
 use std::ffi::c_void;
+use std::future::Future;
 
 use windows::Win32::Foundation::STATUS_INVALID_DEVICE_REQUEST;
 
@@ -384,4 +386,66 @@ pub trait FileSystemContext: Sized {
         }
         None
     }
+}
+
+/// A trait for file systems that implement async functions.
+#[async_trait]
+#[allow(unused_variables)]
+pub trait AsyncFileSystemContext: FileSystemContext + 'static + Sync
+where
+    <Self as FileSystemContext>::FileContext: Sync,
+{
+    /// Read from a file asynchronously. Return the number of bytes read.
+    ///
+    /// The default implementation for this simply calls the base `FileSystemContext::read`
+    /// implementation.
+    async fn read_async(
+        &self,
+        context: &Self::FileContext,
+        buffer: &mut [u8],
+        offset: u64,
+    ) -> Result<u32> {
+        Self::read(self, context, buffer, offset)
+    }
+
+    /// Write to a file asynchronously. Return the number of bytes written.
+    ///
+    /// The default implementation for this simply calls the base `FileSystemContext::write`
+    /// implementation.
+    async fn write_async(
+        &self,
+        context: &Self::FileContext,
+        buffer: &[u8],
+        offset: u64,
+        write_to_eof: bool,
+        constrained_io: bool,
+        file_info: &mut FileInfo,
+    ) -> Result<u32> {
+        Self::write(
+            self,
+            context,
+            buffer,
+            offset,
+            write_to_eof,
+            constrained_io,
+            file_info,
+        )
+    }
+
+    /// Read directory entries from a directory handle asynchronously.
+    async fn read_directory_async(
+        &self,
+        context: &Self::FileContext,
+        pattern: Option<&U16CStr>,
+        marker: DirMarker<'_>,
+        buffer: &mut [u8],
+    ) -> Result<u32> {
+        Self::read_directory(self, context, pattern, marker, buffer)
+    }
+
+    /// Spawn a task onto the local executor.
+    ///
+    /// The implementations of `read_async`, `write_async`, and `read_directory_async` must
+    /// be compatible with the executor the future is spawned on.
+    fn spawn_async(&self, future: impl Future<Output = ()> + Send + 'static);
 }

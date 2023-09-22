@@ -1,23 +1,27 @@
 use std::ffi::c_void;
 use std::ops::Deref;
 use std::slice;
+use std::sync::atomic::AtomicPtr;
 
 use widestring::U16CString;
-use windows::Win32::Foundation::{EXCEPTION_NONCONTINUABLE_EXCEPTION, STATUS_INSUFFICIENT_RESOURCES, STATUS_PENDING, STATUS_REPARSE, STATUS_SUCCESS};
+use windows::Win32::Foundation::{
+    EXCEPTION_NONCONTINUABLE_EXCEPTION, STATUS_INSUFFICIENT_RESOURCES, STATUS_PENDING,
+    STATUS_REPARSE, STATUS_SUCCESS, STATUS_TRANSACTION_NOT_FOUND,
+};
 use windows::Win32::Security::{GetSecurityDescriptorLength, PSECURITY_DESCRIPTOR};
 
-use crate::{error, FspError, U16CStr};
+use crate::constants::FspTransactKind;
+use crate::{error, U16CStr};
 use winfsp_sys::{
     FspFileSystemFindReparsePoint, FspFileSystemResolveReparsePoints, BOOLEAN, FSP_FILE_SYSTEM,
-    FSP_FILE_SYSTEM_INTERFACE, FSP_FSCTL_DIR_INFO, FSP_FSCTL_FILE_INFO, FSP_FSCTL_VOLUME_INFO,
-    PFILE_FULL_EA_INFORMATION, PIO_STATUS_BLOCK, PSIZE_T,
+    FSP_FILE_SYSTEM_INTERFACE, FSP_FSCTL_DIR_INFO, FSP_FSCTL_FILE_INFO, FSP_FSCTL_TRANSACT_RSP,
+    FSP_FSCTL_VOLUME_INFO, PFILE_FULL_EA_INFORMATION, PIO_STATUS_BLOCK, PSIZE_T,
 };
 use winfsp_sys::{NTSTATUS as FSP_STATUS, PVOID};
-use crate::constants::FspTransactKind;
 
 use crate::filesystem::{
-    DirInfo, DirMarker, FileInfo, FileSecurity, FileSystemContext, ModificationDescriptor,
-    OpenFileInfo, VolumeInfo,
+    AsyncFileSystemContext, DirInfo, DirMarker, FileInfo, FileSecurity, FileSystemContext,
+    ModificationDescriptor, OpenFileInfo, VolumeInfo,
 };
 
 #[repr(C)]
@@ -27,9 +31,7 @@ pub(crate) struct FileSystemUserContext<C: FileSystemContext> {
 
 impl<C: FileSystemContext> FileSystemUserContext<C> {
     pub(crate) fn new(fctx: C) -> Self {
-        Self {
-            context: fctx,
-        }
+        Self { context: fctx }
     }
 }
 
@@ -75,7 +77,8 @@ where
     assert_ctx!(fs);
     assert_ctx!(fctx);
 
-    let context: &FileSystemUserContext<C> = unsafe { &*(*fs).UserContext.cast::<FileSystemUserContext<C>>() };
+    let context: &FileSystemUserContext<C> =
+        unsafe { &*(*fs).UserContext.cast::<FileSystemUserContext<C>>() };
     let fctx = unsafe { &*fctx.cast::<C::FileContext>() };
 
     match inner(context, fctx) {
@@ -87,11 +90,12 @@ where
 #[inline(always)]
 fn require_ctx<C: FileSystemContext, F>(fs: *mut FSP_FILE_SYSTEM, inner: F) -> FSP_STATUS
 where
-    F: FnOnce(&FileSystemUserContext<C>) -> error::Result<()>,
+    F: FnOnce(&C) -> error::Result<()>,
 {
     assert_ctx!(fs);
 
-    let context: &FileSystemUserContext<C> = unsafe { &*(*fs).UserContext.cast::<FileSystemUserContext<C>>() };
+    let context: &FileSystemUserContext<C> =
+        unsafe { &*(*fs).UserContext.cast::<FileSystemUserContext<C>>() };
     match inner(context) {
         Ok(_) => STATUS_SUCCESS.0,
         Err(e) => e.to_ntstatus(),
@@ -122,7 +126,9 @@ unsafe extern "C" fn get_security_by_name<T: FileSystemContext>(
     sz_security_descriptor: *mut winfsp_sys::SIZE_T,
 ) -> FSP_STATUS {
     catch_panic!({
-        let context: &T = unsafe { &*(*fs).UserContext.cast::<T>() };
+        assert_ctx!(fs);
+        let context: &FileSystemUserContext<T> =
+            unsafe { &*(*fs).UserContext.cast::<FileSystemUserContext<T>>() };
         if file_name.is_null() {
             panic!("gsbn: filename is null")
         }
@@ -414,6 +420,80 @@ unsafe extern "C" fn get_security<T: FileSystemContext>(
     })
 }
 
+unsafe extern "C" fn read_directory_async<T: AsyncFileSystemContext>(
+    fs: *mut FSP_FILE_SYSTEM,
+    fctx: PVOID,
+    pattern: *mut u16,
+    marker: *mut u16,
+    buffer: PVOID,
+    buffer_len: u32,
+    bytes_transferred: *mut u32,
+) -> FSP_STATUS
+where
+    <T as FileSystemContext>::FileContext: Sync,
+{
+    catch_panic!({
+        assert_ctx!(fs);
+        assert_ctx!(fctx);
+        let context: &FileSystemUserContext<T> =
+            unsafe { &*(*fs).UserContext.cast::<FileSystemUserContext<T>>() };
+        let fctx = unsafe { &*fctx.cast::<T::FileContext>() };
+
+        if !bytes_transferred.is_null() {
+            unsafe { bytes_transferred.write(0) }
+        }
+
+        let Some(hint) = (unsafe { T::with_operation_response(context, |resp| resp.Hint) }) else {
+            return STATUS_TRANSACTION_NOT_FOUND.0;
+        };
+
+        if !buffer.is_null() {
+            let fs = AtomicPtr::new(fs);
+            let pattern = if !pattern.is_null() {
+                Some(unsafe { U16CStr::from_ptr_str(pattern) })
+            } else {
+                None
+            };
+            let marker = if !marker.is_null() {
+                Some(unsafe { U16CStr::from_ptr_str(marker) })
+            } else {
+                None
+            };
+
+            let buffer =
+                unsafe { slice::from_raw_parts_mut(buffer as *mut _, buffer_len as usize) };
+
+            let readdir_ft = async move {
+                let mut response = FSP_FSCTL_TRANSACT_RSP::default();
+                response.Size = std::mem::size_of_val(&response) as u16;
+                response.Kind = FspTransactKind::FspFsctlTransactQueryDirectoryKind as u32;
+                response.Hint = hint;
+
+                match T::read_directory_async(context, fctx, pattern, DirMarker(marker), buffer)
+                    .await
+                {
+                    Ok(read) => {
+                        response.IoStatus.Status = STATUS_SUCCESS.0 as u32;
+                        response.IoStatus.Information = read;
+                    }
+                    Err(e) => {
+                        response.IoStatus.Status = e.to_ntstatus() as u32;
+                    }
+                }
+
+                unsafe {
+                    winfsp_sys::FspFileSystemSendResponse(fs.into_inner(), &mut response);
+                }
+            };
+
+            context.spawn_async(readdir_ft);
+            return STATUS_PENDING.0;
+        } else {
+            return STATUS_INSUFFICIENT_RESOURCES.0;
+        }
+    })
+}
+
 unsafe extern "C" fn read_directory<T: FileSystemContext>(
     fs: *mut FSP_FILE_SYSTEM,
     fctx: PVOID,
@@ -454,6 +534,64 @@ unsafe extern "C" fn read_directory<T: FileSystemContext>(
     })
 }
 
+unsafe extern "C" fn read_async<T: AsyncFileSystemContext>(
+    fs: *mut FSP_FILE_SYSTEM,
+    fctx: PVOID,
+    buffer: PVOID,
+    offset: u64,
+    length: u32,
+    bytes_transferred: *mut u32,
+) -> FSP_STATUS
+where
+    <T as FileSystemContext>::FileContext: Sync,
+{
+    catch_panic!({
+        assert_ctx!(fs);
+        assert_ctx!(fctx);
+        let context: &FileSystemUserContext<T> =
+            unsafe { &*(*fs).UserContext.cast::<FileSystemUserContext<T>>() };
+        let fctx = unsafe { &*fctx.cast::<T::FileContext>() };
+
+        if !bytes_transferred.is_null() {
+            unsafe { bytes_transferred.write(0) }
+        }
+
+        let Some(hint) = (unsafe { T::with_operation_response(context, |resp| resp.Hint) }) else {
+            return STATUS_TRANSACTION_NOT_FOUND.0;
+        };
+
+        if !buffer.is_null() {
+            let fs = AtomicPtr::new(fs);
+            let buffer = unsafe { slice::from_raw_parts_mut(buffer as *mut u8, length as usize) };
+            let read_ft = async move {
+                let mut response = FSP_FSCTL_TRANSACT_RSP::default();
+                response.Size = std::mem::size_of_val(&response) as u16;
+                response.Kind = FspTransactKind::FspFsctlTransactReadKind as u32;
+                response.Hint = hint;
+
+                match T::read_async(context, fctx, buffer, offset).await {
+                    Ok(read) => {
+                        response.IoStatus.Status = STATUS_SUCCESS.0 as u32;
+                        response.IoStatus.Information = read;
+                    }
+                    Err(e) => {
+                        response.IoStatus.Status = e.to_ntstatus() as u32;
+                    }
+                }
+
+                unsafe {
+                    winfsp_sys::FspFileSystemSendResponse(fs.into_inner(), &mut response);
+                }
+            };
+
+            context.spawn_async(read_ft);
+            return STATUS_PENDING.0;
+        } else {
+            return STATUS_INSUFFICIENT_RESOURCES.0;
+        }
+    })
+}
+
 unsafe extern "C" fn read<T: FileSystemContext>(
     fs: *mut FSP_FILE_SYSTEM,
     fctx: PVOID,
@@ -480,6 +618,83 @@ unsafe extern "C" fn read<T: FileSystemContext>(
                 Err(STATUS_INSUFFICIENT_RESOURCES.into())
             }
         })
+    })
+}
+
+unsafe extern "C" fn write_async<T: AsyncFileSystemContext>(
+    fs: *mut FSP_FILE_SYSTEM,
+    fctx: PVOID,
+    buffer: PVOID,
+    offset: u64,
+    length: u32,
+    write_to_eof: u8,
+    constrained_io: u8,
+    bytes_transferred: *mut u32,
+    _out_file_info: *mut FSP_FSCTL_FILE_INFO,
+) -> FSP_STATUS
+where
+    <T as FileSystemContext>::FileContext: Sync,
+{
+    catch_panic!({
+        assert_ctx!(fs);
+        assert_ctx!(fctx);
+
+        let context: &FileSystemUserContext<T> =
+            unsafe { &*(*fs).UserContext.cast::<FileSystemUserContext<T>>() };
+        let fctx = unsafe { &*fctx.cast::<T::FileContext>() };
+
+        if !bytes_transferred.is_null() {
+            unsafe { bytes_transferred.write(0) }
+        }
+
+        let Some(hint) = (unsafe { T::with_operation_response(context, |resp| resp.Hint) }) else {
+            return STATUS_TRANSACTION_NOT_FOUND.0;
+        };
+
+        if !buffer.is_null() {
+            let buffer =
+                unsafe { slice::from_raw_parts(buffer as *const u8, length as usize) };
+            let fs = AtomicPtr::new(fs);
+            let write_ft = async move {
+                let mut response = FSP_FSCTL_TRANSACT_RSP::default();
+                response.Size = std::mem::size_of_val(&response) as u16;
+                response.Kind = FspTransactKind::FspFsctlTransactWriteKind as u32;
+                response.Hint = hint;
+
+                match T::write_async(
+                    context,
+                    fctx,
+                    buffer,
+                    offset,
+                    write_to_eof != 0,
+                    constrained_io != 0,
+                    unsafe {
+                        // SAFETY:  FSP_FSCTL_FILE_INFO and FileInfo have the same type
+                        std::mem::transmute(&mut response.Rsp.Write.FileInfo)
+                    },
+                )
+                .await
+                {
+                    Ok(written) => {
+                        response.IoStatus.Status = STATUS_SUCCESS.0 as u32;
+                        response.IoStatus.Information = written;
+                    }
+                    Err(e) => {
+                        response.IoStatus.Status = e.to_ntstatus() as u32;
+                    }
+                }
+
+                unsafe {
+                    winfsp_sys::FspFileSystemSendResponse(fs.into_inner(), &mut response);
+                }
+            };
+
+            context.spawn_async(write_ft);
+
+            return STATUS_PENDING.0;
+        } else {
+            return STATUS_INSUFFICIENT_RESOURCES.0;
+        }
     })
 }
 
@@ -1203,6 +1418,80 @@ impl Interface {
             get_file_info: Some(get_file_info::<T>),
             read: Some(read::<T>),
             write: Some(write::<T>),
+            cleanup: Some(cleanup::<T>),
+            set_basic_info: Some(set_basic_info::<T>),
+            set_file_size: Some(set_file_size::<T>),
+            set_security: Some(set_security::<T>),
+            set_delete: Some(set_delete::<T>),
+            flush: Some(flush::<T>),
+            rename: Some(rename::<T>),
+            get_ea: Some(get_ea::<T>),
+            set_ea: Some(set_ea::<T>),
+            get_reparse_point: Some(get_reparse_point::<T>),
+            set_reparse_point: Some(set_reparse_point::<T>),
+            delete_reparse_point: Some(delete_reparse_point::<T>),
+            resolve_reparse_points: Some(resolve_reparse_points::<T>),
+            get_stream_info: Some(get_stream_info::<T>),
+            get_dir_info_by_name: Some(get_dir_info_by_name::<T>),
+            dispatcher_stopped: Some(dispatcher_stopped::<T>),
+        }
+    }
+
+    pub(crate) fn create_with_read_directory_async<T: AsyncFileSystemContext>() -> Self
+    where
+        <T as FileSystemContext>::FileContext: Sync,
+    {
+        Interface {
+            open: Some(open::<T>),
+            get_security_by_name: Some(get_security_by_name::<T>),
+            close: Some(close::<T>),
+            create_ex: Some(create_ex::<T>),
+            control: Some(control::<T>),
+            overwrite_ex: Some(overwrite_ex::<T>),
+            read_directory: Some(read_directory_async::<T>),
+            get_volume_info: Some(get_volume_info::<T>),
+            set_volume_label: Some(set_volume_label::<T>),
+            get_security: Some(get_security::<T>),
+            get_file_info: Some(get_file_info::<T>),
+            read: Some(read_async::<T>),
+            write: Some(write_async::<T>),
+            cleanup: Some(cleanup::<T>),
+            set_basic_info: Some(set_basic_info::<T>),
+            set_file_size: Some(set_file_size::<T>),
+            set_security: Some(set_security::<T>),
+            set_delete: Some(set_delete::<T>),
+            flush: Some(flush::<T>),
+            rename: Some(rename::<T>),
+            get_ea: Some(get_ea::<T>),
+            set_ea: Some(set_ea::<T>),
+            get_reparse_point: Some(get_reparse_point::<T>),
+            set_reparse_point: Some(set_reparse_point::<T>),
+            delete_reparse_point: Some(delete_reparse_point::<T>),
+            resolve_reparse_points: Some(resolve_reparse_points::<T>),
+            get_stream_info: Some(get_stream_info::<T>),
+            get_dir_info_by_name: None,
+            dispatcher_stopped: Some(dispatcher_stopped::<T>),
+        }
+    }
+
+    pub(crate) fn create_with_dirinfo_by_name_async<T: AsyncFileSystemContext>() -> Self
+    where
+        <T as FileSystemContext>::FileContext: Sync,
+    {
+        Interface {
+            open: Some(open::<T>),
+            get_security_by_name: Some(get_security_by_name::<T>),
+            close: Some(close::<T>),
+            create_ex: Some(create_ex::<T>),
+            control: Some(control::<T>),
+            overwrite_ex: Some(overwrite_ex::<T>),
+            read_directory: Some(read_directory_async::<T>),
+            get_volume_info: Some(get_volume_info::<T>),
+            set_volume_label: Some(set_volume_label::<T>),
+            get_security: Some(get_security::<T>),
+            get_file_info: Some(get_file_info::<T>),
+            read: Some(read_async::<T>),
+            write: Some(write_async::<T>),
             cleanup: Some(cleanup::<T>),
             set_basic_info: Some(set_basic_info::<T>),
             set_file_size: Some(set_file_size::<T>),
