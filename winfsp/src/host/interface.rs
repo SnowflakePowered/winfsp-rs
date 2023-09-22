@@ -1,25 +1,46 @@
 use std::ffi::c_void;
+use std::ops::Deref;
 use std::slice;
 
 use widestring::U16CString;
-use windows::Win32::Foundation::{
-    EXCEPTION_NONCONTINUABLE_EXCEPTION, STATUS_INSUFFICIENT_RESOURCES, STATUS_REPARSE,
-    STATUS_SUCCESS,
-};
+use windows::Win32::Foundation::{EXCEPTION_NONCONTINUABLE_EXCEPTION, STATUS_INSUFFICIENT_RESOURCES, STATUS_PENDING, STATUS_REPARSE, STATUS_SUCCESS};
 use windows::Win32::Security::{GetSecurityDescriptorLength, PSECURITY_DESCRIPTOR};
 
-use crate::{error, U16CStr};
+use crate::{error, FspError, U16CStr};
 use winfsp_sys::{
     FspFileSystemFindReparsePoint, FspFileSystemResolveReparsePoints, BOOLEAN, FSP_FILE_SYSTEM,
     FSP_FILE_SYSTEM_INTERFACE, FSP_FSCTL_DIR_INFO, FSP_FSCTL_FILE_INFO, FSP_FSCTL_VOLUME_INFO,
     PFILE_FULL_EA_INFORMATION, PIO_STATUS_BLOCK, PSIZE_T,
 };
 use winfsp_sys::{NTSTATUS as FSP_STATUS, PVOID};
+use crate::constants::FspTransactKind;
 
 use crate::filesystem::{
     DirInfo, DirMarker, FileInfo, FileSecurity, FileSystemContext, ModificationDescriptor,
     OpenFileInfo, VolumeInfo,
 };
+
+#[repr(C)]
+pub(crate) struct FileSystemUserContext<C: FileSystemContext> {
+    context: C,
+}
+
+impl<C: FileSystemContext> FileSystemUserContext<C> {
+    pub(crate) fn new(fctx: C) -> Self {
+        Self {
+            context: fctx,
+        }
+    }
+}
+
+// ok this is bad but its internal so its ok.
+impl<C: FileSystemContext> Deref for FileSystemUserContext<C> {
+    type Target = C;
+
+    fn deref(&self) -> &Self::Target {
+        &self.context
+    }
+}
 
 /// Catch panic and return EXECPTION_NONCONTINUABLE_EXCEPTION
 macro_rules! catch_panic {
@@ -49,12 +70,12 @@ fn require_fctx<C: FileSystemContext, F>(
     inner: F,
 ) -> FSP_STATUS
 where
-    F: FnOnce(&C, &C::FileContext) -> error::Result<()>,
+    F: FnOnce(&FileSystemUserContext<C>, &C::FileContext) -> error::Result<()>,
 {
     assert_ctx!(fs);
     assert_ctx!(fctx);
 
-    let context: &C = unsafe { &*(*fs).UserContext.cast::<C>() };
+    let context: &FileSystemUserContext<C> = unsafe { &*(*fs).UserContext.cast::<FileSystemUserContext<C>>() };
     let fctx = unsafe { &*fctx.cast::<C::FileContext>() };
 
     match inner(context, fctx) {
@@ -66,11 +87,11 @@ where
 #[inline(always)]
 fn require_ctx<C: FileSystemContext, F>(fs: *mut FSP_FILE_SYSTEM, inner: F) -> FSP_STATUS
 where
-    F: FnOnce(&C) -> error::Result<()>,
+    F: FnOnce(&FileSystemUserContext<C>) -> error::Result<()>,
 {
     assert_ctx!(fs);
 
-    let context: &C = unsafe { &*(*fs).UserContext.cast::<C>() };
+    let context: &FileSystemUserContext<C> = unsafe { &*(*fs).UserContext.cast::<FileSystemUserContext<C>>() };
     match inner(context) {
         Ok(_) => STATUS_SUCCESS.0,
         Err(e) => e.to_ntstatus(),
