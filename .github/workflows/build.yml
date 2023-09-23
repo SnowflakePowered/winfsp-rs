@@ -23,4 +23,4 @@ jobs:
     - name: Install WinFSP
       run: choco install winfsp
     - name: Build winfsp-rs
-      run: cargo build --profile ${{ matrix.profile }} -p winfsp --verbose
+      run: cargo build --profile ${{ matrix.profile }} -p winfsp --verbose --features=full
