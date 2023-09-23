@@ -141,6 +141,26 @@ impl FileSystemHost<'static> {
         let fsp_struct = Self::new_filesystem_inner_async(options, context)?;
         Ok(FileSystemHost(fsp_struct, None, PhantomData))
     }
+
+    /// Create a `FileSystemHost` with the provided notifying context implementation,
+    /// host options, and polling interval, using async implementations of `read`, `write`, and `read_directory`.
+    #[cfg_attr(feature = "docsrs", doc(cfg(all(feature = "notify", feature = "async-io"))))]
+    #[cfg(all(feature = "notify", feature = "async-io"))]
+    pub fn new_with_timer_async<
+        T: crate::filesystem::AsyncFileSystemContext + NotifyingFileSystemContext<R>,
+        R,
+        const INTERVAL: u32,
+    >(
+        options: FileSystemParams,
+        context: T,
+    ) -> Result<Self>
+        where
+            <T as FileSystemContext>::FileContext: Sync,
+    {
+        let fsp_struct = Self::new_filesystem_inner_async(options, context)?;
+        let timer = Timer::create::<R, T, INTERVAL>(fsp_struct)?;
+        Ok(FileSystemHost(fsp_struct, Some(timer), PhantomData))
+    }
 }
 
 impl<'ctx> FileSystemHost<'ctx> {
@@ -245,6 +265,7 @@ impl<'ctx> FileSystemHost<'ctx> {
 
     /// Create a `FileSystemHost` with the provided notifying context implementation,
     /// host options, and polling interval.
+    #[cfg_attr(feature = "docsrs", doc(cfg(feature = "notify")))]
     #[cfg(feature = "notify")]
     pub fn new_with_timer<
         T: FileSystemContext + NotifyingFileSystemContext<R> + 'ctx,
