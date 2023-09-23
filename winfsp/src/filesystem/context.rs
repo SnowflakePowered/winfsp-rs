@@ -1,9 +1,7 @@
 use crate::error::Result;
 use crate::filesystem::{DirInfo, DirMarker, FileInfo, OpenFileInfo, VolumeInfo};
 use crate::U16CStr;
-use async_trait::async_trait;
 use std::ffi::c_void;
-use std::future::Future;
 
 use windows::Win32::Foundation::STATUS_INVALID_DEVICE_REQUEST;
 
@@ -388,6 +386,11 @@ pub trait FileSystemContext: Sized {
     }
 }
 
+#[cfg(feature = "async-io")]
+use async_trait::async_trait;
+
+#[cfg_attr(feature = "docsrs", doc(cfg(feature = "async-io")))]
+#[cfg(feature = "async-io")]
 /// A trait for file systems that implement async functions.
 #[async_trait]
 #[allow(unused_variables)]
@@ -447,5 +450,5 @@ where
     ///
     /// The implementations of `read_async`, `write_async`, and `read_directory_async` must
     /// be compatible with the executor the future is spawned on.
-    fn spawn_async(&self, future: impl Future<Output = ()> + Send + 'static);
+    fn spawn_async(&self, future: impl std::future::Future<Output = ()> + Send + 'static);
 }

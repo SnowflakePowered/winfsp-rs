@@ -1,28 +1,40 @@
 use std::ffi::c_void;
 use std::ops::Deref;
 use std::slice;
-use std::sync::atomic::AtomicPtr;
 
 use widestring::U16CString;
 use windows::Win32::Foundation::{
-    EXCEPTION_NONCONTINUABLE_EXCEPTION, STATUS_INSUFFICIENT_RESOURCES, STATUS_PENDING,
-    STATUS_REPARSE, STATUS_SUCCESS, STATUS_TRANSACTION_NOT_FOUND,
+    EXCEPTION_NONCONTINUABLE_EXCEPTION, STATUS_INSUFFICIENT_RESOURCES,
+    STATUS_REPARSE, STATUS_SUCCESS,
 };
 use windows::Win32::Security::{GetSecurityDescriptorLength, PSECURITY_DESCRIPTOR};
 
-use crate::constants::FspTransactKind;
 use crate::{error, U16CStr};
 use winfsp_sys::{
     FspFileSystemFindReparsePoint, FspFileSystemResolveReparsePoints, BOOLEAN, FSP_FILE_SYSTEM,
-    FSP_FILE_SYSTEM_INTERFACE, FSP_FSCTL_DIR_INFO, FSP_FSCTL_FILE_INFO, FSP_FSCTL_TRANSACT_RSP,
+    FSP_FILE_SYSTEM_INTERFACE, FSP_FSCTL_DIR_INFO, FSP_FSCTL_FILE_INFO,
     FSP_FSCTL_VOLUME_INFO, PFILE_FULL_EA_INFORMATION, PIO_STATUS_BLOCK, PSIZE_T,
 };
 use winfsp_sys::{NTSTATUS as FSP_STATUS, PVOID};
 
 use crate::filesystem::{
-    AsyncFileSystemContext, DirInfo, DirMarker, FileInfo, FileSecurity, FileSystemContext,
+    DirInfo, DirMarker, FileInfo, FileSecurity, FileSystemContext,
     ModificationDescriptor, OpenFileInfo, VolumeInfo,
 };
+
+#[cfg(feature = "async-io")]
+use std::sync::atomic::AtomicPtr;
+#[cfg(feature = "async-io")]
+use crate::{
+    filesystem::AsyncFileSystemContext,
+    constants::FspTransactKind,
+};
+#[cfg(feature = "async-io")]
+use windows::Win32::Foundation::{
+    STATUS_PENDING,STATUS_TRANSACTION_NOT_FOUND,
+};
+#[cfg(feature = "async-io")]
+use winfsp_sys::FSP_FSCTL_TRANSACT_RSP;
 
 #[repr(C)]
 pub(crate) struct FileSystemUserContext<C: FileSystemContext> {
@@ -420,6 +432,7 @@ unsafe extern "C" fn get_security<T: FileSystemContext>(
     })
 }
 
+#[cfg(feature = "async-io")]
 unsafe extern "C" fn read_directory_async<T: AsyncFileSystemContext>(
     fs: *mut FSP_FILE_SYSTEM,
     fctx: PVOID,
@@ -534,6 +547,7 @@ unsafe extern "C" fn read_directory<T: FileSystemContext>(
     })
 }
 
+#[cfg(feature = "async-io")]
 unsafe extern "C" fn read_async<T: AsyncFileSystemContext>(
     fs: *mut FSP_FILE_SYSTEM,
     fctx: PVOID,
@@ -621,6 +635,7 @@ unsafe extern "C" fn read<T: FileSystemContext>(
     })
 }
 
+#[cfg(feature = "async-io")]
 unsafe extern "C" fn write_async<T: AsyncFileSystemContext>(
     fs: *mut FSP_FILE_SYSTEM,
     fctx: PVOID,
@@ -1437,6 +1452,7 @@ impl Interface {
         }
     }
 
+    #[cfg(feature = "async-io")]
     pub(crate) fn create_with_read_directory_async<T: AsyncFileSystemContext>() -> Self
     where
         <T as FileSystemContext>::FileContext: Sync,
@@ -1474,6 +1490,7 @@ impl Interface {
         }
     }
 
+    #[cfg(feature = "async-io")]
     pub(crate) fn create_with_dirinfo_by_name_async<T: AsyncFileSystemContext>() -> Self
     where
         <T as FileSystemContext>::FileContext: Sync,
