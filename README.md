@@ -4,7 +4,7 @@
 
 Safe Rust bindings to [WinFSP](https://github.com/winfsp/winfsp) with examples. 
 
-> [!WARNING]
+> **Warning**
 > 
 > A best effort has been made to keep Rust's aliasing rules in mind, and provide a safe and sound wrapper over
 > WinFSP. However, FFI with WinFSP involves a lot of pointers that end up as references and the nature of FFI makes

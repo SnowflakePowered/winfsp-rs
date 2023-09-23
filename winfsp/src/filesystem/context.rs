@@ -64,7 +64,7 @@ pub trait FileSystemContext: Sized {
     /// called with the input file_name. If a reparse point is found at any point
     /// in the path, the result can be immediately returned like so the following.
     ///
-    /// ```
+    /// ```rust,ignore
     /// if let Some(security) = resolve_reparse_points(file_name.as_ref()) {
     ///    Ok(security)
     /// }
@@ -325,7 +325,7 @@ pub trait FileSystemContext: Sized {
         Err(STATUS_INVALID_DEVICE_REQUEST.into())
     }
 
-    /// Process a control code from the DeviceIoControl API.
+    /// Process a control code from the [`DeviceIoControl`](https://learn.microsoft.com/en-us/windows/win32/api/ioapiset/nf-ioapiset-deviceiocontrol) API.
     fn control(
         &self,
         context: &Self::FileContext,
@@ -399,7 +399,7 @@ use async_trait::async_trait;
 ///
 /// Any non-implemented optional methods will return `STATUS_INVALID_DEVICE_REQUEST` (0xC0000010).
 ///
-/// Filesystems that implement this trait should use `#[async_trait]` in their implementations.
+/// Filesystems that implement this trait should use [`#[async_trait]`](https://docs.rs/async-trait) in their implementations.
 /// The default implementations simply call [`read`](FileSystemContext::read), [`write`](FileSystemContext::write),
 /// and [`read_directory`](FileSystemContext::read_directory) on the base
 /// `FileSystemContext` trait.
@@ -412,7 +412,7 @@ use async_trait::async_trait;
 /// [`write_async`](AsyncFileSystemContext::read_async), and
 /// [`read_directory_async`](AsyncFileSystemContext::read_directory_async) will be passed to [`AsyncFileSystemContext::spawn_task`],
 /// which is responsible for dispatching the task to the executor of the implementor's choice. It is recommended, but not required,
-/// that the task executes on a separate thread, executing on the same thread may cause deadlocks.#[async_trait]
+/// that the task executes on a separate thread, executing on the same thread may cause deadlocks.
 #[allow(unused_variables)]
 #[async_trait]
 pub trait AsyncFileSystemContext: FileSystemContext + 'static + Sync
