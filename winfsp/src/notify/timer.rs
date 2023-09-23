@@ -1,4 +1,5 @@
 use crate::notify::{Notifier, NotifyingFileSystemContext};
+use crate::host::interface::FileSystemUserContext;
 use std::ptr::NonNull;
 use windows::core::Result;
 use windows::Win32::Foundation::{NTSTATUS, STATUS_SUCCESS};
@@ -55,7 +56,7 @@ unsafe extern "system" fn timer_callback<
     if fs.is_null() {
         panic!("Timer callback was passed in a null pointer")
     }
-    let context: &T = unsafe { &*(*fs).UserContext.cast::<T>() };
+    let context: &FileSystemUserContext<T> = unsafe { &*(*fs).UserContext.cast::<FileSystemUserContext<T>>() };
     let notifier = Notifier(fs);
     if let Some(val) = context.should_notify() {
         unsafe {

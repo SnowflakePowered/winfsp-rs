@@ -2,7 +2,7 @@
 //! of the filesystem context.
 mod debug;
 mod fshost;
-mod interface;
+pub(crate) mod interface;
 mod volumeparams;
 
 pub use debug::*;
