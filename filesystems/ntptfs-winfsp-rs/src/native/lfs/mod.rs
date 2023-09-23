@@ -1,9 +1,11 @@
+pub(crate) mod async_io;
+
 use std::ffi::c_void;
+use std::future::Future;
 use std::mem::{offset_of, size_of, MaybeUninit};
 use std::ops::DerefMut;
 use std::ptr::{addr_of, addr_of_mut};
 use std::slice;
-
 use windows::core::PCWSTR;
 use windows::Wdk::Foundation::OBJECT_ATTRIBUTES;
 use windows::Wdk::Storage::FileSystem::{
