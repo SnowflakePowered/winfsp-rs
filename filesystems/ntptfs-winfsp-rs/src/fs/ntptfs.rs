@@ -29,7 +29,7 @@ impl NtPassthroughFilesystem {
 
         volume_params.file_info_timeout(1000);
         Ok(NtPassthroughFilesystem {
-            fs: FileSystemHost::new_with_options(
+            fs: FileSystemHost::new_with_options_async(
                 FileSystemParams::default_params_debug(volume_params, DebugMode::all()),
                 context,
             )?,
