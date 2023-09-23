@@ -1,9 +1,7 @@
 use crate::error::Result;
 use crate::filesystem::{DirInfo, DirMarker, FileInfo, OpenFileInfo, VolumeInfo};
 use crate::U16CStr;
-use async_trait::async_trait;
 use std::ffi::c_void;
-use std::future::Future;
 
 use windows::Win32::Foundation::STATUS_INVALID_DEVICE_REQUEST;
 
@@ -387,6 +385,13 @@ pub trait FileSystemContext: Sized {
     }
 }
 
+
+#[cfg(feature = "async-io")]
+use async_trait::async_trait;
+
+#[cfg_attr(feature = "docsrs", doc(cfg(feature = "async-io")))]
+#[cfg(feature = "async-io")]
+
 /// The trait that implements asynchronous file system operations for a WinFSP file system.
 ///
 /// If an implementor of this trait panics in any of the methods,
@@ -407,9 +412,9 @@ pub trait FileSystemContext: Sized {
 /// [`write_async`](AsyncFileSystemContext::read_async), and
 /// [`read_directory_async`](AsyncFileSystemContext::read_directory_async) will be passed to [`AsyncFileSystemContext::spawn_task`],
 /// which is responsible for dispatching the task to the executor of the implementor's choice. It is recommended, but not required,
-/// that the task executes on a separate thread, executing on the same thread may cause deadlocks.
-#[async_trait]
+/// that the task executes on a separate thread, executing on the same thread may cause deadlocks.#[async_trait]
 #[allow(unused_variables)]
+#[async_trait]
 pub trait AsyncFileSystemContext: FileSystemContext + 'static + Sync
 where
     <Self as FileSystemContext>::FileContext: Sync,
@@ -466,5 +471,5 @@ where
     ///
     /// The implementations of `read_async`, `write_async`, and `read_directory_async` must
     /// be compatible with the executor the future is spawned on.
-    fn spawn_task(&self, future: impl Future<Output = ()> + Send + 'static);
+    fn spawn_task(&self, future: impl std::future::Future<Output = ()> + Send + 'static);
 }
