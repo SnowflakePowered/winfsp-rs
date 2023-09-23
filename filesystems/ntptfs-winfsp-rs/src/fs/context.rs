@@ -1,7 +1,8 @@
 use crate::fs::file::NtPassthroughFile;
-use crate::native::lfs::LfsRenameSemantics;
+use crate::native::lfs::{async_io, LfsRenameSemantics};
 use crate::native::{lfs, volume};
 use std::ffi::OsString;
+use std::future::Future;
 use std::mem::{offset_of, size_of};
 
 use std::os::raw::c_void;
@@ -40,7 +41,7 @@ use windows::Win32::System::WindowsProgramming::FILE_INFORMATION_CLASS;
 
 use winfsp::constants::FspCleanupFlags::FspCleanupDelete;
 use winfsp::filesystem::{
-    DirInfo, DirMarker, FileInfo, FileSecurity, FileSystemContext,
+    AsyncFileSystemContext, DirInfo, DirMarker, FileInfo, FileSecurity, FileSystemContext,
     ModificationDescriptor, OpenFileInfo, StreamInfo, VolumeInfo, WideNameInfo,
 };
 use winfsp::host::VolumeParams;
@@ -56,6 +57,7 @@ pub struct NtPassthroughContext {
     root_prefix: U16CString,
     root_osstring: OsString,
     set_alloc_size_on_cleanup: bool,
+    executor: tokio::runtime::Runtime,
 }
 
 impl NtPassthroughContext {
@@ -95,6 +97,7 @@ impl NtPassthroughContext {
             root_osstring: root.as_ref().to_path_buf().into_os_string(),
             root_prefix: U16CString::from_vec(root_prefix).expect("invalid root path"),
             set_alloc_size_on_cleanup: true,
+            executor: tokio::runtime::Runtime::new().expect("couldn't boot tokio"),
         })
     }
 
@@ -892,5 +895,130 @@ impl FileSystemContext for NtPassthroughContext {
     ) -> winfsp::Result<()> {
         lfs::lfs_set_ea(context.handle(), buffer)?;
         lfs::lfs_get_file_info(context.handle(), None, file_info)
+    }
+}
+
+use async_trait::async_trait;
+#[async_trait]
+impl AsyncFileSystemContext for NtPassthroughContext {
+    fn spawn_task(&self, future: impl Future<Output = ()> + Send + 'static) {
+        let _ = self.executor.spawn(future);
+    }
+
+    async fn read_async(
+        &self,
+        context: &Self::FileContext,
+        buffer: &mut [u8],
+        offset: u64,
+    ) -> winfsp::Result<u32> {
+        let mut bytes_transferred = 0;
+        let handle = context.handle();
+        async_io::lfs_read_file_async(handle, buffer, offset, &mut bytes_transferred).await?;
+        Ok(bytes_transferred)
+    }
+
+    async fn write_async(
+        &self,
+        context: &Self::FileContext,
+        mut buffer: &[u8],
+        offset: u64,
+        _write_to_eof: bool,
+        constrained_io: bool,
+        file_info: &mut FileInfo,
+    ) -> winfsp::Result<u32> {
+        let mut bytes_transferred = 0;
+        if constrained_io {
+            let fsize = lfs::lfs_get_file_size(context.handle())?;
+            if offset >= fsize {
+                return Ok(0);
+            }
+
+            if offset + buffer.len() as u64 > fsize {
+                buffer = &buffer[0..(fsize - offset) as usize]
+            }
+        }
+
+        lfs::async_io::lfs_write_file_async(
+            context.handle(),
+            buffer,
+            offset,
+            &mut bytes_transferred,
+        )
+        .await?;
+        lfs::lfs_get_file_info(context.handle(), None, file_info)?;
+        Ok(bytes_transferred)
+    }
+
+    async fn read_directory_async(
+        &self,
+        context: &Self::FileContext,
+        pattern: Option<&U16CStr>,
+        marker: DirMarker<'_>,
+        buffer: &mut [u8],
+    ) -> winfsp::Result<u32> {
+        let dir_size = context.size();
+        let handle = context.handle();
+        let mut dirinfo: DirInfo = DirInfo::new();
+        if let Ok(dirbuffer) = context
+            .dir_buffer()
+            .acquire(marker.is_none(), Some(dir_size))
+        {
+            // todo: don't reallocate this.
+            let mut query_buffer = vec![0u8; 16 * 1024];
+            let mut restart_scan = true;
+
+            #[allow(non_upper_case_globals)]
+            const FileIdBothDirectoryInformation: FILE_INFORMATION_CLASS =
+                FILE_INFORMATION_CLASS(37);
+
+            'once: loop {
+                query_buffer.fill(0);
+                if let Ok(bytes_transferred) = lfs::async_io::lfs_query_directory_file_async(
+                    handle,
+                    &mut query_buffer,
+                    FileIdBothDirectoryInformation,
+                    false,
+                    pattern,
+                    restart_scan,
+                )
+                .await
+                {
+                    let mut query_info =
+                        query_buffer.as_ptr() as *const FILE_ID_BOTH_DIR_INFORMATION;
+                    'inner: loop {
+                        // SAFETY: FILE_ID_BOTH_DIR_INFO has FileName as the last VST array member, so it's offset is size_of - 1.
+                        // bounds check to ensure we don't go past the edge of the buffer.
+                        if query_buffer
+                            .as_ptr()
+                            .map_addr(|addr| addr.wrapping_add(bytes_transferred))
+                            < (query_info as *const _ as *const u8).map_addr(|addr| {
+                                addr.wrapping_add(offset_of!(
+                                    FILE_ID_BOTH_DIR_INFORMATION,
+                                    FileName
+                                ))
+                            })
+                        {
+                            break 'once;
+                        }
+                        Self::copy_query_info_to_dirinfo(query_info, &mut dirinfo)?;
+                        dirbuffer.write(&mut dirinfo)?;
+
+                        unsafe {
+                            let query_next = addr_of!((*query_info).NextEntryOffset).read();
+                            if query_next == 0 {
+                                break 'inner;
+                            }
+                            query_info = (query_info as *const _ as *const u8)
+                                .map_addr(|addr| addr.wrapping_add(query_next as usize))
+                                .cast();
+                        }
+                    }
+                    restart_scan = false;
+                } else {
+                    break 'once;
+                }
+            }
+        }
+        Ok(context.dir_buffer().read(marker, buffer))
     }
 }
