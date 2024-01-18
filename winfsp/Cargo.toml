@@ -1,6 +1,6 @@
 [package]
 name = "winfsp"
-version = "0.10.0-beta.2+winfsp-2.0"
+version = "0.10.0-beta.3+winfsp-2.0"
 edition = "2021"
 readme = "../README.md"
 license = "GPL-3.0"
