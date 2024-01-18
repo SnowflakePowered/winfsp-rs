@@ -300,8 +300,12 @@ impl<'ctx> FileSystemHost<'ctx> {
     /// Mount the filesystem to the given mount point.
     pub fn mount<S: AsRef<OsStr>>(&mut self, mount: S) -> Result<()> {
         let mount = HSTRING::from(mount.as_ref());
-        let result =
-            unsafe { FspFileSystemSetMountPoint(self.0.as_ptr(), mount.as_ptr().cast_mut()) };
+        let mount_ptr = if mount.is_empty() {
+            std::ptr::null_mut()
+        } else {
+            mount.as_ptr().cast_mut()
+        };
+        let result = unsafe { FspFileSystemSetMountPoint(self.0.as_ptr(), mount_ptr) };
 
         let result = NTSTATUS(result);
         result.ok()
