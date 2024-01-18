@@ -1,10 +1,10 @@
-use crate::native::nt::FILE_FS_SIZE_INFORMATION;
 use std::ffi::c_void;
 use std::mem::MaybeUninit;
 use windows::Wdk::Storage::FileSystem::{
     FileFsAttributeInformation, FileFsSizeInformation, NtQueryVolumeInformationFile,
     FILE_FS_ATTRIBUTE_INFORMATION,
 };
+use windows::Wdk::System::SystemServices::FILE_FS_SIZE_INFORMATION;
 use windows::Win32::Foundation::HANDLE;
 use windows::Win32::System::IO::IO_STATUS_BLOCK;
 use winfsp::constants::MAX_PATH;
@@ -23,7 +23,8 @@ pub fn get_attr(handle: HANDLE) -> winfsp::Result<VariableSizedBox<FILE_FS_ATTRI
             info.as_mut_ptr() as *mut _,
             info.len() as u32,
             FileFsAttributeInformation,
-        )?;
+        )
+        .ok()?;
     }
     Ok(info)
 }
@@ -39,7 +40,8 @@ pub fn get_size(handle: HANDLE) -> winfsp::Result<FILE_FS_SIZE_INFORMATION> {
             (&mut info) as *mut _ as *mut c_void,
             std::mem::size_of::<FILE_FS_SIZE_INFORMATION>() as u32,
             FileFsSizeInformation,
-        )?;
+        )
+        .ok()?;
     };
 
     Ok(info)

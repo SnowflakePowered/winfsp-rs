@@ -60,7 +60,7 @@ pub struct NtHandleDrop;
 pub type NtSafeHandle = SafeDropHandle<NtHandleDrop>;
 impl HandleCloseHandler for NtHandleDrop {
     fn close(handle: HANDLE) {
-        if let Err(e) = unsafe { NtClose(handle) } {
+        if let Err(e) = unsafe { NtClose(handle).ok() } {
             eprintln!("unable to close nt handle {:x?}: {:?}", handle, e)
         }
     }

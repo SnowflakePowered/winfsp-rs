@@ -8,14 +8,15 @@ description = "NTFS Passthrough File System via winfsp-rs"
 
 [dependencies]
 clap = { version = "3.2", features = ["derive"] }
-windows = { version = "0.51.0", features = ["Win32_Foundation", "Win32_System_LibraryLoader", "Win32_Security", "Win32_Storage_FileSystem", "Win32_System_WindowsProgramming", "Win32_System_Console", "Win32_System_IO",
+windows = { version = "0.52.0", features = ["Win32_Foundation", "Win32_System_LibraryLoader", "Win32_Security", "Win32_Storage_FileSystem", "Win32_System_WindowsProgramming", "Win32_System_Console", "Win32_System_IO",
     "Wdk_Foundation", "Wdk_Storage_FileSystem", "Wdk_System_IO", "Wdk_Storage_FileSystem_Minifilters", "Wdk_System_SystemServices", "Win32_System_Ioctl", "Win32_System_SystemServices"] }
-windows-sys = { version = "0.52.0", features = ["Win32_Foundation", "Win32_System_LibraryLoader", "Win32_Security", "Win32_Storage_FileSystem", "Win32_System_WindowsProgramming", "Win32_System_Console", "Win32_System_IO",
-    "Wdk_Foundation", "Wdk_Storage_FileSystem", "Wdk_System_IO", "Wdk_Storage_FileSystem_Minifilters", "Wdk_System_SystemServices", "Win32_System_Ioctl", "Win32_System_SystemServices"], git = "https://github.com/microsoft/windows-rs",  branch = "master" }
+
 bytemuck = "1.12.1"
 widestring = "1"
-winfsp = { path = "../../winfsp", features = ["debug", "system"] }
+winfsp = { path = "../../winfsp", features = ["debug", "system", "full"] }
 anyhow = "1"
+tokio =  { version = "1.32.0", features = ["rt", "rt-multi-thread"] }
+async-trait = { version = "0.1.73" }
 
 [build-dependencies]
 winfsp = { path = "../../winfsp", features = ["delayload"] }
