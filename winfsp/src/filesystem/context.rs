@@ -395,7 +395,6 @@ pub trait FileSystemContext: Sized {
 ///
 /// Any non-implemented optional methods will return `STATUS_INVALID_DEVICE_REQUEST` (0xC0000010).
 ///
-/// Filesystems that implement this trait should use [`#[async_trait]`](https://docs.rs/async-trait) in their implementations.
 /// The default implementations simply call [`read`](FileSystemContext::read), [`write`](FileSystemContext::write),
 /// and [`read_directory`](FileSystemContext::read_directory) on the base
 /// `FileSystemContext` trait.
