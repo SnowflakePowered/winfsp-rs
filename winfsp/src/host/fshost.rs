@@ -1,5 +1,4 @@
 use std::cell::UnsafeCell;
-use std::convert::AsRef;
 use std::ffi::OsStr;
 use std::marker::PhantomData;
 use std::ptr::null_mut;
