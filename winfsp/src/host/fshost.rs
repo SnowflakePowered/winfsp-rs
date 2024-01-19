@@ -39,7 +39,7 @@ where
         Self::MountPoint(s.as_ref())
     }
 }
-impl<'short, 'a> From<&'short MountPoint<'a>> for MountPoint<'a> {
+impl<'short, 'a> From<&'short MountPoint<'a>> for MountPoint<'short> {
     fn from(s: &'short MountPoint<'a>) -> Self {
         match s {
             MountPoint::MountPoint(v) => MountPoint::MountPoint(v),
