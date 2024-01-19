@@ -105,8 +105,7 @@ impl FileSystemParams {
 /// should start within the context of a service.
 pub struct FileSystemHost<'ctx>(
     NonNull<FSP_FILE_SYSTEM>,
-    #[allow(dead_code)]
-    Option<Timer>,
+    #[allow(dead_code)] Option<Timer>,
     PhantomData<&'ctx FSP_FILE_SYSTEM>,
 );
 
@@ -134,7 +133,13 @@ impl FileSystemHost<'static> {
             Interface::create_with_read_directory_async::<T>()
         };
 
-        Self::new_filesystem_inner_iface(interface, volume_params, guard_strategy, debug_mode, context)
+        Self::new_filesystem_inner_iface(
+            interface,
+            volume_params,
+            guard_strategy,
+            debug_mode,
+            context,
+        )
     }
 
     /// Create a `FileSystemHost` with the default settings
@@ -172,7 +177,10 @@ impl FileSystemHost<'static> {
 
     /// Create a `FileSystemHost` with the provided notifying context implementation,
     /// host options, and polling interval, using async implementations of `read`, `write`, and `read_directory`.
-    #[cfg_attr(feature = "docsrs", doc(cfg(all(feature = "notify", feature = "async-io"))))]
+    #[cfg_attr(
+        feature = "docsrs",
+        doc(cfg(all(feature = "notify", feature = "async-io")))
+    )]
     #[cfg(all(feature = "notify", feature = "async-io"))]
     pub fn new_with_timer_async<
         T: crate::filesystem::AsyncFileSystemContext + NotifyingFileSystemContext<R>,
@@ -182,8 +190,8 @@ impl FileSystemHost<'static> {
         options: FileSystemParams,
         context: T,
     ) -> Result<Self>
-        where
-            <T as FileSystemContext>::FileContext: Sync,
+    where
+        <T as FileSystemContext>::FileContext: Sync,
     {
         let fsp_struct = Self::new_filesystem_inner_async(options, context)?;
         let timer = Timer::create::<R, T, INTERVAL>(fsp_struct)?;
@@ -261,7 +269,13 @@ impl<'ctx> FileSystemHost<'ctx> {
             Interface::create_with_read_directory::<T>()
         };
 
-        Self::new_filesystem_inner_iface(interface, volume_params, guard_strategy, debug_mode, context)
+        Self::new_filesystem_inner_iface(
+            interface,
+            volume_params,
+            guard_strategy,
+            debug_mode,
+            context,
+        )
     }
 
     /// Create a `FileSystemHost` with the default settings

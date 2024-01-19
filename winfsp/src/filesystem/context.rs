@@ -385,10 +385,6 @@ pub trait FileSystemContext: Sized {
     }
 }
 
-
-#[cfg(feature = "async-io")]
-use async_trait::async_trait;
-
 #[cfg_attr(feature = "docsrs", doc(cfg(feature = "async-io")))]
 #[cfg(feature = "async-io")]
 
@@ -414,7 +410,6 @@ use async_trait::async_trait;
 /// which is responsible for dispatching the task to the executor of the implementor's choice. It is recommended, but not required,
 /// that the task executes on a separate thread, executing on the same thread may cause deadlocks.
 #[allow(unused_variables)]
-#[async_trait]
 pub trait AsyncFileSystemContext: FileSystemContext + 'static + Sync
 where
     <Self as FileSystemContext>::FileContext: Sync,
@@ -423,20 +418,20 @@ where
     ///
     /// The default implementation for this simply calls the base `FileSystemContext::read`
     /// implementation.
-    async fn read_async(
+    fn read_async(
         &self,
         context: &Self::FileContext,
         buffer: &mut [u8],
         offset: u64,
-    ) -> Result<u32> {
-        Self::read(self, context, buffer, offset)
+    ) -> impl std::future::Future<Output = Result<u32>> + Send {
+        async move { Self::read(self, context, buffer, offset) }
     }
 
     /// Write to a file asynchronously. Return the number of bytes written.
     ///
     /// The default implementation for this simply calls the base `FileSystemContext::write`
     /// implementation.
-    async fn write_async(
+    fn write_async(
         &self,
         context: &Self::FileContext,
         buffer: &[u8],
@@ -444,27 +439,29 @@ where
         write_to_eof: bool,
         constrained_io: bool,
         file_info: &mut FileInfo,
-    ) -> Result<u32> {
-        Self::write(
-            self,
-            context,
-            buffer,
-            offset,
-            write_to_eof,
-            constrained_io,
-            file_info,
-        )
+    ) -> impl std::future::Future<Output = Result<u32>> + Send {
+        async move {
+            Self::write(
+                self,
+                context,
+                buffer,
+                offset,
+                write_to_eof,
+                constrained_io,
+                file_info,
+            )
+        }
     }
 
     /// Read directory entries from a directory handle asynchronously.
-    async fn read_directory_async(
+    fn read_directory_async(
         &self,
         context: &Self::FileContext,
         pattern: Option<&U16CStr>,
         marker: DirMarker<'_>,
         buffer: &mut [u8],
-    ) -> Result<u32> {
-        Self::read_directory(self, context, pattern, marker, buffer)
+    ) -> impl std::future::Future<Output = Result<u32>> + Send {
+        async move { Self::read_directory(self, context, pattern, marker, buffer) }
     }
 
     /// Spawn a task onto the local executor.
