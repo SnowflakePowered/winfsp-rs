@@ -105,6 +105,7 @@ impl FileSystemParams {
 /// should start within the context of a service.
 pub struct FileSystemHost<'ctx>(
     NonNull<FSP_FILE_SYSTEM>,
+    #[allow(dead_code)]
     Option<Timer>,
     PhantomData<&'ctx FSP_FILE_SYSTEM>,
 );
