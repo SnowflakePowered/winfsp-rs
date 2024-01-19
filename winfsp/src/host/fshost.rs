@@ -39,8 +39,11 @@ where
         Self::MountPoint(s.as_ref())
     }
 }
-impl<'short, 'a> From<&'short MountPoint<'a>> for MountPoint<'short> {
-    fn from(s: &'short MountPoint<'a>) -> Self {
+impl<'short, 'long, 'middle> From<&'short MountPoint<'long>> for MountPoint<'middle>
+where
+    'long: 'middle,
+{
+    fn from(s: &'short MountPoint<'long>) -> Self {
         match s {
             MountPoint::MountPoint(v) => MountPoint::MountPoint(v),
             MountPoint::NextFreeDrive => MountPoint::NextFreeDrive,
@@ -340,6 +343,22 @@ impl<'ctx> FileSystemHost<'ctx> {
     }
 
     /// Mount the filesystem to the given mount point.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use winfsp::host::{FileSystemHost, MountPoint};
+    ///
+    /// fn mount_file_system(host: &mut FileSystemHost<'static>) -> winfsp::Result<()> {
+    ///     // Can mount in one of the following ways:
+    ///     host.mount("X:")?;
+    ///     host.mount("../MyFileSystem".to_string())?;
+    ///     host.mount(&std::path::PathBuf::from("C:/WinFspFileSystem"))?;
+    ///     host.mount(MountPoint::NextFreeDrive)?;
+    ///
+    ///     Ok(())
+    /// }
+    /// ```
     pub fn mount<S>(&mut self, mount: S) -> Result<()>
     where
         // Convert a reference to the provided value in order to allow the
