@@ -408,7 +408,9 @@ impl FileSystemContext for NtPassthroughContext {
             Err(e) => Err(e),
         }?;
 
-        if let Some(extra_buffer) = extra_buffer && extra_buffer_is_reparse_point {
+        if let Some(extra_buffer) = extra_buffer
+            && extra_buffer_is_reparse_point
+        {
             lfs::lfs_fs_control_file(*handle, FSCTL_SET_REPARSE_POINT, Some(extra_buffer), None)?;
         }
 
@@ -898,13 +900,7 @@ impl FileSystemContext for NtPassthroughContext {
     }
 }
 
-use async_trait::async_trait;
-#[async_trait]
 impl AsyncFileSystemContext for NtPassthroughContext {
-    fn spawn_task(&self, future: impl Future<Output = ()> + Send + 'static) {
-        let _ = self.executor.spawn(future);
-    }
-
     async fn read_async(
         &self,
         context: &Self::FileContext,
@@ -1020,5 +1016,9 @@ impl AsyncFileSystemContext for NtPassthroughContext {
             }
         }
         Ok(context.dir_buffer().read(marker, buffer))
+    }
+
+    fn spawn_task(&self, future: impl Future<Output = ()> + Send + 'static) {
+        let _ = self.executor.spawn(future);
     }
 }

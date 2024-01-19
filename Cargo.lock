@@ -33,17 +33,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "080e9890a082662b09c1ad45f567faeeb47f22b5fb23895fbe1e651e718e25ca"
 
 [[package]]
-name = "async-trait"
-version = "0.1.77"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c980ee35e870bd1a4d2c8294d4c04d0499e67bca1e4b5cefcc693c2fa00caea9"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.48",
-]
-
-[[package]]
 name = "atty"
 version = "0.2.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -340,7 +329,6 @@ name = "ntptfs-winfsp-rs"
 version = "0.1.0-alpha"
 dependencies = [
  "anyhow",
- "async-trait",
  "bytemuck",
  "clap",
  "tokio",
@@ -823,9 +811,8 @@ checksum = "dff9641d1cd4be8d1a070daf9e3773c5f67e78b4d9d42263020c057706765c04"
 
 [[package]]
 name = "winfsp"
-version = "0.10.0-beta.4+winfsp-2.0"
+version = "0.10.0+winfsp-2.0"
 dependencies = [
- "async-trait",
  "bytemuck",
  "paste",
  "static_assertions",

@@ -4,35 +4,30 @@ use std::slice;
 
 use widestring::U16CString;
 use windows::Win32::Foundation::{
-    EXCEPTION_NONCONTINUABLE_EXCEPTION, STATUS_INSUFFICIENT_RESOURCES,
-    STATUS_REPARSE, STATUS_SUCCESS,
+    EXCEPTION_NONCONTINUABLE_EXCEPTION, STATUS_INSUFFICIENT_RESOURCES, STATUS_REPARSE,
+    STATUS_SUCCESS,
 };
 use windows::Win32::Security::{GetSecurityDescriptorLength, PSECURITY_DESCRIPTOR};
 
 use crate::{error, U16CStr};
 use winfsp_sys::{
     FspFileSystemFindReparsePoint, FspFileSystemResolveReparsePoints, BOOLEAN, FSP_FILE_SYSTEM,
-    FSP_FILE_SYSTEM_INTERFACE, FSP_FSCTL_DIR_INFO, FSP_FSCTL_FILE_INFO,
-    FSP_FSCTL_VOLUME_INFO, PFILE_FULL_EA_INFORMATION, PIO_STATUS_BLOCK, PSIZE_T,
+    FSP_FILE_SYSTEM_INTERFACE, FSP_FSCTL_DIR_INFO, FSP_FSCTL_FILE_INFO, FSP_FSCTL_VOLUME_INFO,
+    PFILE_FULL_EA_INFORMATION, PIO_STATUS_BLOCK, PSIZE_T,
 };
 use winfsp_sys::{NTSTATUS as FSP_STATUS, PVOID};
 
 use crate::filesystem::{
-    DirInfo, DirMarker, FileInfo, FileSecurity, FileSystemContext,
-    ModificationDescriptor, OpenFileInfo, VolumeInfo,
+    DirInfo, DirMarker, FileInfo, FileSecurity, FileSystemContext, ModificationDescriptor,
+    OpenFileInfo, VolumeInfo,
 };
 
 #[cfg(feature = "async-io")]
+use crate::{constants::FspTransactKind, filesystem::AsyncFileSystemContext};
+#[cfg(feature = "async-io")]
 use std::sync::atomic::AtomicPtr;
 #[cfg(feature = "async-io")]
-use crate::{
-    filesystem::AsyncFileSystemContext,
-    constants::FspTransactKind,
-};
-#[cfg(feature = "async-io")]
-use windows::Win32::Foundation::{
-    STATUS_PENDING,STATUS_TRANSACTION_NOT_FOUND,
-};
+use windows::Win32::Foundation::{STATUS_PENDING, STATUS_TRANSACTION_NOT_FOUND};
 #[cfg(feature = "async-io")]
 use winfsp_sys::FSP_FSCTL_TRANSACT_RSP;
 
@@ -667,8 +662,7 @@ where
         };
 
         if !buffer.is_null() {
-            let buffer =
-                unsafe { slice::from_raw_parts(buffer as *const u8, length as usize) };
+            let buffer = unsafe { slice::from_raw_parts(buffer as *const u8, length as usize) };
             let fs = AtomicPtr::new(fs);
             let write_ft = async move {
                 let mut response = FSP_FSCTL_TRANSACT_RSP::default();

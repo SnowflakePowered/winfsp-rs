@@ -174,9 +174,7 @@ impl<T> FileSystemServiceBuilder<T> {
                 }),
             )) as *mut _)
         }
-        if result == STATUS_SUCCESS.0
-            && unsafe { !service.get().read().is_null() }
-        {
+        if result == STATUS_SUCCESS.0 && unsafe { !service.get().read().is_null() } {
             Ok(unsafe { FileSystemService::from_raw_unchecked(service.get().read()) })
         } else {
             Err(FspError::NTSTATUS(result))
