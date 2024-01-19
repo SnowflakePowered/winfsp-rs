@@ -1,6 +1,7 @@
 use std::cell::UnsafeCell;
 use std::ffi::OsStr;
 use std::marker::PhantomData;
+use std::ptr::null_mut;
 use std::ptr::NonNull;
 use windows::core::Result;
 use windows::core::HSTRING;
@@ -20,6 +21,32 @@ use crate::host::{DebugMode, VolumeParams};
 
 use crate::notify::NotifyingFileSystemContext;
 use crate::notify::Timer;
+
+/// Mount point for a new file system. Used by [`FileSystemHost::mount`].
+pub enum MountPoint<'a> {
+    /// A drive letter such as `X:` or directory path such as `path/to/folder`.
+    MountPoint(&'a OsStr),
+    /// Use the next available drive letter counting downwards from `Z:` as the mount point.
+    NextFreeDrive,
+}
+
+/// Create a mount point from anything that can be viewed as a file path.
+impl<'a, S> From<&'a S> for MountPoint<'a>
+where
+    S: AsRef<OsStr> + ?Sized,
+{
+    fn from(s: &'a S) -> Self {
+        Self::MountPoint(s.as_ref())
+    }
+}
+impl<'short, 'a> From<&'short MountPoint<'a>> for MountPoint<'a> {
+    fn from(s: &'short MountPoint<'a>) -> Self {
+        match s {
+            MountPoint::MountPoint(v) => MountPoint::MountPoint(v),
+            MountPoint::NextFreeDrive => MountPoint::NextFreeDrive,
+        }
+    }
+}
 
 /// The usermode file system locking strategy.
 pub enum OperationGuardStrategy {
@@ -298,10 +325,22 @@ impl<'ctx> FileSystemHost<'ctx> {
     }
 
     /// Mount the filesystem to the given mount point.
-    pub fn mount<S: AsRef<OsStr>>(&mut self, mount: S) -> Result<()> {
-        let mount = HSTRING::from(mount.as_ref());
-        let result =
-            unsafe { FspFileSystemSetMountPoint(self.0.as_ptr(), mount.as_ptr().cast_mut()) };
+    pub fn mount<S>(&mut self, mount: S) -> Result<()>
+    where
+        // Convert a reference to the provided value in order to allow the
+        // caller to provide owned values such as `String`:
+        for<'a> &'a S: Into<MountPoint<'a>>,
+    {
+        let mount_str: HSTRING;
+        let mount_ptr = match <&S as Into<MountPoint<'_>>>::into(&mount) {
+            MountPoint::MountPoint(mount) => {
+                mount_str = HSTRING::from(mount);
+                // Pointer is valid until `mount_str` is dropped at the end of the function.
+                mount_str.as_ptr().cast_mut()
+            }
+            MountPoint::NextFreeDrive => null_mut(),
+        };
+        let result = unsafe { FspFileSystemSetMountPoint(self.0.as_ptr(), mount_ptr) };
 
         let result = NTSTATUS(result);
         result.ok()
