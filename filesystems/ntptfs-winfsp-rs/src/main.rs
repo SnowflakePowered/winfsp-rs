@@ -1,7 +1,7 @@
 #![feature(io_error_more)]
 #![feature(let_chains)]
 #![feature(strict_provenance)]
-#![feature(offset_of)]
+#![feature(offset_of_nested)]
 #![deny(unsafe_op_in_unsafe_fn)]
 
 pub mod fs;
