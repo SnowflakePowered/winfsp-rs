@@ -47,7 +47,7 @@ fn get_system_winfsp() -> Option<windows::core::HSTRING> {
 
     if cfg!(target_arch = "x86_64") {
         directory.push("winfsp-x64.dll");
-    } else if cfg!(target_arch = "i686") {
+    } else if cfg!(target_arch = "x86") {
         directory.push("winfsp-x86.dll");
     } else if cfg!(target_arch = "aarch64") {
         directory.push("winfsp-a64.dll");
@@ -61,7 +61,7 @@ fn get_system_winfsp() -> Option<windows::core::HSTRING> {
 fn get_local_winfsp() -> PCWSTR {
     if cfg!(target_arch = "x86_64") {
         w!("winfsp-x64.dll")
-    } else if cfg!(target_arch = "i686") {
+    } else if cfg!(target_arch = "x86") {
         w!("winfsp-x86.dll")
     } else if cfg!(target_arch = "aarch64") {
         w!("winfsp-a64.dll")
@@ -120,7 +120,7 @@ pub fn winfsp_link_delayload() {
         if cfg!(target_arch = "x86_64") {
             println!("cargo:rustc-link-lib=dylib=delayimp");
             println!("cargo:rustc-link-arg=/DELAYLOAD:winfsp-x64.dll");
-        } else if cfg!(target_arch = "i686") {
+        } else if cfg!(target_arch = "x86") {
             println!("cargo:rustc-link-lib=dylib=delayimp");
             println!("cargo:rustc-link-arg=/DELAYLOAD:winfsp-x86.dll");
         } else if cfg!(target_arch = "aarch64") {
