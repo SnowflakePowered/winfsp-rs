@@ -67,12 +67,12 @@ fn initialize_object_attributes(
     }
 }
 
-fn new_thread_event() -> windows::core::Result<HANDLE> {
+pub(crate) fn new_event() -> windows::core::Result<HANDLE> {
     unsafe { CreateEventW(None, true, false, PCWSTR::null()) }
 }
 
 thread_local! {
-    static LFS_EVENT: HANDLE = new_thread_event().unwrap();
+    static LFS_EVENT: HANDLE = new_event().unwrap();
 }
 
 pub fn lfs_create_file(
