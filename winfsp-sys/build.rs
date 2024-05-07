@@ -64,11 +64,11 @@ fn main() {
     if cfg!(target_os = "windows") && cfg!(target_arch = "x86_64") && cfg!(target_env = "msvc") {
         println!("cargo:rustc-link-lib=dylib=winfsp-x64");
         println!("cargo:rustc-link-arg=/DELAYLOAD:winfsp-x64.dll");
-    } else if cfg!(target_os = "windows") && cfg!(target_arch = "i686") && cfg!(target_env = "msvc")
+    } else if cfg!(target_os = "windows") && cfg!(target_arch = "x86") && cfg!(target_env = "msvc")
     {
         println!("cargo:rustc-link-lib=dylib=winfsp-x86");
         println!("cargo:rustc-link-arg=/DELAYLOAD:winfsp-x86.dll");
-    } else if cfg!(target_arch = "aarch64") {
+    } else if cfg!(target_arch = "aarch64") && cfg!(target_env = "msvc") {
         println!("cargo:rustc-link-lib=dylib=winfsp-a64");
         println!("cargo:rustc-link-arg=/DELAYLOAD:winfsp-a64.dll");
     } else {
@@ -103,10 +103,10 @@ fn main() {
         {
             bindings.clang_arg("--target=x86_64-pc-windows-msvc")
         } else if cfg!(target_os = "windows")
-            && cfg!(target_arch = "i686")
+            && cfg!(target_arch = "x86")
             && cfg!(target_env = "msvc")
         {
-            bindings.clang_arg("--target=i686-pc-windows-msvc")
+            bindings.clang_arg("--target=x86-pc-windows-msvc")
         } else if cfg!(target_os = "windows")
             && cfg!(target_arch = "aarch64")
             && cfg!(target_env = "msvc")
