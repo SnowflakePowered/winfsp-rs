@@ -1,9 +1,9 @@
-#[cfg(feature = "system")]
-use registry::{Data, Hive, Security};
 use std::env;
 use std::fs::File;
 use std::io::Write;
 use std::path::{Path, PathBuf};
+#[cfg(feature = "system")]
+use windows_registry::{LOCAL_MACHINE, Value};
 
 static HEADER: &str = r#"
 #include <winfsp/winfsp.h>
@@ -25,13 +25,13 @@ fn local() -> String {
 
 #[cfg(feature = "system")]
 fn system() -> String {
-    let winfsp_install = Hive::LocalMachine
-        .open("SOFTWARE\\WOW6432Node\\WinFsp", Security::Read)
+    let winfsp_install = LOCAL_MACHINE
+        .open("SOFTWARE\\WOW6432Node\\WinFsp")
         .ok()
-        .and_then(|u| u.value("InstallDir").ok())
+        .and_then(|u| u.get_value("InstallDir").ok())
         .expect("WinFsp installation directory not found.");
     let directory = match winfsp_install {
-        Data::String(string) => string.to_string_lossy(),
+        Value::String(string) => string,
         _ => panic!("unexpected install directory"),
     };
 
