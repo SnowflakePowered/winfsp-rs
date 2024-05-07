@@ -1,3 +1,4 @@
+use crate::native::lfs;
 use crate::native::lfs::LFS_EVENT;
 use std::cell::UnsafeCell;
 use std::future::Future;
@@ -6,6 +7,7 @@ use std::pin::Pin;
 use std::ptr::addr_of;
 use std::task::{Context, Poll};
 use widestring::U16CStr;
+use windows::core::imp::CloseHandle;
 use windows::core::PCWSTR;
 use windows::Wdk::Storage::FileSystem::{NtQueryDirectoryFile, NtReadFile, NtWriteFile};
 use windows::Win32::Foundation::{
@@ -33,15 +35,24 @@ pub(crate) struct AssertThreadSafe<T>(pub T);
 unsafe impl<T> Send for AssertThreadSafe<T> {}
 
 impl<'a> LfsReadFuture<'a> {
-    fn new(file: HANDLE, buffer: &'a mut [u8], offset: i64) -> Self {
-        LFS_EVENT.with(|event| Self {
-            event: *event,
+    fn new(file: HANDLE, buffer: &'a mut [u8], offset: i64) -> winfsp::Result<Self> {
+        let event = lfs::new_event()?;
+        Ok(Self {
+            event,
             file,
             iosb: UnsafeCell::new(AssertThreadSafe(IO_STATUS_BLOCK::default())),
             result: None,
             buffer,
             offset,
         })
+    }
+}
+
+impl<'a> Drop for LfsReadFuture<'a> {
+    fn drop(&mut self) {
+        unsafe {
+            CloseHandle(self.event.0);
+        }
     }
 }
 
@@ -100,7 +111,7 @@ pub async fn lfs_read_file_async(
     offset: u64,
     bytes_transferred: &mut u32,
 ) -> winfsp::Result<()> {
-    let lfs = LfsReadFuture::new(handle, buffer, offset as i64);
+    let lfs = LfsReadFuture::new(handle, buffer, offset as i64)?;
 
     let iosb = lfs.await?;
     *bytes_transferred = iosb.Information as u32;
@@ -118,15 +129,25 @@ struct LfsWriteFuture<'a> {
 }
 
 impl<'a> LfsWriteFuture<'a> {
-    fn new(file: HANDLE, buffer: &'a [u8], offset: i64) -> Self {
-        LFS_EVENT.with(|event| Self {
-            event: *event,
+    fn new(file: HANDLE, buffer: &'a [u8], offset: i64) -> winfsp::Result<Self> {
+        let event = lfs::new_event()?;
+
+        Ok(Self {
+            event,
             file,
             iosb: UnsafeCell::new(AssertThreadSafe(IO_STATUS_BLOCK::default())),
             result: None,
             buffer,
             offset,
         })
+    }
+}
+
+impl<'a> Drop for LfsWriteFuture<'a> {
+    fn drop(&mut self) {
+        unsafe {
+            CloseHandle(self.event.0);
+        }
     }
 }
 
@@ -185,7 +206,7 @@ pub async fn lfs_write_file_async(
     offset: u64,
     bytes_transferred: &mut u32,
 ) -> winfsp::Result<()> {
-    let lfs = LfsWriteFuture::new(handle, buffer, offset as i64);
+    let lfs = LfsWriteFuture::new(handle, buffer, offset as i64)?;
 
     let iosb = lfs.await?;
     *bytes_transferred = iosb.Information as u32;
@@ -213,11 +234,13 @@ impl<'a> LfsQueryDirectoryFileFuture<'a> {
         return_single_entry: bool,
         restart_scan: bool,
         class: FILE_INFORMATION_CLASS,
-    ) -> Self {
-        LFS_EVENT.with(|event| Self {
+    ) -> winfsp::Result<Self> {
+        let event = lfs::new_event()?;
+
+        Ok(Self {
             file,
-            event: *event,
-            file_name: file_name,
+            event,
+            file_name,
             iosb: UnsafeCell::new(AssertThreadSafe(IO_STATUS_BLOCK::default())),
             result: None,
             buffer,
@@ -225,6 +248,14 @@ impl<'a> LfsQueryDirectoryFileFuture<'a> {
             restart_scan,
             class,
         })
+    }
+}
+
+impl<'a> Drop for LfsQueryDirectoryFileFuture<'a> {
+    fn drop(&mut self) {
+        unsafe {
+            CloseHandle(self.event.0);
+        }
     }
 }
 
@@ -302,7 +333,7 @@ pub async fn lfs_query_directory_file_async(
         return_single_entry,
         restart_scan,
         class,
-    );
+    )?;
     let iosb = query_ft.await?;
 
     Ok(iosb.Information)
