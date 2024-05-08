@@ -9,13 +9,15 @@ use std::task::{Context, Poll};
 use widestring::U16CStr;
 use windows::core::imp::CloseHandle;
 use windows::core::PCWSTR;
-use windows::Wdk::Storage::FileSystem::{NtQueryDirectoryFile, NtReadFile, NtWriteFile};
+use windows::Wdk::Storage::FileSystem::{
+    NtQueryDirectoryFile, NtReadFile, NtWriteFile, FILE_INFORMATION_CLASS,
+};
 use windows::Win32::Foundation::{
     BOOLEAN, HANDLE, NTSTATUS, STATUS_ABANDONED, STATUS_PENDING, STATUS_SUCCESS, UNICODE_STRING,
     WAIT_ABANDONED, WAIT_ABANDONED_0, WAIT_FAILED, WAIT_OBJECT_0,
 };
 use windows::Win32::System::Threading::WaitForSingleObject;
-use windows::Win32::System::WindowsProgramming::{RtlInitUnicodeString, FILE_INFORMATION_CLASS};
+use windows::Win32::System::WindowsProgramming::RtlInitUnicodeString;
 use windows::Win32::System::IO::IO_STATUS_BLOCK;
 use winfsp::FspError;
 

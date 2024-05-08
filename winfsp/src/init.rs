@@ -23,7 +23,7 @@ fn get_system_winfsp() -> Option<windows::core::HSTRING> {
 
     let mut path = [0u16; MAX_PATH];
     let mut size = (path.len() * std::mem::size_of::<u16>()) as u32;
-    let Ok(_) = (unsafe {
+    let status = unsafe {
         RegGetValueW(
             HKEY_LOCAL_MACHINE,
             w!("SOFTWARE\\WOW6432Node\\WinFsp"),
@@ -33,7 +33,8 @@ fn get_system_winfsp() -> Option<windows::core::HSTRING> {
             Some(path.as_mut_ptr().cast()),
             Some(&mut size),
         )
-    }) else {
+    };
+    if status.is_err() {
         return None;
     };
 
