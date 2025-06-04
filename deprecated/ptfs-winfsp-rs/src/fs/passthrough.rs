@@ -40,7 +40,7 @@ const FULLPATH_SIZE: usize = MAX_PATH as usize
     + (winfsp::constants::FSP_FSCTL_TRANSACT_PATH_SIZEMAX / std::mem::size_of::<u16>());
 
 pub struct Ptfs {
-    pub fs: FileSystemHost<'static>,
+    pub fs: FileSystemHost,
 }
 
 #[repr(C)]
