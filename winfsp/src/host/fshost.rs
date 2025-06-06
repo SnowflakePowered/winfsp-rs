@@ -419,6 +419,54 @@ impl<'a> FileSystemHost<'a> {
     }
 }
 
+/// Testing that the lifetime of the user context must outlive the lifetime of the WinfspHost
+///
+/// Note that this test only checks that this does not compile, and can't the reason
+/// a more proper test would verify that this code would compile if lifetimes are valid
+/// ```rust, compile_fail
+/// use winfsp::host::{FileSystemHost, VolumeParams};
+/// use winfsp::filesystem::{FileSystemContext, FileSecurity, OpenFileInfo};
+/// use winfsp::{Result, U16CStr};
+/// use std::ffi::c_void;
+///
+///
+/// struct NullContext<'a> {
+///     data: &'a u8,
+/// }
+///
+/// impl<'a> FileSystemContext for NullContext<'a> {
+///     type FileContext = ();
+///
+///     fn get_security_by_name(&self, _: &U16CStr, _: Option<&mut [c_void]>,
+///         _: impl FnOnce(&U16CStr) -> Option<FileSecurity>,
+///     ) -> Result<FileSecurity> {
+///         todo!()
+///     }
+///
+///     fn open(
+///         &self,
+///         _: &U16CStr,
+///         _: u32,
+///         _: winfsp_sys::FILE_ACCESS_RIGHTS,
+///         _: &mut OpenFileInfo,
+///     ) -> Result<()> {
+///         todo!()
+///     }
+///
+///     fn close(&self, _: ()) {
+///         todo!()
+///     }
+/// }
+///
+/// let host;
+/// {
+///     let data = 0;
+///     let context = NullContext{data: &data};
+///     host = FileSystemHost::new(VolumeParams::default(), context).expect("")
+/// }
+/// drop(host);
+///
+/// ```
 impl<'a> Drop for FileSystemHost<'a> {
     fn drop(&mut self) {
         self.unmount();
