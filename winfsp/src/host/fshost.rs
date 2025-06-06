@@ -1,6 +1,7 @@
 use std::cell::UnsafeCell;
 use std::ffi::c_void;
 use std::ffi::OsStr;
+use std::marker::PhantomData;
 use std::ptr::null_mut;
 use std::ptr::NonNull;
 use windows::core::Result;
@@ -107,16 +108,18 @@ impl FileSystemParams {
 /// This is separate from the lifetime of the service which is managed by
 /// [`FileSystemService`](crate::service::FileSystemService). A `FileSystemHost`
 /// should start within the context of a service.
-pub struct FileSystemHost(
-    NonNull<FSP_FILE_SYSTEM>,
-    #[allow(dead_code)] Option<Timer>,
-    Box<dyn Fn(*mut c_void)>,
-);
+pub struct FileSystemHost<'a> {
+    fsp_struct: NonNull<FSP_FILE_SYSTEM>,
+    #[allow(dead_code)]
+    timer: Option<Timer>,
+    user_ctx_dtor: Box<dyn Fn(*mut c_void)>,
+    phantom: PhantomData<&'a c_void>,
+}
 
 #[cfg(feature = "async-io")]
 #[cfg_attr(feature = "docsrs", doc(cfg(feature = "async-io")))]
-impl FileSystemHost {
-    fn new_filesystem_inner_async<T: crate::filesystem::AsyncFileSystemContext>(
+impl<'a> FileSystemHost<'a> {
+    fn new_filesystem_inner_async<T: crate::filesystem::AsyncFileSystemContext + 'a>(
         options: FileSystemParams,
         context: T,
     ) -> Result<NonNull<FSP_FILE_SYSTEM>>
@@ -148,7 +151,7 @@ impl FileSystemHost {
 
     /// Create a `FileSystemHost` with the default settings
     /// for the provided context implementation, using async implementations of `read`, `write`, and `read_directory`.
-    pub fn new_async<T: crate::filesystem::AsyncFileSystemContext>(
+    pub fn new_async<T: crate::filesystem::AsyncFileSystemContext + 'a>(
         volume_params: VolumeParams,
         context: T,
     ) -> Result<Self>
@@ -174,9 +177,15 @@ impl FileSystemHost {
     ) -> Result<Self>
     where
         <T as FileSystemContext>::FileContext: Sync,
+        T: 'a,
     {
         let fsp_struct = Self::new_filesystem_inner_async(options, context)?;
-        Ok(FileSystemHost(fsp_struct, None, Self::drop_cell::<T>()))
+        Ok(FileSystemHost {
+            fsp_struct,
+            timer: None,
+            user_ctx_dtor: Self::drop_cell::<T>(),
+            phantom: PhantomData,
+        })
     }
 
     /// Create a `FileSystemHost` with the provided notifying context implementation,
@@ -196,21 +205,23 @@ impl FileSystemHost {
     ) -> Result<Self>
     where
         <T as FileSystemContext>::FileContext: Sync,
+        T: 'a,
     {
         let fsp_struct = Self::new_filesystem_inner_async(options, context)?;
         let timer = Timer::create::<R, T, INTERVAL>(fsp_struct)?;
 
-        Ok(FileSystemHost(
+        Ok(FileSystemHost {
             fsp_struct,
-            Some(timer),
-            Self::drop_cell::<T>(),
-        ))
+            timer: Some(timer),
+            user_ctx_dtor: Self::drop_cell::<T>(),
+            phantom: PhantomData,
+        })
     }
 }
 
-impl FileSystemHost {
+impl<'a> FileSystemHost<'a> {
     #[allow(unused_variables)]
-    fn new_filesystem_inner_iface<T: FileSystemContext>(
+    fn new_filesystem_inner_iface<T: FileSystemContext + 'a>(
         interface: Interface,
         volume_params: VolumeParams,
         guard_strategy: OperationGuardStrategy,
@@ -260,7 +271,7 @@ impl FileSystemHost {
         Ok(NonNull::new(fsp_struct).expect("FSP_FILE_SYSTEM pointer was created but was null!"))
     }
 
-    fn new_filesystem_inner<T: FileSystemContext>(
+    fn new_filesystem_inner<T: FileSystemContext + 'a>(
         options: FileSystemParams,
         context: T,
     ) -> Result<NonNull<FSP_FILE_SYSTEM>> {
@@ -287,7 +298,7 @@ impl FileSystemHost {
         )
     }
 
-    fn drop_cell<T: FileSystemContext>() -> Box<dyn Fn(*mut c_void)> {
+    fn drop_cell<T>() -> Box<dyn Fn(*mut c_void)> {
         let fsp_drop = |ptr: *mut c_void| {
             let b = unsafe { Box::<UnsafeCell<T>>::from_raw(ptr as *mut UnsafeCell<T>) };
             drop(b);
@@ -297,7 +308,7 @@ impl FileSystemHost {
 
     /// Create a `FileSystemHost` with the default settings
     /// for the provided context implementation.
-    pub fn new<T: FileSystemContext>(volume_params: VolumeParams, context: T) -> Result<Self> {
+    pub fn new<T: FileSystemContext + 'a>(volume_params: VolumeParams, context: T) -> Result<Self> {
         Self::new_with_options::<T>(
             FileSystemParams {
                 use_dir_info_by_name: false,
@@ -311,12 +322,17 @@ impl FileSystemHost {
 
     /// Create a `FileSystemHost` with the provided context implementation, and
     /// host options.
-    pub fn new_with_options<T: FileSystemContext>(
+    pub fn new_with_options<T: FileSystemContext + 'a>(
         options: FileSystemParams,
         context: T,
     ) -> Result<Self> {
         let fsp_struct = Self::new_filesystem_inner(options, context)?;
-        Ok(FileSystemHost(fsp_struct, None, Self::drop_cell::<T>()))
+        Ok(FileSystemHost {
+            fsp_struct,
+            timer: None,
+            user_ctx_dtor: Self::drop_cell::<T>(),
+            phantom: PhantomData,
+        })
     }
 
     /// Create a `FileSystemHost` with the provided notifying context implementation,
@@ -324,7 +340,7 @@ impl FileSystemHost {
     #[cfg_attr(feature = "docsrs", doc(cfg(feature = "notify")))]
     #[cfg(feature = "notify")]
     pub fn new_with_timer<
-        T: FileSystemContext + NotifyingFileSystemContext<R>,
+        T: FileSystemContext + NotifyingFileSystemContext<R> + 'a,
         R,
         const INTERVAL: u32,
     >(
@@ -333,11 +349,12 @@ impl FileSystemHost {
     ) -> Result<Self> {
         let fsp_struct = Self::new_filesystem_inner(options, context)?;
         let timer = Timer::create::<R, T, INTERVAL>(fsp_struct)?;
-        Ok(FileSystemHost(
+        Ok(FileSystemHost {
             fsp_struct,
-            Some(timer),
-            Self::drop_cell::<T>(),
-        ))
+            timer: Some(timer),
+            user_ctx_dtor: Self::drop_cell::<T>(),
+            phantom: PhantomData,
+        })
     }
 
     /// Start the filesystem dispatcher for this filesystem.
@@ -347,14 +364,14 @@ impl FileSystemHost {
 
     /// Start the filesystem dispatcher for this filesystem with the specified number of threads.
     pub fn start_with_threads(&mut self, num_threads: u32) -> Result<()> {
-        let result = unsafe { FspFileSystemStartDispatcher(self.0.as_ptr(), num_threads) };
+        let result = unsafe { FspFileSystemStartDispatcher(self.fsp_struct.as_ptr(), num_threads) };
         let result = NTSTATUS(result);
         result.ok()
     }
 
     /// Stop the filesystem dispatcher for this filesystem.
     pub fn stop(&mut self) {
-        unsafe { FspFileSystemStopDispatcher(self.0.as_ptr()) }
+        unsafe { FspFileSystemStopDispatcher(self.fsp_struct.as_ptr()) }
     }
 
     /// Mount the filesystem to the given mount point.
@@ -378,7 +395,7 @@ impl FileSystemHost {
     where
         // Convert a reference to the provided value in order to allow the
         // caller to provide owned values such as `String`:
-        for<'a> &'a S: Into<MountPoint<'a>>,
+        for<'b> &'b S: Into<MountPoint<'b>>,
     {
         let mount_str: HSTRING;
         let mount_ptr = match <&S as Into<MountPoint<'_>>>::into(&mount) {
@@ -389,7 +406,7 @@ impl FileSystemHost {
             }
             MountPoint::NextFreeDrive => null_mut(),
         };
-        let result = unsafe { FspFileSystemSetMountPoint(self.0.as_ptr(), mount_ptr) };
+        let result = unsafe { FspFileSystemSetMountPoint(self.fsp_struct.as_ptr(), mount_ptr) };
 
         let result = NTSTATUS(result);
         result.ok()
@@ -398,24 +415,26 @@ impl FileSystemHost {
     /// Unmount the filesystem. It is safe to call this function even if the
     /// file system is not mounted.
     pub fn unmount(&mut self) {
-        unsafe { FspFileSystemRemoveMountPoint(self.0.as_ptr()) }
+        unsafe { FspFileSystemRemoveMountPoint(self.fsp_struct.as_ptr()) }
     }
 }
 
-impl Drop for FileSystemHost {
+impl<'a> Drop for FileSystemHost<'a> {
     fn drop(&mut self) {
         self.unmount();
         self.stop();
         unsafe {
             // SAFETY: FSP is stopped an no longer running anything on this filesystem
-            let user_context = self.0.as_ref().UserContext;
+            let user_context = self.fsp_struct.as_ref().UserContext;
+            let interface = self.fsp_struct.as_ref().Interface as *mut _;
 
-            FspFileSystemDelete(self.0.as_ptr());
+            FspFileSystemDelete(self.fsp_struct.as_ptr());
 
-            // self.2 is a valid destructor for UnsafeCell<T>
+            // self.user_ctx_dtor is a valid destructor for UnsafeCell<T>
             // user context is an UnsafeCell<T>
-            // where T is set in constructors
-            self.2(user_context);
+            // where T is the type of the user context passed in constructors
+            (self.user_ctx_dtor)(user_context);
+            (Self::drop_cell::<FSP_FILE_SYSTEM_INTERFACE>())(interface);
         };
     }
 }
