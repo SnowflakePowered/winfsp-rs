@@ -10,6 +10,7 @@ use std::ptr::{addr_of_mut, NonNull};
 use std::thread::JoinHandle;
 use windows::core::HSTRING;
 use windows::Win32::Foundation::{NTSTATUS, STATUS_INVALID_PARAMETER, STATUS_SUCCESS};
+use winfsp_sys::FspServiceDelete;
 use winfsp_sys::{
     FspServiceAllowConsoleMode, FspServiceCreate, FspServiceLoop, FspServiceStop, FSP_SERVICE,
 };
@@ -192,6 +193,15 @@ impl<'a, T> FileSystemServiceBuilder<'a, T> {
         } else {
             Err(FspError::NTSTATUS(result))
         }
+    }
+}
+
+impl<'a, T> Drop for FileSystemService<T> {
+    fn drop(&mut self) {
+        self.stop();
+        unsafe {
+            FspServiceDelete(self.0.as_ptr());
+        };
     }
 }
 
