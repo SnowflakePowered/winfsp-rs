@@ -2,7 +2,7 @@
  * @file fuse/winfsp_fuse.h
  * WinFsp FUSE compatible API.
  *
- * @copyright 2015-2022 Bill Zissimopoulos
+ * @copyright 2015-2025 Bill Zissimopoulos
  */
 /*
  * This file is part of WinFsp.
@@ -27,6 +27,7 @@
 #include <stdint.h>
 #if !defined(WINFSP_DLL_INTERNAL)
 #include <stdlib.h>
+#include <string.h>
 #endif
 
 #ifdef __cplusplus
