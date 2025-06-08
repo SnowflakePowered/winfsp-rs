@@ -8,12 +8,16 @@ use std::slice;
 use windows::core::PCWSTR;
 use windows::Wdk::Foundation::OBJECT_ATTRIBUTES;
 use windows::Wdk::Storage::FileSystem::{
-    FileFsSizeInformation, NtFsControlFile, NtQueryDirectoryFile, NtReadFile, NtWriteFile,
-    FILE_ALLOCATION_INFORMATION, FILE_ALL_INFORMATION, FILE_BASIC_INFORMATION,
-    FILE_DISPOSITION_DELETE, FILE_DISPOSITION_DO_NOT_DELETE,
-    FILE_DISPOSITION_FORCE_IMAGE_SECTION_CHECK, FILE_DISPOSITION_IGNORE_READONLY_ATTRIBUTE,
-    FILE_DISPOSITION_INFORMATION, FILE_DISPOSITION_INFORMATION_EX,
-    FILE_DISPOSITION_INFORMATION_EX_FLAGS, FILE_DISPOSITION_POSIX_SEMANTICS, FILE_NAME_INFORMATION,
+    FileAllInformation, FileAllocationInformation, FileAttributeTagInformation,
+    FileBasicInformation, FileDispositionInformation, FileDispositionInformationEx,
+    FileEndOfFileInformation, FileFsSizeInformation, FileNameInformation, FileRenameInformation,
+    FileRenameInformationEx, FileStandardInformation, FileStreamInformation, NtFsControlFile,
+    NtQueryDirectoryFile, NtReadFile, NtWriteFile, FILE_ALLOCATION_INFORMATION,
+    FILE_ALL_INFORMATION, FILE_BASIC_INFORMATION, FILE_DISPOSITION_DELETE,
+    FILE_DISPOSITION_DO_NOT_DELETE, FILE_DISPOSITION_FORCE_IMAGE_SECTION_CHECK,
+    FILE_DISPOSITION_IGNORE_READONLY_ATTRIBUTE, FILE_DISPOSITION_INFORMATION,
+    FILE_DISPOSITION_INFORMATION_EX, FILE_DISPOSITION_INFORMATION_EX_FLAGS,
+    FILE_DISPOSITION_POSIX_SEMANTICS, FILE_INFORMATION_CLASS, FILE_NAME_INFORMATION,
     FILE_STANDARD_INFORMATION, NTCREATEFILE_CREATE_DISPOSITION, NTCREATEFILE_CREATE_OPTIONS,
 };
 
@@ -43,7 +47,7 @@ use windows::Win32::Foundation::{BOOLEAN, UNICODE_STRING};
 use windows::Win32::Storage::FileSystem::{
     FILE_ATTRIBUTE_NORMAL, FILE_FLAGS_AND_ATTRIBUTES, INVALID_FILE_ATTRIBUTES,
 };
-use windows::Win32::System::WindowsProgramming::{RtlInitUnicodeString, FILE_INFORMATION_CLASS};
+use windows::Win32::System::WindowsProgramming::RtlInitUnicodeString;
 use windows::Win32::System::IO::IO_STATUS_BLOCK;
 use winfsp::constants::FSP_FSCTL_TRANSACT_PATH_SIZEMAX;
 
@@ -172,7 +176,7 @@ fn nt_check_pending(
     if status == STATUS_PENDING {
         let wait_result = unsafe { WaitForSingleObject(*event, INFINITE) };
         if wait_result == WAIT_FAILED {
-            unsafe { GetLastError()? };
+            unsafe { GetLastError() }.ok()?;
         }
         let code = unsafe { addr_of!((*iosb.as_ptr()).Anonymous.Status).read() };
         Ok(code)
@@ -259,9 +263,6 @@ pub fn lfs_get_file_attributes(handle: HANDLE) -> winfsp::Result<u32> {
     let mut iosb: MaybeUninit<IO_STATUS_BLOCK> = MaybeUninit::zeroed();
     let mut file_attr_info: MaybeUninit<FILE_ATTRIBUTE_TAG_INFORMATION> = MaybeUninit::zeroed();
 
-    #[allow(non_upper_case_globals)]
-    const FileAttributeTagInformation: FILE_INFORMATION_CLASS = FILE_INFORMATION_CLASS(35);
-
     let file_attr_info = unsafe {
         NtQueryInformationFile(
             handle,
@@ -314,9 +315,6 @@ pub fn lfs_get_file_name(handle: HANDLE) -> winfsp::Result<Box<[u16]>> {
         winfsp::constants::FSP_FSCTL_TRANSACT_PATH_SIZEMAX
             + offset_of!(FILE_NAME_INFORMATION, FileName),
     );
-
-    #[allow(non_upper_case_globals)]
-    const FileNameInformation: FILE_INFORMATION_CLASS = FILE_INFORMATION_CLASS(9);
 
     unsafe {
         NtQueryInformationFile(
@@ -394,9 +392,6 @@ pub fn lfs_get_file_info<'a, P: Into<MaybeOpenFileInfo<'a>>>(
         ReparseTag: 0,
     };
 
-    #[allow(non_upper_case_globals)]
-    const FileAllInformation: FILE_INFORMATION_CLASS = FILE_INFORMATION_CLASS(18);
-
     let result = unsafe {
         NtQueryInformationFile(
             handle,
@@ -415,9 +410,6 @@ pub fn lfs_get_file_info<'a, P: Into<MaybeOpenFileInfo<'a>>>(
 
     let is_reparse_point =
         FILE_ATTRIBUTE_REPARSE_POINT.0 & file_all_info.BasicInformation.FileAttributes != 0;
-
-    #[allow(non_upper_case_globals)]
-    const FileAttributeTagInformation: FILE_INFORMATION_CLASS = FILE_INFORMATION_CLASS(35);
 
     if is_reparse_point {
         unsafe {
@@ -482,9 +474,6 @@ pub fn lfs_get_file_size(handle: HANDLE) -> winfsp::Result<u64> {
     let mut file_std_info: MaybeUninit<FILE_STANDARD_INFORMATION> = MaybeUninit::zeroed();
     let mut iosb: MaybeUninit<IO_STATUS_BLOCK> = MaybeUninit::zeroed();
 
-    #[allow(non_upper_case_globals)]
-    const FileStandardInformation: FILE_INFORMATION_CLASS = FILE_INFORMATION_CLASS(5);
-
     unsafe {
         NtQueryInformationFile(
             handle,
@@ -522,9 +511,6 @@ pub fn lfs_set_delete(handle: HANDLE, delete: bool) -> winfsp::Result<()> {
         },
     };
 
-    #[allow(non_upper_case_globals)]
-    const FileDispositionInformationEx: FILE_INFORMATION_CLASS = FILE_INFORMATION_CLASS(64);
-
     let result = unsafe {
         NtSetInformationFile(
             handle,
@@ -538,9 +524,6 @@ pub fn lfs_set_delete(handle: HANDLE, delete: bool) -> winfsp::Result<()> {
     if result.is_ok() {
         return Ok(());
     }
-
-    #[allow(non_upper_case_globals)]
-    const FileDispositionInformation: FILE_INFORMATION_CLASS = FILE_INFORMATION_CLASS(13);
 
     match result {
         code @ STATUS_ACCESS_DENIED
@@ -605,9 +588,6 @@ pub fn lfs_rename(
         )
     }
 
-    #[allow(non_upper_case_globals)]
-    const FileRenameInformationEx: FILE_INFORMATION_CLASS = FILE_INFORMATION_CLASS(65);
-
     let result = unsafe {
         NtSetInformationFile(
             handle,
@@ -621,9 +601,6 @@ pub fn lfs_rename(
     if result == STATUS_SUCCESS {
         return Ok(());
     }
-
-    #[allow(non_upper_case_globals)]
-    const FileRenameInformation: FILE_INFORMATION_CLASS = FILE_INFORMATION_CLASS(10);
 
     match result {
         STATUS_ACCESS_DENIED | STATUS_OBJECT_NAME_COLLISION
@@ -660,9 +637,6 @@ pub fn lfs_set_allocation_size(handle: HANDLE, new_size: u64) -> winfsp::Result<
         AllocationSize: new_size as i64,
     };
 
-    #[allow(non_upper_case_globals)]
-    const FileAllocationInformation: FILE_INFORMATION_CLASS = FILE_INFORMATION_CLASS(19);
-
     unsafe {
         NtSetInformationFile(
             handle,
@@ -683,9 +657,6 @@ pub fn lfs_set_eof(handle: HANDLE, new_size: u64) -> winfsp::Result<()> {
     let info = FILE_END_OF_FILE_INFO {
         EndOfFile: new_size as i64,
     };
-
-    #[allow(non_upper_case_globals)]
-    const FileEndOfFileInformation: FILE_INFORMATION_CLASS = FILE_INFORMATION_CLASS(20);
 
     unsafe {
         NtSetInformationFile(
@@ -710,8 +681,6 @@ pub fn lfs_set_basic_info(
     change_time: i64,
 ) -> winfsp::Result<()> {
     let mut iosb: MaybeUninit<IO_STATUS_BLOCK> = MaybeUninit::zeroed();
-    #[allow(non_upper_case_globals)]
-    const FileBasicInformation: FILE_INFORMATION_CLASS = FILE_INFORMATION_CLASS(4);
 
     let file_attributes = if file_attributes == INVALID_FILE_ATTRIBUTES {
         0
@@ -913,9 +882,6 @@ pub fn lfs_set_ea(handle: HANDLE, buffer: &[u8]) -> winfsp::Result<()> {
 
 pub fn lfs_get_stream_info(handle: HANDLE, buffer: &mut [u8]) -> winfsp::Result<usize> {
     let mut iosb: MaybeUninit<IO_STATUS_BLOCK> = MaybeUninit::uninit();
-
-    #[allow(non_upper_case_globals)]
-    const FileStreamInformation: FILE_INFORMATION_CLASS = FILE_INFORMATION_CLASS(22);
 
     let result = unsafe {
         NtQueryInformationFile(

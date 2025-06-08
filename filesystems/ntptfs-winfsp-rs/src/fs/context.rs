@@ -13,10 +13,10 @@ use std::ptr::addr_of;
 use widestring::{u16cstr, U16CString};
 use windows::core::{HSTRING, PCWSTR};
 use windows::Wdk::Storage::FileSystem::{
-    FILE_CREATE, FILE_DIRECTORY_FILE, FILE_ID_BOTH_DIR_INFORMATION, FILE_NON_DIRECTORY_FILE,
-    FILE_NO_EA_KNOWLEDGE, FILE_OPEN_FOR_BACKUP_INTENT, FILE_OPEN_REPARSE_POINT, FILE_OVERWRITE,
-    FILE_STREAM_INFORMATION, FILE_SUPERSEDE, FILE_SYNCHRONOUS_IO_NONALERT,
-    NTCREATEFILE_CREATE_OPTIONS,
+    FileIdBothDirectoryInformation, FILE_CREATE, FILE_DIRECTORY_FILE, FILE_ID_BOTH_DIR_INFORMATION,
+    FILE_NON_DIRECTORY_FILE, FILE_NO_EA_KNOWLEDGE, FILE_OPEN_FOR_BACKUP_INTENT,
+    FILE_OPEN_REPARSE_POINT, FILE_OVERWRITE, FILE_STREAM_INFORMATION, FILE_SUPERSEDE,
+    FILE_SYNCHRONOUS_IO_NONALERT, NTCREATEFILE_CREATE_OPTIONS,
 };
 use windows::Win32::Foundation::{
     GetLastError, INVALID_HANDLE_VALUE, STATUS_ACCESS_DENIED, STATUS_BUFFER_OVERFLOW,
@@ -37,7 +37,6 @@ use windows::Win32::System::Ioctl::{
     FSCTL_DELETE_REPARSE_POINT, FSCTL_GET_REPARSE_POINT, FSCTL_SET_REPARSE_POINT,
 };
 use windows::Win32::System::SystemServices::MAXIMUM_ALLOWED;
-use windows::Win32::System::WindowsProgramming::FILE_INFORMATION_CLASS;
 
 use winfsp::constants::FspCleanupFlags::FspCleanupDelete;
 use winfsp::filesystem::{
@@ -77,7 +76,7 @@ impl NtPassthroughContext {
         };
 
         if handle == INVALID_HANDLE_VALUE {
-            unsafe { return Err(GetLastError().expect_err("Invalid NT Handle").into()) }
+            unsafe { return Err(GetLastError().into()) }
         }
 
         eprintln!("ntpfs: {:?} @ {:?}", handle, path);
@@ -556,10 +555,6 @@ impl FileSystemContext for NtPassthroughContext {
             let mut query_buffer = vec![0u8; 16 * 1024];
             let mut restart_scan = true;
 
-            #[allow(non_upper_case_globals)]
-            const FileIdBothDirectoryInformation: FILE_INFORMATION_CLASS =
-                FILE_INFORMATION_CLASS(37);
-
             'once: loop {
                 query_buffer.fill(0);
                 if let Ok(bytes_transferred) = lfs::lfs_query_directory_file(
@@ -962,10 +957,6 @@ impl AsyncFileSystemContext for NtPassthroughContext {
             // todo: don't reallocate this.
             let mut query_buffer = vec![0u8; 16 * 1024];
             let mut restart_scan = true;
-
-            #[allow(non_upper_case_globals)]
-            const FileIdBothDirectoryInformation: FILE_INFORMATION_CLASS =
-                FILE_INFORMATION_CLASS(37);
 
             'once: loop {
                 query_buffer.fill(0);
