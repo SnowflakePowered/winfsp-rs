@@ -7,19 +7,16 @@ use std::pin::Pin;
 use std::ptr::addr_of;
 use std::task::{Context, Poll};
 use widestring::U16CStr;
-use windows::core::imp::CloseHandle;
 use windows::core::PCWSTR;
 use windows::Wdk::Storage::FileSystem::{
     NtQueryDirectoryFile, NtReadFile, NtWriteFile, FILE_INFORMATION_CLASS,
 };
-use windows::Win32::Foundation::{
-    BOOLEAN, HANDLE, NTSTATUS, STATUS_ABANDONED, STATUS_PENDING, STATUS_SUCCESS, UNICODE_STRING,
-    WAIT_ABANDONED, WAIT_ABANDONED_0, WAIT_FAILED, WAIT_OBJECT_0,
-};
+use windows::Win32::Foundation::{CloseHandle, HANDLE, NTSTATUS, STATUS_ABANDONED, STATUS_PENDING, STATUS_SUCCESS, UNICODE_STRING, WAIT_ABANDONED, WAIT_ABANDONED_0, WAIT_FAILED, WAIT_OBJECT_0};
 use windows::Win32::System::Threading::WaitForSingleObject;
 use windows::Win32::System::WindowsProgramming::RtlInitUnicodeString;
 use windows::Win32::System::IO::IO_STATUS_BLOCK;
 use winfsp::FspError;
+use winfsp::util::{AtomicHandle, NtHandleDrop};
 
 struct LfsReadFuture<'a> {
     event: HANDLE,
@@ -53,7 +50,7 @@ impl<'a> LfsReadFuture<'a> {
 impl<'a> Drop for LfsReadFuture<'a> {
     fn drop(&mut self) {
         unsafe {
-            CloseHandle(self.event.0);
+            CloseHandle(self.event);
         }
     }
 }
@@ -66,7 +63,7 @@ impl<'a> Future for LfsReadFuture<'a> {
             let initial_result = unsafe {
                 NtReadFile(
                     self.file,
-                    self.event,
+                    Some(self.event),
                     None,
                     None,
                     self.iosb.get() as *mut _,
@@ -108,12 +105,12 @@ impl<'a> Future for LfsReadFuture<'a> {
 }
 
 pub async fn lfs_read_file_async(
-    handle: HANDLE,
+    handle: &AtomicHandle<NtHandleDrop>,
     buffer: &mut [u8],
     offset: u64,
     bytes_transferred: &mut u32,
 ) -> winfsp::Result<()> {
-    let lfs = LfsReadFuture::new(handle, buffer, offset as i64)?;
+    let lfs = LfsReadFuture::new(handle.handle(), buffer, offset as i64)?;
 
     let iosb = lfs.await?;
     *bytes_transferred = iosb.Information as u32;
@@ -148,7 +145,7 @@ impl<'a> LfsWriteFuture<'a> {
 impl<'a> Drop for LfsWriteFuture<'a> {
     fn drop(&mut self) {
         unsafe {
-            CloseHandle(self.event.0);
+            let _ = CloseHandle(self.event);
         }
     }
 }
@@ -161,7 +158,7 @@ impl<'a> Future for LfsWriteFuture<'a> {
             let initial_result = unsafe {
                 NtWriteFile(
                     self.file,
-                    self.event,
+                    Some(self.event),
                     None,
                     None,
                     self.iosb.get() as *mut _,
@@ -203,12 +200,12 @@ impl<'a> Future for LfsWriteFuture<'a> {
 }
 
 pub async fn lfs_write_file_async(
-    handle: HANDLE,
+    handle: &AtomicHandle<NtHandleDrop>,
     buffer: &[u8],
     offset: u64,
     bytes_transferred: &mut u32,
 ) -> winfsp::Result<()> {
-    let lfs = LfsWriteFuture::new(handle, buffer, offset as i64)?;
+    let lfs = LfsWriteFuture::new(handle.handle(), buffer, offset as i64)?;
 
     let iosb = lfs.await?;
     *bytes_transferred = iosb.Information as u32;
@@ -256,7 +253,7 @@ impl<'a> LfsQueryDirectoryFileFuture<'a> {
 impl<'a> Drop for LfsQueryDirectoryFileFuture<'a> {
     fn drop(&mut self) {
         unsafe {
-            CloseHandle(self.event.0);
+            let _ = CloseHandle(self.event);
         }
     }
 }
@@ -275,18 +272,18 @@ impl<'a> Future for LfsQueryDirectoryFileFuture<'a> {
             let initial_result = unsafe {
                 NtQueryDirectoryFile(
                     self.file,
-                    self.event,
+                    Some(self.event),
                     None,
                     None,
                     self.iosb.get() as *mut _,
                     self.buffer.as_mut_ptr() as *mut _,
                     self.buffer.len() as u32,
                     self.class,
-                    BOOLEAN::from(self.return_single_entry),
+                    self.return_single_entry,
                     unicode_filename
                         .as_ref()
                         .map(|p| p as *const UNICODE_STRING as *const _),
-                    BOOLEAN::from(self.restart_scan),
+                    self.restart_scan,
                 )
             };
             self.result = Some(initial_result);
@@ -321,7 +318,7 @@ impl<'a> Future for LfsQueryDirectoryFileFuture<'a> {
 }
 
 pub async fn lfs_query_directory_file_async(
-    handle: HANDLE,
+    handle: &AtomicHandle<NtHandleDrop>,
     buffer: &mut [u8],
     class: FILE_INFORMATION_CLASS,
     return_single_entry: bool,
@@ -329,7 +326,7 @@ pub async fn lfs_query_directory_file_async(
     restart_scan: bool,
 ) -> winfsp::Result<usize> {
     let query_ft = LfsQueryDirectoryFileFuture::new(
-        handle,
+        handle.handle(),
         file_name,
         buffer,
         return_single_entry,

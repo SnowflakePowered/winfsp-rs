@@ -3,7 +3,7 @@ use std::fs::File;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 #[cfg(feature = "system")]
-use windows_registry::{LOCAL_MACHINE, Value};
+use windows_registry::{Value, LOCAL_MACHINE};
 
 static HEADER: &str = r#"
 #include <winfsp/winfsp.h>
