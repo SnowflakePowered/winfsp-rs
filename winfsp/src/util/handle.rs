@@ -1,8 +1,9 @@
+use std::ffi::c_void;
 use std::marker::PhantomData;
 
 use std::mem::ManuallyDrop;
 use std::ops::{Deref, DerefMut};
-use std::sync::atomic::{AtomicIsize, Ordering};
+use std::sync::atomic::{AtomicPtr, Ordering};
 
 use windows::Wdk::Foundation::NtClose;
 use windows::Win32::Foundation::{CloseHandle, HANDLE, INVALID_HANDLE_VALUE};
@@ -29,7 +30,7 @@ where
 /// without dropping the `AtomicHandle` and invalidating the underlying handle.
 #[repr(transparent)]
 #[derive(Debug)]
-pub struct AtomicHandle<T>(AtomicIsize, PhantomData<T>)
+pub struct AtomicHandle<T>(AtomicPtr<c_void>, PhantomData<T>)
 where
     T: HandleCloseHandler;
 
@@ -162,7 +163,7 @@ where
     T: HandleCloseHandler,
 {
     fn from(h: HANDLE) -> Self {
-        Self(AtomicIsize::new(h.0), PhantomData)
+        Self(AtomicPtr::new(h.0), PhantomData)
     }
 }
 
@@ -173,6 +174,6 @@ where
     fn from(h: SafeDropHandle<T>) -> Self {
         // forbid SafeDropHandle from running `Drop`
         let h = ManuallyDrop::new(h);
-        Self(AtomicIsize::new(h.0 .0), PhantomData)
+        Self(AtomicPtr::new(h.0 .0), PhantomData)
     }
 }
