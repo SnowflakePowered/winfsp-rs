@@ -49,7 +49,11 @@ where
             index % 8
         };
         let mask = 1 << bit_index;
-        if val { byte | mask } else { byte & !mask }
+        if val {
+            byte | mask
+        } else {
+            byte & !mask
+        }
     }
     #[inline]
     pub fn set_bit(&mut self, index: usize, val: bool) {
@@ -7367,7 +7371,7 @@ unsafe extern "C" {
 unsafe extern "C" {
     #[doc = " Stop a service instance.\n\n @param ClassName\n     Class name of the service instance to stop.\n @param InstanceName\n     Instance name of the service instance to stop.\n @param PLauncherError\n     Receives the launcher error if any. This is always a Win32 error code. May not be NULL.\n @return\n     STATUS_SUCCESS if the command is sent successfully to the launcher, even if the launcher\n     returns an error. Other status codes indicate a communication error. Launcher errors are\n     reported through PLauncherError."]
     pub fn FspLaunchStop(ClassName: PWSTR, InstanceName: PWSTR, PLauncherError: PULONG)
-    -> NTSTATUS;
+        -> NTSTATUS;
 }
 unsafe extern "C" {
     #[doc = " Get information about a service instance.\n\n The information is a list of NULL-terminated strings: the class name of the service instance,\n the instance name of the service instance and the full command line used to start the service\n instance.\n\n @param ClassName\n     Class name of the service instance to stop.\n @param InstanceName\n     Instance name of the service instance to stop.\n @param Buffer\n     Buffer that receives the command response. May be NULL.\n @param PSize\n     Pointer to a ULONG. On input it contains the size of the Buffer. On output it\n     contains the number of bytes transferred. May be NULL.\n @param PLauncherError\n     Receives the launcher error if any. This is always a Win32 error code. May not be NULL.\n @return\n     STATUS_SUCCESS if the command is sent successfully to the launcher, even if the launcher\n     returns an error. Other status codes indicate a communication error. Launcher errors are\n     reported through PLauncherError."]

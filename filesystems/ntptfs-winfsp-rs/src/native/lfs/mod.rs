@@ -30,8 +30,8 @@ use windows::Wdk::System::SystemServices::{
     FILE_ATTRIBUTE_TAG_INFORMATION, FILE_FS_SIZE_INFORMATION,
 };
 use windows::Win32::Foundation::{
-    GetLastError, HANDLE, INVALID_HANDLE_VALUE, STATUS_ACCESS_DENIED, STATUS_BUFFER_OVERFLOW,
-    STATUS_CANNOT_DELETE, STATUS_DIRECTORY_NOT_EMPTY, STATUS_FILE_DELETED,
+    GetLastError, HANDLE, INVALID_HANDLE_VALUE, OBJECT_ATTRIBUTE_FLAGS, STATUS_ACCESS_DENIED,
+    STATUS_BUFFER_OVERFLOW, STATUS_CANNOT_DELETE, STATUS_DIRECTORY_NOT_EMPTY, STATUS_FILE_DELETED,
     STATUS_INVALID_PARAMETER, STATUS_OBJECT_NAME_COLLISION, STATUS_PENDING,
 };
 use windows::Win32::Foundation::{NTSTATUS, STATUS_BUFFER_TOO_SMALL, STATUS_SUCCESS};
@@ -42,8 +42,8 @@ use windows::Win32::Storage::FileSystem::{
 };
 use windows::Win32::System::Threading::{CreateEventW, WaitForSingleObject, INFINITE};
 
+use windows::Win32::Foundation::UNICODE_STRING;
 use windows::Win32::Foundation::WAIT_FAILED;
-use windows::Win32::Foundation::{BOOLEAN, UNICODE_STRING};
 use windows::Win32::Storage::FileSystem::{
     FILE_ATTRIBUTE_NORMAL, FILE_FLAGS_AND_ATTRIBUTES, INVALID_FILE_ATTRIBUTES,
 };
@@ -57,7 +57,7 @@ use winfsp::{FspError, U16CStr};
 
 fn initialize_object_attributes(
     obj_name: &UNICODE_STRING,
-    attributes: u32,
+    attributes: OBJECT_ATTRIBUTE_FLAGS,
     root_dir: Option<HANDLE>,
     security_descriptor: Option<PSECURITY_DESCRIPTOR>,
 ) -> OBJECT_ATTRIBUTES {
@@ -66,7 +66,7 @@ fn initialize_object_attributes(
         RootDirectory: root_dir.unwrap_or_default(),
         ObjectName: obj_name as *const _,
         Attributes: attributes,
-        SecurityDescriptor: security_descriptor.map_or_else(std::ptr::null_mut, |s| s.0),
+        SecurityDescriptor: security_descriptor.map_or_else(std::ptr::null_mut, |s| s.0 as _),
         SecurityQualityOfService: std::ptr::null_mut(),
     }
 }
@@ -102,7 +102,7 @@ pub fn lfs_create_file(
 
     let object_attrs = initialize_object_attributes(
         &unicode_filename,
-        0,
+        OBJECT_ATTRIBUTE_FLAGS::default(),
         Some(root_handle),
         Some(security_descriptor),
     );
@@ -148,7 +148,12 @@ pub fn lfs_open_file(
         unicode_filename.assume_init()
     };
 
-    let object_attrs = initialize_object_attributes(&unicode_filename, 0, Some(root_handle), None);
+    let object_attrs = initialize_object_attributes(
+        &unicode_filename,
+        OBJECT_ATTRIBUTE_FLAGS::default(),
+        Some(root_handle),
+        None,
+    );
 
     let mut iosb: MaybeUninit<IO_STATUS_BLOCK> = MaybeUninit::uninit();
     let mut handle = NtSafeHandle::from(INVALID_HANDLE_VALUE);
@@ -198,7 +203,7 @@ pub fn lfs_read_file(
         let result = unsafe {
             NtReadFile(
                 handle,
-                *event,
+                Some(*event),
                 None,
                 None,
                 iosb.as_mut_ptr() as *mut _,
@@ -235,7 +240,7 @@ pub fn lfs_write_file(
         let result = unsafe {
             NtWriteFile(
                 handle,
-                *event,
+                Some(*event),
                 None,
                 None,
                 iosb.as_mut_ptr() as *mut _,
@@ -290,7 +295,7 @@ pub fn lfs_get_security(
         NtQuerySecurityObject(
             handle,
             security_information,
-            security_descriptor,
+            Some(security_descriptor),
             security_descriptor_length,
             &mut length_needed,
         )
@@ -609,12 +614,12 @@ pub fn lfs_rename(
             Err(FspError::from(STATUS_ACCESS_DENIED))
         }
         _ => unsafe {
-            addr_of_mut!((*rename_info.as_mut_ptr()).Anonymous.Flags).write(0);
-            addr_of_mut!((*rename_info.as_mut_ptr()).Anonymous.ReplaceIfExists).write(
+            (&raw mut (*rename_info.as_mut_ptr()).Anonymous.Flags).write(0);
+            (&raw mut (*rename_info.as_mut_ptr()).Anonymous.ReplaceIfExists).write(
                 if replace_if_exists != LfsRenameSemantics::DoNotReplace {
-                    BOOLEAN::from(true)
+                    true
                 } else {
-                    BOOLEAN::from(false)
+                    false
                 },
             );
 
@@ -733,16 +738,16 @@ pub fn lfs_query_directory_file(
         let result = unsafe {
             NtQueryDirectoryFile(
                 handle,
-                *event,
+                Some(*event),
                 None,
                 None,
                 iosb.as_mut_ptr() as *mut _,
                 buffer.as_mut_ptr() as *mut c_void,
                 buffer.len() as u32,
                 class,
-                BOOLEAN::from(return_single_entry),
+                return_single_entry,
                 unicode_filename.map(|p| p as *const UNICODE_STRING as *const _),
-                BOOLEAN::from(restart_scan),
+                restart_scan,
             )
         };
 
@@ -782,7 +787,7 @@ pub fn lfs_fs_control_file(
         let result = unsafe {
             NtFsControlFile(
                 handle,
-                *event,
+                Some(*event),
                 None,
                 None,
                 iosb.as_mut_ptr() as *mut _,
@@ -848,11 +853,11 @@ pub fn lfs_get_ea(handle: HANDLE, buffer: &mut [u8]) -> usize {
             iosb.as_mut_ptr(),
             buffer.as_mut_ptr().cast(),
             buffer.len() as u32,
-            BOOLEAN::from(false),
+            false,
             None,
             0,
             None,
-            BOOLEAN::from(true),
+            true,
         )
     };
 
