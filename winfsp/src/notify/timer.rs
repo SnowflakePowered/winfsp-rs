@@ -30,7 +30,7 @@ impl Timer {
                 timer.0,
                 Some(&timer_due as *const i64 as *const _),
                 TIMEOUT,
-                0,
+                Some(0),
             );
         }
         Ok(timer)

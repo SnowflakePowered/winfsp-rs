@@ -106,7 +106,7 @@ fn main() {
         let bindings = bindings.clang_arg(&format!("--target={}", clang_target));
 
         let bindings = bindings
-            .parse_callbacks(Box::new(bindgen::CargoCallbacks))
+            .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
             .generate()
             .expect("Unable to generate bindings");
 
