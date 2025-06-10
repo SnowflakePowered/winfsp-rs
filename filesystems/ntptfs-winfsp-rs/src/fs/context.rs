@@ -186,6 +186,12 @@ impl NtPassthroughContext {
     }
 }
 
+impl Drop for NtPassthroughContext {
+    fn drop(&mut self) {
+        println!("NtPassthroughContext was dropped!");
+    }
+}
+
 impl FileSystemContext for NtPassthroughContext {
     type FileContext = NtPassthroughFile;
 

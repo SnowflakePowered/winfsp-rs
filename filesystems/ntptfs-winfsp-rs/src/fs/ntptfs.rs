@@ -8,7 +8,7 @@ use winfsp::host::{DebugMode, FileSystemHost, FileSystemParams, VolumeParams};
 /// An passthrough filesystem using the NT API.
 pub struct NtPassthroughFilesystem {
     /// The host for this filesystem.
-    pub fs: FileSystemHost,
+    pub fs: FileSystemHost<NtPassthroughContext>,
 }
 
 impl NtPassthroughFilesystem {
