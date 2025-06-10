@@ -7,11 +7,11 @@ use windows::core::Result;
 use windows::core::HSTRING;
 use windows::Win32::Foundation::NTSTATUS;
 
-use winfsp_sys::FspFileSystemDelete;
 use winfsp_sys::{
-    FspFileSystemCreate, FspFileSystemRemoveMountPoint, FspFileSystemSetMountPoint,
-    FspFileSystemSetOperationGuardStrategyF, FspFileSystemStartDispatcher,
-    FspFileSystemStopDispatcher, FSP_FILE_SYSTEM, FSP_FILE_SYSTEM_INTERFACE,
+    FspFileSystemCreate, FspFileSystemDelete, FspFileSystemRemoveMountPoint,
+    FspFileSystemSetMountPoint, FspFileSystemSetOperationGuardStrategyF,
+    FspFileSystemStartDispatcher, FspFileSystemStopDispatcher, FSP_FILE_SYSTEM,
+    FSP_FILE_SYSTEM_INTERFACE,
     FSP_FILE_SYSTEM_OPERATION_GUARD_STRATEGY_FSP_FILE_SYSTEM_OPERATION_GUARD_STRATEGY_COARSE,
     FSP_FILE_SYSTEM_OPERATION_GUARD_STRATEGY_FSP_FILE_SYSTEM_OPERATION_GUARD_STRATEGY_FINE,
 };
