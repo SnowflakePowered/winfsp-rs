@@ -16,7 +16,8 @@ use winfsp_sys::{
 };
 
 // internal aliases for callback types
-type FileSystemStartCallback<'a, T> = Option<Box<dyn Fn() -> std::result::Result<T, NTSTATUS> + 'a>>;
+type FileSystemStartCallback<'a, T> =
+    Option<Box<dyn Fn() -> std::result::Result<T, NTSTATUS> + 'a>>;
 type FileSystemStopCallback<'a, T> =
     Option<Box<dyn Fn(Option<&mut T>) -> std::result::Result<(), NTSTATUS> + 'a>>;
 type FileSystemControlCallback<'a, T> =
@@ -63,16 +64,6 @@ impl<T> FileSystemServiceHelper<T> {
                 p.get_mut().context.as_deref_mut()
             } else {
                 None
-            }
-        }
-    }
-
-    fn reset_context(&mut self) {
-        unsafe {
-            let ptr: *mut UnsafeCell<FileSystemServiceContext<T>> =
-                self.0.as_mut().UserContext.cast();
-            if let Some(ptr) = ptr.as_mut() {
-                ptr.get_mut().context = None
             }
         }
     }
@@ -189,7 +180,9 @@ impl<'a, T> FileSystemServiceBuilder<'a, T> {
             )) as *mut _)
         }
         if result == STATUS_SUCCESS.0 && unsafe { !service.get().read().is_null() } {
-            Ok(unsafe { FileSystemService(NonNull::new_unchecked(service.get().read()), PhantomData) })
+            Ok(unsafe {
+                FileSystemService(NonNull::new_unchecked(service.get().read()), PhantomData)
+            })
         } else {
             Err(FspError::NTSTATUS(result))
         }
@@ -199,9 +192,18 @@ impl<'a, T> FileSystemServiceBuilder<'a, T> {
 impl<'a, T> Drop for FileSystemService<T> {
     fn drop(&mut self) {
         self.stop();
+        let service_context_ptr = unsafe {
+            // SAFETY: FSP_SERVICE pointer and UserContext field are not mutated by other threads
+            self.0.as_ref().UserContext as *mut UnsafeCell<FileSystemServiceContext<T>>
+        };
         unsafe {
             FspServiceDelete(self.0.as_ptr());
         };
+        let service_context_box = unsafe {
+            // SAFETY: No other threads exist with access to the service context and its type is correct
+            Box::<UnsafeCell<FileSystemServiceContext<T>>>::from_raw(service_context_ptr)
+        };
+        drop(service_context_box);
     }
 }
 
@@ -240,14 +242,10 @@ unsafe extern "C" fn on_stop<T>(fsp: *mut FSP_SERVICE) -> i32 {
             let mut fsp = unsafe { FileSystemServiceHelper::from_raw_unchecked(fsp) };
             let context = fsp.get_context();
 
-            match stop(context) {
-                Ok(()) => (),
-                Err(e) => return e.0,
+            return match stop(context) {
+                Ok(()) => STATUS_SUCCESS.0,
+                Err(e) => e.0,
             };
-
-            fsp.reset_context();
-
-            return STATUS_SUCCESS.0;
         }
     }
     STATUS_INVALID_PARAMETER.0
