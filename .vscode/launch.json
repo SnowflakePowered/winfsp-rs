@@ -1,0 +1,17 @@
+{
+    "configurations": [
+        {
+            "name": "winrepro",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/target/debug/my-winfsp.exe",
+            "args": [
+                //"no_launcher"
+            ],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "console": "integratedTerminal",
+        }
+    ]
+}

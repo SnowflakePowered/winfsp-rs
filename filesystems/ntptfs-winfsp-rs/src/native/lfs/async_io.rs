@@ -2,6 +2,7 @@ use crate::native::lfs;
 use crate::native::lfs::LFS_EVENT;
 use std::cell::UnsafeCell;
 use std::future::Future;
+use std::io::ErrorKind;
 use std::mem::MaybeUninit;
 use std::pin::Pin;
 use std::ptr::addr_of;
@@ -110,10 +111,13 @@ pub async fn lfs_read_file_async(
     offset: u64,
     bytes_transferred: &mut u32,
 ) -> winfsp::Result<()> {
-    let lfs = LfsReadFuture::new(handle.handle(), buffer, offset as i64)?;
 
-    let iosb = lfs.await?;
-    *bytes_transferred = iosb.Information as u32;
+    let transferred = tokio::task::spawn(async move {
+        let lfs = LfsReadFuture::new(handle.handle(), buffer, offset as i64)?;
+        lfs.await.map(|iosb| iosb.Information)
+    }).await.map_err(|_| FspError::IO(ErrorKind::Other))??;
+
+    *bytes_transferred = transferred as u32;
 
     Ok(())
 }
@@ -205,10 +209,12 @@ pub async fn lfs_write_file_async(
     offset: u64,
     bytes_transferred: &mut u32,
 ) -> winfsp::Result<()> {
-    let lfs = LfsWriteFuture::new(handle.handle(), buffer, offset as i64)?;
+    let transferred = tokio::task::spawn(async move {
+        let lfs = LfsWriteFuture::new(handle.handle(), buffer, offset as i64)?;
+        lfs.await.map(|iosb| iosb.Information)
+    }).await.map_err(|_| FspError::IO(ErrorKind::Other))??;
 
-    let iosb = lfs.await?;
-    *bytes_transferred = iosb.Information as u32;
+    *bytes_transferred = transferred as u32;
 
     Ok(())
 }
