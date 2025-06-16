@@ -2,7 +2,6 @@ use crate::error::Result;
 use crate::filesystem::{DirInfo, DirMarker, FileInfo, OpenFileInfo, VolumeInfo};
 use crate::U16CStr;
 use std::ffi::c_void;
-
 use windows::Win32::Foundation::STATUS_INVALID_DEVICE_REQUEST;
 
 use winfsp_sys::{

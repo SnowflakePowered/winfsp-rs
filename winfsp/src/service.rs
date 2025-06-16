@@ -11,7 +11,7 @@ use std::ptr::{addr_of_mut, NonNull};
 use std::thread::JoinHandle;
 use parking_lot::RwLock;
 use windows::core::HSTRING;
-use windows::Win32::Foundation::{NTSTATUS, STATUS_INVALID_PARAMETER, STATUS_SUCCESS};
+use windows::Win32::Foundation::{STATUS_INVALID_PARAMETER, STATUS_SUCCESS};
 use winfsp_sys::{
     FspServiceAllowConsoleMode, FspServiceCreate, FspServiceDelete, FspServiceLoop, FspServiceStop,
     FSP_SERVICE,
