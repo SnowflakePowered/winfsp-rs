@@ -2,7 +2,6 @@ use crate::fs::context::NtPassthroughContext;
 use std::io::ErrorKind;
 
 use std::path::Path;
-
 use winfsp::host::{DebugMode, FileSystemHost, FileSystemParams, VolumeParams};
 
 /// An passthrough filesystem using the NT API.
