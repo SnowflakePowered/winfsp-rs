@@ -11,29 +11,34 @@ use std::thread::JoinHandle;
 use windows::core::HSTRING;
 use windows::Win32::Foundation::{NTSTATUS, STATUS_INVALID_PARAMETER, STATUS_SUCCESS};
 use winfsp_sys::{
-    FspServiceAllowConsoleMode, FspServiceCreate, FspServiceLoop, FspServiceStop, FSP_SERVICE,
+    FspServiceAllowConsoleMode, FspServiceCreate, FspServiceDelete, FspServiceLoop, FspServiceStop,
+    FSP_SERVICE,
 };
 
 // internal aliases for callback types
-type FileSystemStartCallback<T> = Option<Box<dyn Fn() -> std::result::Result<T, NTSTATUS>>>;
-type FileSystemStopCallback<T> =
-    Option<Box<dyn Fn(Option<&mut T>) -> std::result::Result<(), NTSTATUS>>>;
-type FileSystemControlCallback<T> =
-    Option<Box<dyn Fn(Option<&mut T>, u32, u32, *mut c_void) -> i32>>;
-struct FileSystemServiceContext<T> {
-    start: FileSystemStartCallback<T>,
-    stop: FileSystemStopCallback<T>,
-    control: FileSystemControlCallback<T>,
+type FileSystemStartCallback<'a, T> =
+    Option<Box<dyn Fn() -> std::result::Result<T, NTSTATUS> + 'a>>;
+type FileSystemStopCallback<'a, T> =
+    Option<Box<dyn Fn(Option<&mut T>) -> std::result::Result<(), NTSTATUS> + 'a>>;
+type FileSystemControlCallback<'a, T> =
+    Option<Box<dyn Fn(Option<&mut T>, u32, u32, *mut c_void) -> i32 + 'a>>;
+struct FileSystemServiceContext<'a, T> {
+    start: FileSystemStartCallback<'a, T>,
+    stop: FileSystemStopCallback<'a, T>,
+    control: FileSystemControlCallback<'a, T>,
     context: Option<Box<T>>,
 }
 
 /// A service that runs a filesystem implemented by a [`FileSystemHost`](crate::host::FileSystemHost).
 pub struct FileSystemService<T>(NonNull<FSP_SERVICE>, PhantomData<T>);
-impl<T> FileSystemService<T> {
+
+struct FileSystemServiceHelper<T>(NonNull<FSP_SERVICE>, PhantomData<T>);
+
+impl<T> FileSystemServiceHelper<T> {
     /// # Safety
     /// `raw` is valid and not null.
     unsafe fn from_raw_unchecked(raw: *mut FSP_SERVICE) -> Self {
-        unsafe { FileSystemService(NonNull::new_unchecked(raw), Default::default()) }
+        unsafe { FileSystemServiceHelper(NonNull::new_unchecked(raw), Default::default()) }
     }
 
     /// Set the context.
@@ -93,19 +98,19 @@ impl<T> FileSystemService<T> {
 }
 
 /// A builder for [`FileSystemService`](crate::service::FileSystemService).
-pub struct FileSystemServiceBuilder<T> {
-    stop: FileSystemStopCallback<T>,
-    start: FileSystemStartCallback<T>,
-    control: FileSystemControlCallback<T>,
+pub struct FileSystemServiceBuilder<'a, T> {
+    stop: FileSystemStopCallback<'a, T>,
+    start: FileSystemStartCallback<'a, T>,
+    control: FileSystemControlCallback<'a, T>,
 }
 
-impl<T> Default for FileSystemServiceBuilder<T> {
+impl<'a, T> Default for FileSystemServiceBuilder<'a, T> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<T> FileSystemServiceBuilder<T> {
+impl<'a, T> FileSystemServiceBuilder<'a, T> {
     /// Create a new instance of the builder.
     pub fn new() -> Self {
         Self {
@@ -119,7 +124,7 @@ impl<T> FileSystemServiceBuilder<T> {
     /// The returned file system context must be mounted before returning.
     pub fn with_start<F>(mut self, start: F) -> Self
     where
-        F: Fn() -> std::result::Result<T, NTSTATUS> + 'static,
+        F: Fn() -> std::result::Result<T, NTSTATUS> + 'a,
     {
         self.start = Some(Box::new(start));
         self
@@ -128,7 +133,7 @@ impl<T> FileSystemServiceBuilder<T> {
     /// The stop callback is responsible for safely terminating the mounted file system.
     pub fn with_stop<F>(mut self, stop: F) -> Self
     where
-        F: Fn(Option<&mut T>) -> std::result::Result<(), NTSTATUS> + 'static,
+        F: Fn(Option<&mut T>) -> std::result::Result<(), NTSTATUS> + 'a,
     {
         self.stop = Some(Box::new(stop));
         self
@@ -175,10 +180,30 @@ impl<T> FileSystemServiceBuilder<T> {
             )) as *mut _)
         }
         if result == STATUS_SUCCESS.0 && unsafe { !service.get().read().is_null() } {
-            Ok(unsafe { FileSystemService::from_raw_unchecked(service.get().read()) })
+            Ok(unsafe {
+                FileSystemService(NonNull::new_unchecked(service.get().read()), PhantomData)
+            })
         } else {
             Err(FspError::NTSTATUS(result))
         }
+    }
+}
+
+impl<'a, T> Drop for FileSystemService<T> {
+    fn drop(&mut self) {
+        self.stop();
+        let service_context_ptr = unsafe {
+            // SAFETY: FSP_SERVICE pointer and UserContext field are not mutated by other threads
+            self.0.as_ref().UserContext as *mut UnsafeCell<FileSystemServiceContext<T>>
+        };
+        unsafe {
+            FspServiceDelete(self.0.as_ptr());
+        };
+        let service_context_box = unsafe {
+            // SAFETY: No other threads exist with access to the service context and its type is correct
+            Box::<UnsafeCell<FileSystemServiceContext<T>>>::from_raw(service_context_ptr)
+        };
+        drop(service_context_box);
     }
 }
 
@@ -195,7 +220,7 @@ unsafe extern "C" fn on_start<T>(fsp: *mut FSP_SERVICE, _argc: u32, _argv: *mut 
                 Err(e) => e.0,
                 Ok(context) => {
                     unsafe {
-                        FileSystemService::from_raw_unchecked(fsp).set_context(context);
+                        FileSystemServiceHelper::from_raw_unchecked(fsp).set_context(context);
                     }
                     STATUS_SUCCESS.0
                 }
@@ -214,7 +239,7 @@ unsafe extern "C" fn on_stop<T>(fsp: *mut FSP_SERVICE) -> i32 {
             .as_mut()
     } {
         if let Some(stop) = &context.stop {
-            let mut fsp = unsafe { FileSystemService::from_raw_unchecked(fsp) };
+            let mut fsp = unsafe { FileSystemServiceHelper::from_raw_unchecked(fsp) };
             let context = fsp.get_context();
 
             return match stop(context) {
@@ -240,7 +265,7 @@ unsafe extern "C" fn on_control<T>(
             .as_mut()
     } {
         if let Some(control) = &context.control {
-            let mut fsp = unsafe { FileSystemService::from_raw_unchecked(fsp) };
+            let mut fsp = unsafe { FileSystemServiceHelper::from_raw_unchecked(fsp) };
             let context = fsp.get_context();
 
             return control(context, ctl, event_type, event_data);
