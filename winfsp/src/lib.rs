@@ -1,4 +1,3 @@
-#![cfg_attr(feature = "strict-provenance", feature(strict_provenance))]
 #![cfg_attr(feature = "io-error", feature(io_error_more))]
 #![cfg_attr(feature = "docsrs", feature(doc_cfg))]
 #![deny(unsafe_op_in_unsafe_fn)]

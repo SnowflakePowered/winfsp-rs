@@ -10,7 +10,7 @@ readme = "./README.md"
 repository = "https://github.com/SnowflakePowered/winfsp-rs"
 
 [build-dependencies]
-bindgen = "0.68.1"
+bindgen = "0.72.0"
 windows-registry = { version = "0.1.1", optional = true }
 
 [features]

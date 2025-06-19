@@ -1,7 +1,7 @@
 /**
  * @file winfsp/fsctl.h
  *
- * @copyright 2015-2022 Bill Zissimopoulos
+ * @copyright 2015-2025 Bill Zissimopoulos
  */
 /*
  * This file is part of WinFsp.
@@ -696,6 +696,7 @@ FSP_API NTSTATUS FspFsctlNotify(HANDLE VolumeHandle,
 FSP_API NTSTATUS FspFsctlGetVolumeList(PWSTR DevicePath,
     PWCHAR VolumeListBuf, PSIZE_T PVolumeListSize);
 FSP_API NTSTATUS FspFsctlPreflight(PWSTR DevicePath);
+FSP_API NTSTATUS FspFsctlServiceVersion(PUINT32 PVersion);
 FSP_API NTSTATUS FspFsctlStartService(VOID);
 FSP_API NTSTATUS FspFsctlStopService(VOID);
 FSP_API NTSTATUS FspFsctlEnumServices(

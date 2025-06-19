@@ -9,7 +9,6 @@ use std::os::raw::c_void;
 use std::os::windows::fs::MetadataExt;
 use std::path::Path;
 use std::ptr::addr_of;
-
 use widestring::{u16cstr, U16CString};
 use windows::core::{HSTRING, PCWSTR};
 use windows::Wdk::Storage::FileSystem::{
@@ -44,14 +43,14 @@ use winfsp::filesystem::{
     ModificationDescriptor, OpenFileInfo, StreamInfo, VolumeInfo, WideNameInfo,
 };
 use winfsp::host::VolumeParams;
-use winfsp::util::Win32SafeHandle;
+use winfsp::util::{AtomicHandle, Win32HandleDrop};
 use winfsp::FspError;
 use winfsp::U16CStr;
 #[repr(C)]
 #[derive(Debug)]
 /// The filesystem context for the NT passthrough filesystem.
 pub struct NtPassthroughContext {
-    root_handle: Win32SafeHandle,
+    root_handle: AtomicHandle<Win32HandleDrop>,
     root_prefix_len: u32,
     root_prefix: U16CString,
     root_osstring: OsString,
@@ -80,14 +79,14 @@ impl NtPassthroughContext {
         }
 
         eprintln!("ntpfs: {:?} @ {:?}", handle, path);
-        Self::new_from_handle(Win32SafeHandle::from(handle), root)
+        Self::new_from_handle(AtomicHandle::from(handle), root)
     }
 
     pub fn new_from_handle(
-        root_handle: Win32SafeHandle,
+        root_handle: AtomicHandle<Win32HandleDrop>,
         root: impl AsRef<Path>,
     ) -> winfsp::Result<Self> {
-        let root_prefix = lfs::lfs_get_file_name(*root_handle)?;
+        let root_prefix = lfs::lfs_get_file_name(root_handle.handle())?;
         let root_prefix_len = (root_prefix.len() * size_of::<u16>()) as u32;
 
         Ok(Self {
@@ -113,8 +112,8 @@ impl NtPassthroughContext {
         });
 
         let context = Self::new(root)?;
-        let fs_attr = volume::get_attr(*context.root_handle)?;
-        let fs_sz = volume::get_size(*context.root_handle)?;
+        let fs_attr = volume::get_attr(context.root_handle.handle())?;
+        let fs_sz = volume::get_size(context.root_handle.handle())?;
 
         volume_params
             .sector_size(fs_sz.BytesPerSector as u16)
@@ -207,7 +206,7 @@ impl FileSystemContext for NtPassthroughContext {
             return Ok(security);
         }
         let handle = lfs::lfs_open_file(
-            *self.root_handle,
+            self.root_handle.handle(),
             file_name,
             READ_CONTROL,
             FILE_OPEN_FOR_BACKUP_INTENT | FILE_OPEN_REPARSE_POINT,
@@ -288,7 +287,7 @@ impl FileSystemContext for NtPassthroughContext {
         }
 
         let result = lfs::lfs_open_file(
-            *self.root_handle,
+            self.root_handle.handle(),
             file_name,
             maximum_access,
             FILE_OPEN_FOR_BACKUP_INTENT | FILE_OPEN_REPARSE_POINT | create_options,
@@ -304,7 +303,7 @@ impl FileSystemContext for NtPassthroughContext {
                         || err.to_ntstatus() == STATUS_INVALID_PARAMETER.0) =>
             {
                 lfs::lfs_open_file(
-                    *self.root_handle,
+                    self.root_handle.handle(),
                     file_name,
                     backup_access,
                     FILE_OPEN_FOR_BACKUP_INTENT | FILE_OPEN_REPARSE_POINT | create_options,
@@ -381,7 +380,7 @@ impl FileSystemContext for NtPassthroughContext {
             security_descriptor.map_or(std::ptr::null_mut(), |c| c.as_ptr().cast_mut()),
         );
         let result = lfs::lfs_create_file(
-            *self.root_handle,
+            self.root_handle.handle(),
             file_name,
             maximum_access,
             security_descriptor,
@@ -399,7 +398,7 @@ impl FileSystemContext for NtPassthroughContext {
                     && e.to_ntstatus() == STATUS_INVALID_PARAMETER.0 =>
             {
                 lfs::lfs_create_file(
-                    *self.root_handle,
+                    self.root_handle.handle(),
                     file_name,
                     maximum_access,
                     security_descriptor,
@@ -636,7 +635,7 @@ impl FileSystemContext for NtPassthroughContext {
         // skip first char
         let new_file_name = &new_file_name[1..].as_slice();
         lfs::lfs_rename(
-            *self.root_handle,
+            self.root_handle.handle(),
             context.handle(),
             new_file_name,
             replace_mode,
@@ -728,7 +727,7 @@ impl FileSystemContext for NtPassthroughContext {
     }
 
     fn get_volume_info(&self, out_volume_info: &mut VolumeInfo) -> winfsp::Result<()> {
-        let vol_info = lfs::lfs_get_volume_info(*self.root_handle)?;
+        let vol_info = lfs::lfs_get_volume_info(self.root_handle.handle())?;
         out_volume_info.total_size = vol_info.total_size;
         out_volume_info.free_size = vol_info.free_size;
         Ok(())
@@ -808,7 +807,7 @@ impl FileSystemContext for NtPassthroughContext {
         buffer: &mut [u8],
     ) -> winfsp::Result<u64> {
         let reparse_handle = lfs::lfs_open_file(
-            *self.root_handle,
+            self.root_handle.handle(),
             file_name,
             FILE_ACCESS_RIGHTS(0),
             FILE_OPEN_FOR_BACKUP_INTENT
@@ -901,16 +900,14 @@ impl FileSystemContext for NtPassthroughContext {
     }
 }
 
-impl AsyncFileSystemContext for NtPassthroughContext {
-    async fn read_async(
+impl AsyncFileSystemContext for NtPassthroughContext { async fn read_async(
         &self,
         context: &Self::FileContext,
         buffer: &mut [u8],
         offset: u64,
     ) -> winfsp::Result<u32> {
         let mut bytes_transferred = 0;
-        let handle = context.handle();
-        async_io::lfs_read_file_async(handle, buffer, offset, &mut bytes_transferred).await?;
+        async_io::lfs_read_file_async(context.handle_ref(), buffer, offset, &mut bytes_transferred).await?;
         Ok(bytes_transferred)
     }
 
@@ -936,7 +933,7 @@ impl AsyncFileSystemContext for NtPassthroughContext {
         }
 
         lfs::async_io::lfs_write_file_async(
-            context.handle(),
+            context.handle_ref(),
             buffer,
             offset,
             &mut bytes_transferred,
@@ -954,7 +951,6 @@ impl AsyncFileSystemContext for NtPassthroughContext {
         buffer: &mut [u8],
     ) -> winfsp::Result<u32> {
         let dir_size = context.size();
-        let handle = context.handle();
         let mut dirinfo: DirInfo = DirInfo::new();
         if let Ok(dirbuffer) = context
             .dir_buffer()
@@ -967,7 +963,7 @@ impl AsyncFileSystemContext for NtPassthroughContext {
             'once: loop {
                 query_buffer.fill(0);
                 if let Ok(bytes_transferred) = lfs::async_io::lfs_query_directory_file_async(
-                    handle,
+                    context.handle_ref(),
                     &mut query_buffer,
                     FileIdBothDirectoryInformation,
                     false,
