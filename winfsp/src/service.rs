@@ -17,9 +17,9 @@ use winfsp_sys::{
 
 // internal aliases for callback types
 type FileSystemStartCallback<'a, T> =
-    Option<Box<dyn Fn() -> std::result::Result<T, NTSTATUS> + 'a>>;
+    Option<Box<dyn Fn() -> std::result::Result<T, FspError> + 'a>>;
 type FileSystemStopCallback<'a, T> =
-    Option<Box<dyn Fn(Option<&mut T>) -> std::result::Result<(), NTSTATUS> + 'a>>;
+    Option<Box<dyn Fn(Option<&mut T>) -> std::result::Result<(), FspError> + 'a>>;
 type FileSystemControlCallback<'a, T> =
     Option<Box<dyn Fn(Option<&mut T>, u32, u32, *mut c_void) -> i32 + 'a>>;
 struct FileSystemServiceContext<'a, T> {
@@ -124,7 +124,7 @@ impl<'a, T> FileSystemServiceBuilder<'a, T> {
     /// The returned file system context must be mounted before returning.
     pub fn with_start<F>(mut self, start: F) -> Self
     where
-        F: Fn() -> std::result::Result<T, NTSTATUS> + 'a,
+        F: Fn() -> std::result::Result<T, FspError> + 'a,
     {
         self.start = Some(Box::new(start));
         self
@@ -133,7 +133,7 @@ impl<'a, T> FileSystemServiceBuilder<'a, T> {
     /// The stop callback is responsible for safely terminating the mounted file system.
     pub fn with_stop<F>(mut self, stop: F) -> Self
     where
-        F: Fn(Option<&mut T>) -> std::result::Result<(), NTSTATUS> + 'a,
+        F: Fn(Option<&mut T>) -> std::result::Result<(), FspError> + 'a,
     {
         self.stop = Some(Box::new(stop));
         self
@@ -217,7 +217,7 @@ unsafe extern "C" fn on_start<T>(fsp: *mut FSP_SERVICE, _argc: u32, _argv: *mut 
     } {
         if let Some(start) = &context.start {
             return match start() {
-                Err(e) => e.0,
+                Err(e) => e.to_ntstatus(),
                 Ok(context) => {
                     unsafe {
                         FileSystemServiceHelper::from_raw_unchecked(fsp).set_context(context);
@@ -244,7 +244,7 @@ unsafe extern "C" fn on_stop<T>(fsp: *mut FSP_SERVICE) -> i32 {
 
             return match stop(context) {
                 Ok(()) => STATUS_SUCCESS.0,
-                Err(e) => e.0,
+                Err(e) => e.to_ntstatus(),
             };
         }
     }
