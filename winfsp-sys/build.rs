@@ -25,6 +25,10 @@ fn local() -> String {
 
 #[cfg(feature = "system")]
 fn system() -> String {
+    if !cfg!(windows) {
+        panic!("'system' feature not supported for cross-platform compilation.");
+    }
+
     let winfsp_install = LOCAL_MACHINE
         .open("SOFTWARE\\WOW6432Node\\WinFsp")
         .ok()
