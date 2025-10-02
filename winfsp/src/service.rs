@@ -1,20 +1,20 @@
 //! Interfaces to the WinFSP service API to run a filesystem.
-use crate::error::FspError;
-use crate::util::AssertThreadSafe;
 use crate::FspInit;
 use crate::Result;
+use crate::error::FspError;
+use crate::util::AssertThreadSafe;
+use parking_lot::RwLock;
 use std::cell::UnsafeCell;
-use std::ffi::{c_void, OsStr};
+use std::ffi::{OsStr, c_void};
 use std::marker::PhantomData;
 use std::ops::DerefMut;
-use std::ptr::{addr_of_mut, NonNull};
+use std::ptr::{NonNull, addr_of_mut};
 use std::thread::JoinHandle;
-use parking_lot::RwLock;
-use windows::core::HSTRING;
 use windows::Win32::Foundation::{STATUS_INVALID_PARAMETER, STATUS_SUCCESS};
+use windows::core::HSTRING;
 use winfsp_sys::{
-    FspServiceAllowConsoleMode, FspServiceCreate, FspServiceDelete, FspServiceLoop, FspServiceStop,
-    FSP_SERVICE,
+    FSP_SERVICE, FspServiceAllowConsoleMode, FspServiceCreate, FspServiceDelete, FspServiceLoop,
+    FspServiceStop,
 };
 
 // internal aliases for callback types
@@ -188,7 +188,7 @@ impl<'a, T> FileSystemServiceBuilder<'a, T> {
             Ok(unsafe {
                 FileSystemService {
                     service_ptr: NonNull::new_unchecked(service.get().read()),
-                    _pd: PhantomData
+                    _pd: PhantomData,
                 }
             })
         } else {
@@ -248,12 +248,13 @@ unsafe extern "C" fn on_stop<T>(fsp: *mut FSP_SERVICE) -> i32 {
             .as_mut()
     } {
         if let Some(stop) = &context.stop {
-            let fsp: FileSystemServiceHelper<T>  = unsafe { FileSystemServiceHelper::from_raw_unchecked(fsp) };
+            let fsp: FileSystemServiceHelper<T> =
+                unsafe { FileSystemServiceHelper::from_raw_unchecked(fsp) };
             let context = fsp.get_context();
 
-            let result =  'result: {
+            let result = 'result: {
                 let Some(context) = context else {
-                    break 'result stop(None)
+                    break 'result stop(None);
                 };
                 let mut context = context.write();
                 stop(Some(context.deref_mut()))
@@ -282,7 +283,8 @@ unsafe extern "C" fn on_control<T>(
             .as_mut()
     } {
         if let Some(control) = &context.control {
-            let fsp: FileSystemServiceHelper<T>  = unsafe { FileSystemServiceHelper::from_raw_unchecked(fsp) };
+            let fsp: FileSystemServiceHelper<T> =
+                unsafe { FileSystemServiceHelper::from_raw_unchecked(fsp) };
             let context = fsp.get_context();
             let Some(context) = context else {
                 return control(None, ctl, event_type, event_data);

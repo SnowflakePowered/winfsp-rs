@@ -1,5 +1,5 @@
 use crate::notify::NotifyInfo;
-use winfsp_sys::{FspFileSystemNotify, FSP_FILE_SYSTEM};
+use winfsp_sys::{FSP_FILE_SYSTEM, FspFileSystemNotify};
 
 /// A notifier used to notify the filesystem of changes.
 pub struct Notifier(pub(crate) *mut FSP_FILE_SYSTEM);

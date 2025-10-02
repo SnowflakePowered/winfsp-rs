@@ -1,6 +1,6 @@
 use crate::filesystem::sealed::WideNameInfoInternal;
-use crate::filesystem::{ensure_layout, WideNameInfo};
-use winfsp_sys::{FspFileSystemAddStreamInfo, FSP_FSCTL_STREAM_INFO};
+use crate::filesystem::{WideNameInfo, ensure_layout};
+use winfsp_sys::{FSP_FSCTL_STREAM_INFO, FspFileSystemAddStreamInfo};
 
 #[repr(C)]
 #[derive(Debug, Clone)]

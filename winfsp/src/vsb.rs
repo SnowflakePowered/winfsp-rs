@@ -4,7 +4,7 @@
 // All files in the project carrying such notice may not be copied, modified, or distributed
 // except according to those terms.
 use std::{
-    alloc::{alloc_zeroed, dealloc, handle_alloc_error, Layout},
+    alloc::{Layout, alloc_zeroed, dealloc, handle_alloc_error},
     marker::PhantomData,
     mem::{align_of, size_of},
     ptr::{self, NonNull},

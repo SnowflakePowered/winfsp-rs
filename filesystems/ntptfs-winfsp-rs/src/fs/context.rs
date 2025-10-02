@@ -1,5 +1,5 @@
 use crate::fs::file::NtPassthroughFile;
-use crate::native::lfs::{async_io, LfsRenameSemantics};
+use crate::native::lfs::{LfsRenameSemantics, async_io};
 use crate::native::{lfs, volume};
 use std::ffi::OsString;
 use std::future::Future;
@@ -9,13 +9,12 @@ use std::os::raw::c_void;
 use std::os::windows::fs::MetadataExt;
 use std::path::Path;
 use std::ptr::addr_of;
-use widestring::{u16cstr, U16CString};
-use windows::core::{HSTRING, PCWSTR};
+use widestring::{U16CString, u16cstr};
 use windows::Wdk::Storage::FileSystem::{
-    FileIdBothDirectoryInformation, FILE_CREATE, FILE_DIRECTORY_FILE, FILE_ID_BOTH_DIR_INFORMATION,
-    FILE_NON_DIRECTORY_FILE, FILE_NO_EA_KNOWLEDGE, FILE_OPEN_FOR_BACKUP_INTENT,
-    FILE_OPEN_REPARSE_POINT, FILE_OVERWRITE, FILE_STREAM_INFORMATION, FILE_SUPERSEDE,
-    FILE_SYNCHRONOUS_IO_NONALERT, NTCREATEFILE_CREATE_OPTIONS,
+    FILE_CREATE, FILE_DIRECTORY_FILE, FILE_ID_BOTH_DIR_INFORMATION, FILE_NO_EA_KNOWLEDGE,
+    FILE_NON_DIRECTORY_FILE, FILE_OPEN_FOR_BACKUP_INTENT, FILE_OPEN_REPARSE_POINT, FILE_OVERWRITE,
+    FILE_STREAM_INFORMATION, FILE_SUPERSEDE, FILE_SYNCHRONOUS_IO_NONALERT,
+    FileIdBothDirectoryInformation, NTCREATEFILE_CREATE_OPTIONS,
 };
 use windows::Win32::Foundation::{
     GetLastError, INVALID_HANDLE_VALUE, STATUS_ACCESS_DENIED, STATUS_BUFFER_OVERFLOW,
@@ -28,15 +27,18 @@ use windows::Win32::Security::{
 };
 use windows::Win32::Storage::FileSystem::{
     CreateFileW, DELETE, FILE_ACCESS_RIGHTS, FILE_ATTRIBUTE_DIRECTORY, FILE_ATTRIBUTE_NORMAL,
-    FILE_ATTRIBUTE_REPARSE_POINT, FILE_FLAGS_AND_ATTRIBUTES, FILE_FLAG_BACKUP_SEMANTICS,
-    FILE_FLAG_OVERLAPPED, FILE_READ_ATTRIBUTES, FILE_SHARE_DELETE, FILE_SHARE_READ,
+    FILE_ATTRIBUTE_REPARSE_POINT, FILE_FLAG_BACKUP_SEMANTICS, FILE_FLAG_OVERLAPPED,
+    FILE_FLAGS_AND_ATTRIBUTES, FILE_READ_ATTRIBUTES, FILE_SHARE_DELETE, FILE_SHARE_READ,
     FILE_SHARE_WRITE, FILE_WRITE_DATA, OPEN_EXISTING, READ_CONTROL, SYNCHRONIZE,
 };
 use windows::Win32::System::Ioctl::{
     FSCTL_DELETE_REPARSE_POINT, FSCTL_GET_REPARSE_POINT, FSCTL_SET_REPARSE_POINT,
 };
 use windows::Win32::System::SystemServices::MAXIMUM_ALLOWED;
+use windows::core::{HSTRING, PCWSTR};
 
+use winfsp::FspError;
+use winfsp::U16CStr;
 use winfsp::constants::FspCleanupFlags::FspCleanupDelete;
 use winfsp::filesystem::{
     AsyncFileSystemContext, DirInfo, DirMarker, FileInfo, FileSecurity, FileSystemContext,
@@ -44,8 +46,6 @@ use winfsp::filesystem::{
 };
 use winfsp::host::VolumeParams;
 use winfsp::util::{AtomicHandle, Win32HandleDrop};
-use winfsp::FspError;
-use winfsp::U16CStr;
 #[repr(C)]
 #[derive(Debug)]
 /// The filesystem context for the NT passthrough filesystem.
@@ -900,14 +900,16 @@ impl FileSystemContext for NtPassthroughContext {
     }
 }
 
-impl AsyncFileSystemContext for NtPassthroughContext { async fn read_async(
+impl AsyncFileSystemContext for NtPassthroughContext {
+    async fn read_async(
         &self,
         context: &Self::FileContext,
         buffer: &mut [u8],
         offset: u64,
     ) -> winfsp::Result<u32> {
         let mut bytes_transferred = 0;
-        async_io::lfs_read_file_async(context.handle_ref(), buffer, offset, &mut bytes_transferred).await?;
+        async_io::lfs_read_file_async(context.handle_ref(), buffer, offset, &mut bytes_transferred)
+            .await?;
         Ok(bytes_transferred)
     }
 

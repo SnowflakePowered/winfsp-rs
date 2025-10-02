@@ -174,6 +174,6 @@ where
     fn from(h: SafeDropHandle<T>) -> Self {
         // forbid SafeDropHandle from running `Drop`
         let h = ManuallyDrop::new(h);
-        Self(AtomicPtr::new(h.0 .0), PhantomData)
+        Self(AtomicPtr::new(h.0.0), PhantomData)
     }
 }

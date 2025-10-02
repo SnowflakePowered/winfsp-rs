@@ -1,19 +1,19 @@
 use std::cell::UnsafeCell;
 use std::ffi::OsStr;
 use std::marker::PhantomData;
-use std::ptr::null_mut;
 use std::ptr::NonNull;
-use windows::core::Result;
-use windows::core::HSTRING;
+use std::ptr::null_mut;
 use windows::Win32::Foundation::NTSTATUS;
+use windows::core::HSTRING;
+use windows::core::Result;
 
 use winfsp_sys::{
-    FspFileSystemCreate, FspFileSystemDelete, FspFileSystemRemoveMountPoint,
-    FspFileSystemSetMountPoint, FspFileSystemSetOperationGuardStrategyF,
-    FspFileSystemStartDispatcher, FspFileSystemStopDispatcher, FSP_FILE_SYSTEM,
-    FSP_FILE_SYSTEM_INTERFACE,
+    FSP_FILE_SYSTEM, FSP_FILE_SYSTEM_INTERFACE,
     FSP_FILE_SYSTEM_OPERATION_GUARD_STRATEGY_FSP_FILE_SYSTEM_OPERATION_GUARD_STRATEGY_COARSE,
     FSP_FILE_SYSTEM_OPERATION_GUARD_STRATEGY_FSP_FILE_SYSTEM_OPERATION_GUARD_STRATEGY_FINE,
+    FspFileSystemCreate, FspFileSystemDelete, FspFileSystemRemoveMountPoint,
+    FspFileSystemSetMountPoint, FspFileSystemSetOperationGuardStrategyF,
+    FspFileSystemStartDispatcher, FspFileSystemStopDispatcher,
 };
 
 #[cfg(feature = "async-io")]

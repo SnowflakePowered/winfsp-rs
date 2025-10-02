@@ -1,8 +1,8 @@
 use std::ffi::c_void;
 use std::mem::MaybeUninit;
 use windows::Wdk::Storage::FileSystem::{
-    FileFsAttributeInformation, FileFsSizeInformation, NtQueryVolumeInformationFile,
-    FILE_FS_ATTRIBUTE_INFORMATION,
+    FILE_FS_ATTRIBUTE_INFORMATION, FileFsAttributeInformation, FileFsSizeInformation,
+    NtQueryVolumeInformationFile,
 };
 use windows::Wdk::System::SystemServices::FILE_FS_SIZE_INFORMATION;
 use windows::Win32::Foundation::HANDLE;

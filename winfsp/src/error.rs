@@ -1,12 +1,11 @@
 use std::io::{Error, ErrorKind};
 use thiserror::Error;
-use windows::core::HRESULT;
 use windows::Win32::Foundation::{
     ERROR_ACCESS_DENIED, ERROR_ALREADY_EXISTS, ERROR_FILE_NOT_FOUND, ERROR_INVALID_PARAMETER,
     NTSTATUS, WIN32_ERROR,
 };
+use windows::core::HRESULT;
 
-#[cfg(feature = "io-error")]
 use windows::Win32::Foundation::{
     ERROR_DIRECTORY, ERROR_DIRECTORY_NOT_SUPPORTED, ERROR_FILENAME_EXCED_RANGE,
 };
@@ -52,13 +51,10 @@ impl FspError {
                     ErrorKind::PermissionDenied => ERROR_ACCESS_DENIED,
                     ErrorKind::AlreadyExists => ERROR_ALREADY_EXISTS,
                     ErrorKind::InvalidInput => ERROR_INVALID_PARAMETER,
-                    #[cfg(feature = "io-error")]
-                    ErrorKind::InvalidFilename => ERROR_FILENAME_EXCED_RANGE,
-                    #[cfg(feature = "io-error")]
                     ErrorKind::IsADirectory => ERROR_DIRECTORY_NOT_SUPPORTED,
-                    #[cfg(feature = "io-error")]
                     ErrorKind::NotADirectory => ERROR_DIRECTORY,
-                    _ =>  return 0xC00000E9u32 as i32, // STATUS_UNEXPECTED_IO_ERROR
+                    ErrorKind::InvalidFilename => ERROR_FILENAME_EXCED_RANGE,
+                    _ => return 0xC00000E9u32 as i32, // STATUS_UNEXPECTED_IO_ERROR
                 };
                 unsafe { FspNtStatusFromWin32(win32_equiv.0) }
             }

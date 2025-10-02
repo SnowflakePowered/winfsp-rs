@@ -27,7 +27,6 @@ impl NtPassthroughFile {
         self.handle.handle()
     }
 
-
     pub fn handle_ref(&self) -> &AtomicHandle<NtHandleDrop> {
         &self.handle
     }

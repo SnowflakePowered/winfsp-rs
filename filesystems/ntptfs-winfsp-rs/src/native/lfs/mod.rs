@@ -1,25 +1,25 @@
 pub(crate) mod async_io;
 
 use std::ffi::c_void;
-use std::mem::{offset_of, size_of, MaybeUninit};
+use std::mem::{MaybeUninit, offset_of, size_of};
 use std::ops::DerefMut;
 use std::ptr::{addr_of, addr_of_mut};
 use std::slice;
-use windows::core::PCWSTR;
 use windows::Wdk::Foundation::OBJECT_ATTRIBUTES;
 use windows::Wdk::Storage::FileSystem::{
-    FileAllInformation, FileAllocationInformation, FileAttributeTagInformation,
-    FileBasicInformation, FileDispositionInformation, FileDispositionInformationEx,
-    FileEndOfFileInformation, FileFsSizeInformation, FileNameInformation, FileRenameInformation,
-    FileRenameInformationEx, FileStandardInformation, FileStreamInformation, NtFsControlFile,
-    NtQueryDirectoryFile, NtReadFile, NtWriteFile, FILE_ALLOCATION_INFORMATION,
-    FILE_ALL_INFORMATION, FILE_BASIC_INFORMATION, FILE_DISPOSITION_DELETE,
-    FILE_DISPOSITION_DO_NOT_DELETE, FILE_DISPOSITION_FORCE_IMAGE_SECTION_CHECK,
-    FILE_DISPOSITION_IGNORE_READONLY_ATTRIBUTE, FILE_DISPOSITION_INFORMATION,
-    FILE_DISPOSITION_INFORMATION_EX, FILE_DISPOSITION_INFORMATION_EX_FLAGS,
-    FILE_DISPOSITION_POSIX_SEMANTICS, FILE_INFORMATION_CLASS, FILE_NAME_INFORMATION,
-    FILE_STANDARD_INFORMATION, NTCREATEFILE_CREATE_DISPOSITION, NTCREATEFILE_CREATE_OPTIONS,
+    FILE_ALL_INFORMATION, FILE_ALLOCATION_INFORMATION, FILE_BASIC_INFORMATION,
+    FILE_DISPOSITION_DELETE, FILE_DISPOSITION_DO_NOT_DELETE,
+    FILE_DISPOSITION_FORCE_IMAGE_SECTION_CHECK, FILE_DISPOSITION_IGNORE_READONLY_ATTRIBUTE,
+    FILE_DISPOSITION_INFORMATION, FILE_DISPOSITION_INFORMATION_EX,
+    FILE_DISPOSITION_INFORMATION_EX_FLAGS, FILE_DISPOSITION_POSIX_SEMANTICS,
+    FILE_INFORMATION_CLASS, FILE_NAME_INFORMATION, FILE_STANDARD_INFORMATION, FileAllInformation,
+    FileAllocationInformation, FileAttributeTagInformation, FileBasicInformation,
+    FileDispositionInformation, FileDispositionInformationEx, FileEndOfFileInformation,
+    FileFsSizeInformation, FileNameInformation, FileRenameInformation, FileRenameInformationEx,
+    FileStandardInformation, FileStreamInformation, NTCREATEFILE_CREATE_DISPOSITION,
+    NTCREATEFILE_CREATE_OPTIONS, NtFsControlFile, NtQueryDirectoryFile, NtReadFile, NtWriteFile,
 };
+use windows::core::PCWSTR;
 
 use windows::Wdk::Storage::FileSystem::{
     NtCreateFile, NtFlushBuffersFileEx, NtOpenFile, NtQueryInformationFile, NtQuerySecurityObject,
@@ -40,15 +40,15 @@ use windows::Win32::Storage::FileSystem::{
     FILE_ACCESS_RIGHTS, FILE_ATTRIBUTE_REPARSE_POINT, FILE_END_OF_FILE_INFO, FILE_READ_ATTRIBUTES,
     FILE_RENAME_INFO, FILE_SHARE_DELETE, FILE_SHARE_READ, FILE_SHARE_WRITE, SYNCHRONIZE,
 };
-use windows::Win32::System::Threading::{CreateEventW, WaitForSingleObject, INFINITE};
+use windows::Win32::System::Threading::{CreateEventW, INFINITE, WaitForSingleObject};
 
 use windows::Win32::Foundation::UNICODE_STRING;
 use windows::Win32::Foundation::WAIT_FAILED;
 use windows::Win32::Storage::FileSystem::{
     FILE_ATTRIBUTE_NORMAL, FILE_FLAGS_AND_ATTRIBUTES, INVALID_FILE_ATTRIBUTES,
 };
-use windows::Win32::System::WindowsProgramming::RtlInitUnicodeString;
 use windows::Win32::System::IO::IO_STATUS_BLOCK;
+use windows::Win32::System::WindowsProgramming::RtlInitUnicodeString;
 use winfsp::constants::FSP_FSCTL_TRANSACT_PATH_SIZEMAX;
 
 use winfsp::filesystem::{FileInfo, OpenFileInfo};

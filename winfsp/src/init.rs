@@ -1,10 +1,10 @@
 #[cfg(feature = "system")]
 use widestring::U16CStr;
-use windows::core::w;
-use windows::core::PCWSTR;
 #[allow(unused_imports)]
 use windows::Win32::Foundation::{ERROR_DELAY_LOAD_FAILED, ERROR_FILE_NOT_FOUND};
 use windows::Win32::System::LibraryLoader::LoadLibraryW;
+use windows::core::PCWSTR;
+use windows::core::w;
 
 use crate::Result;
 
@@ -19,7 +19,7 @@ pub struct FspInit;
 #[cfg(feature = "system")]
 fn get_system_winfsp() -> Option<windows::core::HSTRING> {
     use crate::constants::MAX_PATH;
-    use windows::Win32::System::Registry::{RegGetValueW, HKEY_LOCAL_MACHINE, RRF_RT_REG_SZ};
+    use windows::Win32::System::Registry::{HKEY_LOCAL_MACHINE, RRF_RT_REG_SZ, RegGetValueW};
 
     let mut path = [0u16; MAX_PATH];
     let mut size = (path.len() * std::mem::size_of::<u16>()) as u32;

@@ -1,6 +1,6 @@
 # winfsp-rs
 
-[![Latest Version](https://img.shields.io/crates/v/winfsp.svg)](https://crates.io/crates/winfsp) [![Docs](https://docs.rs/winfsp/badge.svg)](https://docs.rs/winfsp) ![License](https://img.shields.io/crates/l/winfsp)
+[![Latest Version](https://img.shields.io/crates/v/winfsp.svg)](https://crates.io/crates/winfsp) ![Stable rust](https://img.shields.io/badge/rust-1.87-blue.svg) [![Docs](https://docs.rs/winfsp/badge.svg)](https://docs.rs/winfsp) ![License](https://img.shields.io/crates/l/winfsp)
 
 Safe Rust bindings to [WinFSP](https://github.com/winfsp/winfsp) with examples. 
 
@@ -19,7 +19,7 @@ feature. The path will automatically be determined via the Registry.
 
 ```toml
 [dependencies.winfsp]
-version = "0.11"
+version = "0.12"
 features = ["system"]
 ```
 ### Delay-loading
@@ -29,7 +29,7 @@ the build script. This is required for winfsp-rs.
 #### Cargo.toml
 ```toml
 [build-dependencies]
-winfsp = "0.11"
+winfsp = "0.12"
 ```
 
 #### build.rs
@@ -46,16 +46,6 @@ and redirection of output is not configurable at this time.
 [dependencies.winfsp]
 features = ["debug"]
 ```
-### Building on Stable Rust
-It is recommended you build winfsp-rs on nightly Rust as it relies on [`io_error_more`](https://github.com/rust-lang/rust/issues/86442)
-and [`strict_provenance`](https://github.com/rust-lang/rust/issues/95228). However, it is possible to build winfsp-rs
-on stable Rust without support for these features. 
-
-```toml
-[dependencies.winfsp]
-default-features = false
-features = ["stable"]
-```
 
 ### Using with `windows-sys`
 With default features, the `winfsp` crate includes helper utilities and `From` implementations for error types in the
@@ -65,7 +55,7 @@ disable the `windows-rs` crate feature.
 ```toml
 [dependencies.winfsp]
 default-features = false
-features = ["stable", "nightly"]
+features = ["full"]
 ```
 
 ## Testing

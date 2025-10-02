@@ -1,13 +1,13 @@
 use crate::host::interface::FileSystemUserContext;
 use crate::notify::{Notifier, NotifyingFileSystemContext};
 use std::ptr::NonNull;
-use windows::core::Result;
 use windows::Win32::Foundation::{NTSTATUS, STATUS_SUCCESS};
 use windows::Win32::System::Threading::{
-    CloseThreadpoolTimer, CreateThreadpoolTimer, SetThreadpoolTimer, PTP_CALLBACK_INSTANCE,
-    PTP_TIMER,
+    CloseThreadpoolTimer, CreateThreadpoolTimer, PTP_CALLBACK_INSTANCE, PTP_TIMER,
+    SetThreadpoolTimer,
 };
-use winfsp_sys::{FspFileSystemNotifyBegin, FspFileSystemNotifyEnd, FSP_FILE_SYSTEM};
+use windows::core::Result;
+use winfsp_sys::{FSP_FILE_SYSTEM, FspFileSystemNotifyBegin, FspFileSystemNotifyEnd};
 
 pub struct Timer(PTP_TIMER);
 

@@ -9,10 +9,10 @@ use windows::Win32::Foundation::{
 };
 use windows::Win32::Security::{GetSecurityDescriptorLength, PSECURITY_DESCRIPTOR};
 
-use crate::{error, U16CStr};
+use crate::{U16CStr, error};
 use winfsp_sys::{
-    FspFileSystemFindReparsePoint, FspFileSystemResolveReparsePoints, BOOLEAN, FSP_FILE_SYSTEM,
-    FSP_FILE_SYSTEM_INTERFACE, FSP_FSCTL_DIR_INFO, FSP_FSCTL_FILE_INFO, FSP_FSCTL_VOLUME_INFO,
+    BOOLEAN, FSP_FILE_SYSTEM, FSP_FILE_SYSTEM_INTERFACE, FSP_FSCTL_DIR_INFO, FSP_FSCTL_FILE_INFO,
+    FSP_FSCTL_VOLUME_INFO, FspFileSystemFindReparsePoint, FspFileSystemResolveReparsePoints,
     PFILE_FULL_EA_INFORMATION, PIO_STATUS_BLOCK, PSIZE_T,
 };
 use winfsp_sys::{NTSTATUS as FSP_STATUS, PVOID};
@@ -597,7 +597,7 @@ where
             STATUS_PENDING.0
         } else {
             STATUS_INSUFFICIENT_RESOURCES.0
-        }
+        };
     })
 }
 
