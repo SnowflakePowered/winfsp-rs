@@ -25,15 +25,13 @@ windows-60 = { package = "windows", version = "0.60", features = ["Win32_Foundat
 windows-62 = { package = "windows", version = "0.62", features = ["Win32_Foundation"], optional = true }
 
 [features]
-default = ["full"]
+default = ["full", "handle-util"]
 debug = []
 system = ["windows/Win32_System_Registry", "winfsp-sys/system"]
 notify = []
 build = []
 delayload = ["build"]
 docsrs = ["winfsp-sys/docsrs"]
-windows-rs = ["handle-util", "windows-rs-error"]
-windows-rs-error = []
 handle-util = []
 async-io = []
 full = ["notify", "delayload", "async-io"]

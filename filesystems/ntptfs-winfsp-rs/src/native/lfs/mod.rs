@@ -2,7 +2,6 @@ pub(crate) mod async_io;
 
 use std::ffi::c_void;
 use std::mem::{MaybeUninit, offset_of, size_of};
-use std::ops::DerefMut;
 use std::ptr::{addr_of, addr_of_mut};
 use std::slice;
 use windows::Wdk::Foundation::OBJECT_ATTRIBUTES;
@@ -52,7 +51,7 @@ use windows::Win32::System::WindowsProgramming::RtlInitUnicodeString;
 use winfsp::constants::FSP_FSCTL_TRANSACT_PATH_SIZEMAX;
 
 use winfsp::filesystem::{FileInfo, OpenFileInfo};
-use winfsp::util::{NtSafeHandle, VariableSizedBox};
+use winfsp::util::{HandleInnerMut, NtSafeHandle, VariableSizedBox};
 use winfsp::{FspError, U16CStr};
 
 fn initialize_object_attributes(
@@ -95,11 +94,11 @@ pub fn lfs_create_file(
         // wrapping add to get rid of slash..
         RtlInitUnicodeString(
             unicode_filename.as_mut_ptr(),
-            PCWSTR(
-                if file_name.len() == 0 { file_name.as_ptr()} else {
-                    file_name.as_ptr().wrapping_add(1)
-                }
-            ),
+            PCWSTR(if file_name.len() == 0 {
+                file_name.as_ptr()
+            } else {
+                file_name.as_ptr().wrapping_add(1)
+            }),
         );
         unicode_filename.assume_init()
     };
@@ -118,7 +117,7 @@ pub fn lfs_create_file(
 
     unsafe {
         NtCreateFile(
-            handle.deref_mut(),
+            handle.handle_mut(),
             FILE_READ_ATTRIBUTES | desired_access,
             &object_attrs,
             iosb.as_mut_ptr(),
@@ -147,11 +146,11 @@ pub fn lfs_open_file(
         // wrapping add to get rid of leading slash..
         RtlInitUnicodeString(
             unicode_filename.as_mut_ptr(),
-            PCWSTR(
-                if file_name.len() == 0 { file_name.as_ptr()} else {
-                    file_name.as_ptr().wrapping_add(1)
-                }
-            ),
+            PCWSTR(if file_name.len() == 0 {
+                file_name.as_ptr()
+            } else {
+                file_name.as_ptr().wrapping_add(1)
+            }),
         );
         unicode_filename.assume_init()
     };
@@ -168,7 +167,7 @@ pub fn lfs_open_file(
 
     unsafe {
         NtOpenFile(
-            handle.deref_mut(),
+            handle.handle_mut(),
             (FILE_READ_ATTRIBUTES | desired_access | SYNCHRONIZE).0,
             &object_attrs,
             iosb.as_mut_ptr(),
@@ -570,11 +569,12 @@ pub enum LfsRenameSemantics {
 }
 
 pub fn lfs_rename(
-    root_handle: HANDLE,
+    root_handle: *mut c_void,
     handle: HANDLE,
     new_file_name: &[u16],
     replace_if_exists: LfsRenameSemantics,
 ) -> winfsp::Result<()> {
+    let root_handle = HANDLE(root_handle);
     let mut iosb: MaybeUninit<IO_STATUS_BLOCK> = MaybeUninit::zeroed();
     // length in bytes
     let file_path_len = std::mem::size_of_val(new_file_name);
