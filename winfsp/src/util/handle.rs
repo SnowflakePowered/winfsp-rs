@@ -3,10 +3,11 @@ use std::marker::PhantomData;
 
 use std::mem::ManuallyDrop;
 use std::ops::{Deref, DerefMut};
+use std::os::windows::raw::HANDLE;
 use std::sync::atomic::{AtomicPtr, Ordering};
 
 use windows::Wdk::Foundation::NtClose;
-use windows::Win32::Foundation::{CloseHandle, HANDLE, INVALID_HANDLE_VALUE};
+use windows::Win32::Foundation::{CloseHandle, INVALID_HANDLE_VALUE};
 
 /// An owned handle that will always be dropped when it goes out of scope.
 ///
@@ -34,6 +35,7 @@ pub struct AtomicHandle<T>(AtomicPtr<c_void>, PhantomData<T>)
 where
     T: HandleCloseHandler;
 
+
 /// Trait that defines a method to close a Windows HANDLE.
 pub trait HandleCloseHandler {
     /// Close the handle.
@@ -48,7 +50,7 @@ pub struct Win32HandleDrop;
 pub type Win32SafeHandle = SafeDropHandle<Win32HandleDrop>;
 impl HandleCloseHandler for Win32HandleDrop {
     fn close(handle: HANDLE) {
-        if let Err(e) = unsafe { CloseHandle(handle) } {
+        if let Err(e) = unsafe { CloseHandle(windows::Win32::Foundation::HANDLE(handle)) } {
             eprintln!("unable to close win32 handle {:x?}: {:?}", handle, e)
         }
     }
@@ -61,32 +63,8 @@ pub struct NtHandleDrop;
 pub type NtSafeHandle = SafeDropHandle<NtHandleDrop>;
 impl HandleCloseHandler for NtHandleDrop {
     fn close(handle: HANDLE) {
-        if let Err(e) = unsafe { NtClose(handle).ok() } {
+        if let Err(e) = unsafe { NtClose(windows::Win32::Foundation::HANDLE(handle)).ok() } {
             eprintln!("unable to close nt handle {:x?}: {:?}", handle, e)
-        }
-    }
-}
-
-impl<T> SafeDropHandle<T>
-where
-    T: HandleCloseHandler,
-{
-    /// Invalidate the handle without dropping it.
-    pub fn invalidate(&mut self) {
-        if !self.is_invalid() {
-            T::close(self.0)
-        }
-        self.0 = INVALID_HANDLE_VALUE
-    }
-}
-
-impl<T> Drop for SafeDropHandle<T>
-where
-    T: HandleCloseHandler,
-{
-    fn drop(&mut self) {
-        if !self.is_invalid() {
-            T::close(self.0)
         }
     }
 }
@@ -96,9 +74,9 @@ where
     T: HandleCloseHandler,
 {
     fn drop(&mut self) {
-        let handle = HANDLE(self.0.load(Ordering::Acquire));
+        let handle = windows::Win32::Foundation::HANDLE(self.0.load(Ordering::Acquire));
         if !handle.is_invalid() {
-            T::close(handle)
+            T::close(handle.0)
         }
     }
 }
@@ -110,20 +88,16 @@ where
     /// Atomically load the handle with acquire ordering
     pub fn handle(&self) -> HANDLE {
         let handle = self.0.load(Ordering::Acquire);
-        HANDLE(handle)
+        handle
     }
 
     /// Whether or not this handle is invalid.
-    pub fn is_invalid(&self) -> bool {
-        self.handle().is_invalid()
-    }
-
     /// Invalidate the handle without dropping it.
     pub fn invalidate(&self) {
-        let handle = self.handle();
+        let handle = windows::Win32::Foundation::HANDLE(self.handle());
 
         if !handle.is_invalid() {
-            T::close(handle)
+            T::close(handle.0)
         }
         self.0.store(INVALID_HANDLE_VALUE.0, Ordering::Relaxed);
     }
@@ -163,7 +137,7 @@ where
     T: HandleCloseHandler,
 {
     fn from(h: HANDLE) -> Self {
-        Self(AtomicPtr::new(h.0), PhantomData)
+        Self(AtomicPtr::new(h), PhantomData)
     }
 }
 
@@ -174,6 +148,6 @@ where
     fn from(h: SafeDropHandle<T>) -> Self {
         // forbid SafeDropHandle from running `Drop`
         let h = ManuallyDrop::new(h);
-        Self(AtomicPtr::new(h.0.0), PhantomData)
+        Self(AtomicPtr::new(h.0), PhantomData)
     }
 }

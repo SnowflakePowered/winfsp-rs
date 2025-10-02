@@ -113,12 +113,12 @@ pub fn lfs_create_file(
 
     let mut iosb: MaybeUninit<IO_STATUS_BLOCK> = MaybeUninit::uninit();
 
-    let mut handle = NtSafeHandle::from(INVALID_HANDLE_VALUE);
+    let mut handle = NtSafeHandle::from(INVALID_HANDLE_VALUE.0);
     let ea_buffer: Option<&[u8]> = ea_buffer.as_deref();
 
     unsafe {
         NtCreateFile(
-            handle.deref_mut(),
+            *handle.deref_mut() as *mut _,
             FILE_READ_ATTRIBUTES | desired_access,
             &object_attrs,
             iosb.as_mut_ptr(),
@@ -164,11 +164,11 @@ pub fn lfs_open_file(
     );
 
     let mut iosb: MaybeUninit<IO_STATUS_BLOCK> = MaybeUninit::uninit();
-    let mut handle = NtSafeHandle::from(INVALID_HANDLE_VALUE);
+    let mut handle = NtSafeHandle::from(INVALID_HANDLE_VALUE.0);
 
     unsafe {
         NtOpenFile(
-            handle.deref_mut(),
+            *handle.deref_mut() as *mut _,
             (FILE_READ_ATTRIBUTES | desired_access | SYNCHRONIZE).0,
             &object_attrs,
             iosb.as_mut_ptr(),
