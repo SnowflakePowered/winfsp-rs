@@ -3,7 +3,7 @@ use std::fs::File;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 #[cfg(feature = "system")]
-use windows_registry::{Value, LOCAL_MACHINE};
+use windows_registry::LOCAL_MACHINE;
 
 static HEADER: &str = r#"
 #include <winfsp/winfsp.h>
@@ -29,15 +29,11 @@ fn system() -> String {
         panic!("'system' feature not supported for cross-platform compilation.");
     }
 
-    let winfsp_install = LOCAL_MACHINE
+    let directory = LOCAL_MACHINE
         .open("SOFTWARE\\WOW6432Node\\WinFsp")
         .ok()
-        .and_then(|u| u.get_value("InstallDir").ok())
+        .and_then(|u| u.get_string("InstallDir").ok())
         .expect("WinFsp installation directory not found.");
-    let directory = match winfsp_install {
-        Value::String(string) => string,
-        _ => panic!("unexpected install directory"),
-    };
 
     println!("cargo:rustc-link-search={}/lib", directory);
 
