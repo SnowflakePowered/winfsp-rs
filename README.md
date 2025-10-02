@@ -50,7 +50,10 @@ features = ["debug"]
 ### Using with `windows-rs`
 
 WinFSP will not expose `windows-rs` features unless specified. Adding a `windows-` feature enables conversions between
-error types from the `windows` crate for the specific version to `FspError`.
+error types from the `windows` crate for the specific version to `FspError`. 
+
+If the `handle-util` feature is enabled, conversions from `HANDLE` to safe handle types require choosing a windows crate
+version.
 
 Supported versions are `windows-56`, `windows-60`, `windows-61`, `windows-62`.
 

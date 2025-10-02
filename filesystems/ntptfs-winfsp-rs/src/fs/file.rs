@@ -25,7 +25,7 @@ impl NtPassthroughFile {
 
     /// Get a HANDLE to this file entry.
     pub fn handle(&self) -> HANDLE {
-        self.handle.handle()
+        HANDLE(self.handle.handle())
     }
 
     pub fn handle_ref(&self) -> &AtomicHandle<NtHandleDrop> {

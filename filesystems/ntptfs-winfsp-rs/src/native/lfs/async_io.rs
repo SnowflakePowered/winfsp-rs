@@ -1,7 +1,6 @@
 use crate::native::lfs;
 use std::cell::UnsafeCell;
 use std::future::Future;
-use std::io::ErrorKind;
 use std::mem::MaybeUninit;
 use std::pin::Pin;
 use std::ptr::addr_of;
@@ -117,7 +116,7 @@ pub async fn lfs_read_file_async(
     offset: u64,
     bytes_transferred: &mut u32,
 ) -> winfsp::Result<()> {
-    let handle = AssertThreadSafe(handle.handle());
+    let handle = AssertThreadSafe(HANDLE(handle.handle()));
     let transferred = async move {
         let lfs = LfsReadFuture::new(handle, buffer, offset as i64)?;
         lfs.await.map(|iosb| iosb.Information)
@@ -217,7 +216,7 @@ pub async fn lfs_write_file_async(
     bytes_transferred: &mut u32,
 ) -> winfsp::Result<()> {
     let transferred = async move {
-        let lfs = LfsWriteFuture::new(handle.handle(), buffer, offset as i64)?;
+        let lfs = LfsWriteFuture::new(HANDLE(handle.handle()), buffer, offset as i64)?;
         lfs.await.map(|iosb| iosb.Information)
     }
     .await?;
@@ -340,7 +339,7 @@ pub async fn lfs_query_directory_file_async(
     restart_scan: bool,
 ) -> winfsp::Result<usize> {
     let query_ft = LfsQueryDirectoryFileFuture::new(
-        handle.handle(),
+        HANDLE(handle.handle()),
         file_name,
         buffer,
         return_single_entry,

@@ -2,7 +2,6 @@ use std::ffi::c_void;
 use std::marker::PhantomData;
 
 use std::mem::ManuallyDrop;
-use std::ops::{Deref, DerefMut};
 use std::sync::atomic::{AtomicPtr, Ordering};
 
 use windows::Wdk::Foundation::NtClose;
@@ -18,7 +17,7 @@ use windows::Win32::Foundation::{CloseHandle, HANDLE, INVALID_HANDLE_VALUE};
 /// and invalidating the underlying handle.
 #[repr(transparent)]
 #[derive(Debug)]
-pub struct SafeDropHandle<T>(HANDLE, PhantomData<T>)
+pub struct SafeDropHandle<T>(*mut c_void, PhantomData<T>)
 where
     T: HandleCloseHandler;
 
@@ -73,10 +72,15 @@ where
 {
     /// Invalidate the handle without dropping it.
     pub fn invalidate(&mut self) {
-        if !self.is_invalid() {
-            T::close(self.0)
+        if !HANDLE(self.0).is_invalid() {
+            T::close(HANDLE(self.0))
         }
-        self.0 = INVALID_HANDLE_VALUE
+        self.0 = INVALID_HANDLE_VALUE.0
+    }
+
+    /// Return the inner handle.
+    pub fn handle(&self) -> *mut c_void {
+        self.0
     }
 }
 
@@ -85,8 +89,8 @@ where
     T: HandleCloseHandler,
 {
     fn drop(&mut self) {
-        if !self.is_invalid() {
-            T::close(self.0)
+        if !HANDLE(self.0).is_invalid() {
+            T::close(HANDLE(self.0))
         }
     }
 }
@@ -108,62 +112,19 @@ where
     T: HandleCloseHandler,
 {
     /// Atomically load the handle with acquire ordering
-    pub fn handle(&self) -> HANDLE {
+    pub fn handle(&self) -> *mut c_void {
         let handle = self.0.load(Ordering::Acquire);
-        HANDLE(handle)
-    }
-
-    /// Whether or not this handle is invalid.
-    pub fn is_invalid(&self) -> bool {
-        self.handle().is_invalid()
+        handle
     }
 
     /// Invalidate the handle without dropping it.
     pub fn invalidate(&self) {
         let handle = self.handle();
 
-        if !handle.is_invalid() {
-            T::close(handle)
+        if !HANDLE(handle).is_invalid() {
+            T::close(HANDLE(handle))
         }
         self.0.store(INVALID_HANDLE_VALUE.0, Ordering::Relaxed);
-    }
-}
-
-impl<T> Deref for SafeDropHandle<T>
-where
-    T: HandleCloseHandler,
-{
-    type Target = HANDLE;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl<T> DerefMut for SafeDropHandle<T>
-where
-    T: HandleCloseHandler,
-{
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
-
-impl<T> From<HANDLE> for SafeDropHandle<T>
-where
-    T: HandleCloseHandler,
-{
-    fn from(h: HANDLE) -> Self {
-        Self(h, PhantomData)
-    }
-}
-
-impl<T> From<HANDLE> for AtomicHandle<T>
-where
-    T: HandleCloseHandler,
-{
-    fn from(h: HANDLE) -> Self {
-        Self(AtomicPtr::new(h.0), PhantomData)
     }
 }
 
@@ -174,6 +135,62 @@ where
     fn from(h: SafeDropHandle<T>) -> Self {
         // forbid SafeDropHandle from running `Drop`
         let h = ManuallyDrop::new(h);
-        Self(AtomicPtr::new(h.0.0), PhantomData)
+        Self(AtomicPtr::new(h.0), PhantomData)
     }
 }
+
+/// Trait to access the inner handle
+pub trait HandleInnerMut<T> {
+    /// Return a mutable borrow to the inner handle.
+    fn handle_mut(&mut self) -> &mut T;
+}
+
+macro_rules! windows_rs_handle {
+    ($windows_crate:ident, $module_name:ident) => {
+        mod $module_name {
+            use crate::util::{AtomicHandle, HandleCloseHandler, SafeDropHandle};
+            use std::marker::PhantomData;
+            use std::sync::atomic::AtomicPtr;
+            use $windows_crate as windows;
+
+            impl<T> super::HandleInnerMut<windows::Win32::Foundation::HANDLE> for SafeDropHandle<T>
+            where
+                T: HandleCloseHandler,
+            {
+                fn handle_mut(&mut self) -> &mut windows::Win32::Foundation::HANDLE {
+                    // SAFETY: HANDLE is a transparent wrapper.
+                    unsafe { std::mem::transmute(&mut self.0) }
+                }
+            }
+
+            impl<T> From<windows::Win32::Foundation::HANDLE> for SafeDropHandle<T>
+            where
+                T: HandleCloseHandler,
+            {
+                fn from(h: windows::Win32::Foundation::HANDLE) -> Self {
+                    Self(h.0, PhantomData)
+                }
+            }
+
+            impl<T> From<windows::Win32::Foundation::HANDLE> for AtomicHandle<T>
+            where
+                T: HandleCloseHandler,
+            {
+                fn from(h: windows::Win32::Foundation::HANDLE) -> Self {
+                    Self(AtomicPtr::new(h.0), PhantomData)
+                }
+            }
+        }
+    };
+}
+
+windows_rs_handle!(windows, windows_rs_handle);
+
+#[cfg(feature = "windows-56")]
+windows_rs_handle!(windows_56, windows_56_rs_handle);
+
+#[cfg(feature = "windows-60")]
+windows_rs_handle!(windows_60, windows_60_rs_handle);
+
+#[cfg(feature = "windows-62")]
+windows_rs_handle!(windows_62, windows_62_rs_handle);
