@@ -1,7 +1,5 @@
 #![feature(io_error_more)]
 #![feature(let_chains)]
-#![feature(strict_provenance)]
-#![feature(offset_of_nested)]
 #![deny(unsafe_op_in_unsafe_fn)]
 
 pub mod fs;
@@ -41,7 +39,7 @@ fn main() {
     let fsp = FileSystemServiceBuilder::new()
         .with_start(|| {
             let args = Args::parse();
-            service::svc_start(args).map_err(|_e| STATUS_NONCONTINUABLE_EXCEPTION)
+            Ok(service::svc_start(args).map_err(|_e| STATUS_NONCONTINUABLE_EXCEPTION)?)
         })
         .with_stop(|f| {
             service::svc_stop(f);
