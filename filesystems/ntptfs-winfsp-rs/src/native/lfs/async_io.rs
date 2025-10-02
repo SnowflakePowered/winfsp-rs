@@ -1,5 +1,4 @@
 use crate::native::lfs;
-use crate::native::lfs::LFS_EVENT;
 use std::cell::UnsafeCell;
 use std::future::Future;
 use std::io::ErrorKind;
@@ -20,8 +19,8 @@ use winfsp::FspError;
 use winfsp::util::{AtomicHandle, NtHandleDrop};
 
 struct LfsReadFuture<'a> {
-    event: HANDLE,
-    file: HANDLE,
+    event: AssertThreadSafe<HANDLE>,
+    file: AssertThreadSafe<HANDLE>,
     iosb: UnsafeCell<AssertThreadSafe<IO_STATUS_BLOCK>>,
     result: Option<NTSTATUS>,
     buffer: &'a mut [u8],
@@ -35,8 +34,8 @@ pub(crate) struct AssertThreadSafe<T>(pub T);
 unsafe impl<T> Send for AssertThreadSafe<T> {}
 
 impl<'a> LfsReadFuture<'a> {
-    fn new(file: HANDLE, buffer: &'a mut [u8], offset: i64) -> winfsp::Result<Self> {
-        let event = lfs::new_event()?;
+    fn new(file: AssertThreadSafe<HANDLE>, buffer: &'a mut [u8], offset: i64) -> winfsp::Result<Self> {
+        let event = AssertThreadSafe(lfs::new_event()?);
         Ok(Self {
             event,
             file,
@@ -51,7 +50,7 @@ impl<'a> LfsReadFuture<'a> {
 impl<'a> Drop for LfsReadFuture<'a> {
     fn drop(&mut self) {
         unsafe {
-            CloseHandle(self.event);
+            let _ = CloseHandle(self.event.0);
         }
     }
 }
@@ -63,8 +62,8 @@ impl<'a> Future for LfsReadFuture<'a> {
         let Some(result) = self.result else {
             let initial_result = unsafe {
                 NtReadFile(
-                    self.file,
-                    Some(self.event),
+                    self.file.0,
+                    Some(self.event.0),
                     None,
                     None,
                     self.iosb.get() as *mut _,
@@ -87,7 +86,7 @@ impl<'a> Future for LfsReadFuture<'a> {
             };
         }
 
-        let wait_result = unsafe { WaitForSingleObject(self.event, 0) };
+        let wait_result = unsafe { WaitForSingleObject(self.event.0, 0) };
 
         if wait_result == WAIT_OBJECT_0 {
             let code = unsafe { addr_of!((*self.iosb.get()).0.Anonymous.Status).read() };
@@ -111,11 +110,11 @@ pub async fn lfs_read_file_async(
     offset: u64,
     bytes_transferred: &mut u32,
 ) -> winfsp::Result<()> {
-
-    let transferred = tokio::task::spawn(async move {
-        let lfs = LfsReadFuture::new(handle.handle(), buffer, offset as i64)?;
+    let handle = AssertThreadSafe(handle.handle());
+    let transferred = async move {
+        let lfs = LfsReadFuture::new(handle, buffer, offset as i64)?;
         lfs.await.map(|iosb| iosb.Information)
-    }).await.map_err(|_| FspError::IO(ErrorKind::Other))??;
+    }.await.map_err(|_| FspError::IO(ErrorKind::Other))?;
 
     *bytes_transferred = transferred as u32;
 
@@ -123,8 +122,8 @@ pub async fn lfs_read_file_async(
 }
 
 struct LfsWriteFuture<'a> {
-    event: HANDLE,
-    file: HANDLE,
+    event: AssertThreadSafe<HANDLE>,
+    file: AssertThreadSafe<HANDLE>,
     iosb: UnsafeCell<AssertThreadSafe<IO_STATUS_BLOCK>>,
     result: Option<NTSTATUS>,
     buffer: &'a [u8],
@@ -133,11 +132,11 @@ struct LfsWriteFuture<'a> {
 
 impl<'a> LfsWriteFuture<'a> {
     fn new(file: HANDLE, buffer: &'a [u8], offset: i64) -> winfsp::Result<Self> {
-        let event = lfs::new_event()?;
+        let event =  AssertThreadSafe(lfs::new_event()?);
 
         Ok(Self {
             event,
-            file,
+            file: AssertThreadSafe(file),
             iosb: UnsafeCell::new(AssertThreadSafe(IO_STATUS_BLOCK::default())),
             result: None,
             buffer,
@@ -149,7 +148,7 @@ impl<'a> LfsWriteFuture<'a> {
 impl<'a> Drop for LfsWriteFuture<'a> {
     fn drop(&mut self) {
         unsafe {
-            let _ = CloseHandle(self.event);
+            let _ = CloseHandle(self.event.0);
         }
     }
 }
@@ -161,8 +160,8 @@ impl<'a> Future for LfsWriteFuture<'a> {
         let Some(result) = self.result else {
             let initial_result = unsafe {
                 NtWriteFile(
-                    self.file,
-                    Some(self.event),
+                    self.file.0,
+                    Some(self.event.0),
                     None,
                     None,
                     self.iosb.get() as *mut _,
@@ -185,7 +184,7 @@ impl<'a> Future for LfsWriteFuture<'a> {
             };
         }
 
-        let wait_result = unsafe { WaitForSingleObject(self.event, 0) };
+        let wait_result = unsafe { WaitForSingleObject(self.event.0, 0) };
 
         if wait_result == WAIT_OBJECT_0 {
             let code = unsafe { addr_of!((*self.iosb.get()).0.Anonymous.Status).read() };
@@ -209,10 +208,10 @@ pub async fn lfs_write_file_async(
     offset: u64,
     bytes_transferred: &mut u32,
 ) -> winfsp::Result<()> {
-    let transferred = tokio::task::spawn(async move {
+    let transferred = async move {
         let lfs = LfsWriteFuture::new(handle.handle(), buffer, offset as i64)?;
         lfs.await.map(|iosb| iosb.Information)
-    }).await.map_err(|_| FspError::IO(ErrorKind::Other))??;
+    }.await.map_err(|_| FspError::IO(ErrorKind::Other))?;
 
     *bytes_transferred = transferred as u32;
 
@@ -220,8 +219,8 @@ pub async fn lfs_write_file_async(
 }
 
 struct LfsQueryDirectoryFileFuture<'a> {
-    file: HANDLE,
-    event: HANDLE,
+    file:  AssertThreadSafe<HANDLE>,
+    event: AssertThreadSafe<HANDLE>,
     file_name: Option<&'a U16CStr>,
     iosb: UnsafeCell<AssertThreadSafe<IO_STATUS_BLOCK>>,
     result: Option<NTSTATUS>,
@@ -243,8 +242,8 @@ impl<'a> LfsQueryDirectoryFileFuture<'a> {
         let event = lfs::new_event()?;
 
         Ok(Self {
-            file,
-            event,
+            file: AssertThreadSafe(file),
+            event: AssertThreadSafe(event),
             file_name,
             iosb: UnsafeCell::new(AssertThreadSafe(IO_STATUS_BLOCK::default())),
             result: None,
@@ -259,7 +258,7 @@ impl<'a> LfsQueryDirectoryFileFuture<'a> {
 impl<'a> Drop for LfsQueryDirectoryFileFuture<'a> {
     fn drop(&mut self) {
         unsafe {
-            let _ = CloseHandle(self.event);
+            let _ = CloseHandle(self.event.0);
         }
     }
 }
@@ -277,8 +276,8 @@ impl<'a> Future for LfsQueryDirectoryFileFuture<'a> {
 
             let initial_result = unsafe {
                 NtQueryDirectoryFile(
-                    self.file,
-                    Some(self.event),
+                    self.file.0,
+                    Some(self.event.0),
                     None,
                     None,
                     self.iosb.get() as *mut _,
@@ -305,7 +304,7 @@ impl<'a> Future for LfsQueryDirectoryFileFuture<'a> {
             };
         }
 
-        let wait_result = unsafe { WaitForSingleObject(self.event, 0) };
+        let wait_result = unsafe { WaitForSingleObject(self.event.0, 0) };
 
         if wait_result == WAIT_OBJECT_0 {
             let code = unsafe { addr_of!((*self.iosb.get()).0.Anonymous.Status).read() };

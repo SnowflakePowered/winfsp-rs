@@ -569,7 +569,7 @@ where
             return STATUS_TRANSACTION_NOT_FOUND.0;
         };
 
-        if !buffer.is_null() {
+        return if !buffer.is_null() {
             let fs = AtomicPtr::new(fs);
             let buffer = unsafe { slice::from_raw_parts_mut(buffer as *mut u8, length as usize) };
             let read_ft = async move {
@@ -594,9 +594,9 @@ where
             };
 
             context.spawn_task(read_ft);
-            return STATUS_PENDING.0;
+            STATUS_PENDING.0
         } else {
-            return STATUS_INSUFFICIENT_RESOURCES.0;
+            STATUS_INSUFFICIENT_RESOURCES.0
         }
     })
 }
