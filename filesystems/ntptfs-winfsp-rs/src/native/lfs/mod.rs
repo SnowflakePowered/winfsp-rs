@@ -95,7 +95,11 @@ pub fn lfs_create_file(
         // wrapping add to get rid of slash..
         RtlInitUnicodeString(
             unicode_filename.as_mut_ptr(),
-            PCWSTR(file_name.as_ptr().wrapping_add(1)),
+            PCWSTR(
+                if file_name.len() == 0 { file_name.as_ptr()} else {
+                    file_name.as_ptr().wrapping_add(1)
+                }
+            ),
         );
         unicode_filename.assume_init()
     };
@@ -143,7 +147,11 @@ pub fn lfs_open_file(
         // wrapping add to get rid of leading slash..
         RtlInitUnicodeString(
             unicode_filename.as_mut_ptr(),
-            PCWSTR(file_name.as_ptr().wrapping_add(1)),
+            PCWSTR(
+                if file_name.len() == 0 { file_name.as_ptr()} else {
+                    file_name.as_ptr().wrapping_add(1)
+                }
+            ),
         );
         unicode_filename.assume_init()
     };
