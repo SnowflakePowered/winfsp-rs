@@ -8,11 +8,11 @@ description = "NTFS Passthrough File System via winfsp-rs"
 
 [dependencies]
 clap = { version = "4.5.4", features = ["derive"] }
-windows = { version = "0.61", features = ["Win32_Foundation", "Win32_System_LibraryLoader", "Win32_Security", "Win32_Storage_FileSystem", "Win32_System_WindowsProgramming", "Win32_System_Console", "Win32_System_IO", "Wdk_Foundation", "Wdk_Storage_FileSystem", "Wdk_System_IO", "Wdk_Storage_FileSystem_Minifilters", "Wdk_System_SystemServices", "Win32_System_Ioctl", "Win32_System_SystemServices", "Win32_System_Threading"] }
+windows = { version = "0.62", features = ["Win32_Foundation", "Win32_System_LibraryLoader", "Win32_Security", "Win32_Storage_FileSystem", "Win32_System_WindowsProgramming", "Win32_System_Console", "Win32_System_IO", "Wdk_Foundation", "Wdk_Storage_FileSystem", "Wdk_System_IO", "Wdk_Storage_FileSystem_Minifilters", "Wdk_System_SystemServices", "Win32_System_Ioctl", "Win32_System_SystemServices", "Win32_System_Threading"] }
 
 bytemuck = "1.12.1"
 widestring = "1"
-winfsp = { path = "../../winfsp", features = ["debug", "system", "full", "windows-61", "handle-util"] }
+winfsp = { path = "../../winfsp", features = ["debug", "system", "full", "windows-62", "handle-util"] }
 anyhow = "1"
 tokio =  { version = "1.32.0", features = ["rt", "rt-multi-thread"] }
 
