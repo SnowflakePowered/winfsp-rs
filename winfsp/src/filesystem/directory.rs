@@ -1,16 +1,15 @@
 use std::cell::UnsafeCell;
-use widestring::{u16cstr, U16CStr};
+use widestring::{U16CStr, u16cstr};
 use windows::Win32::Foundation::STATUS_SUCCESS;
 use winfsp_sys::{
-    FspFileSystemAcquireDirectoryBufferEx, FspFileSystemAddDirInfo,
+    FSP_FSCTL_DIR_INFO, FspFileSystemAcquireDirectoryBufferEx, FspFileSystemAddDirInfo,
     FspFileSystemDeleteDirectoryBuffer, FspFileSystemFillDirectoryBuffer,
-    FspFileSystemReadDirectoryBuffer, FspFileSystemReleaseDirectoryBuffer, FSP_FSCTL_DIR_INFO,
-    PVOID,
+    FspFileSystemReadDirectoryBuffer, FspFileSystemReleaseDirectoryBuffer, PVOID,
 };
 
 use crate::error::Result;
 use crate::filesystem::sealed::WideNameInfoInternal;
-use crate::filesystem::{ensure_layout, FileInfo, WideNameInfo};
+use crate::filesystem::{FileInfo, WideNameInfo, ensure_layout};
 use crate::util::AssertThreadSafe;
 
 /// A buffer used to hold directory entries when enumerating directories
@@ -85,11 +84,11 @@ impl DirBuffer {
     }
 
     /// Try to acquire a lock on the directory buffer to write entries into.
-    pub fn acquire(&self, reset: bool, capacity_hint: Option<u32>) -> Result<DirBufferLock> {
+    pub fn acquire(&self, reset: bool, capacity_hint: Option<u32>) -> Result<DirBufferLock<'_>> {
         let mut result = STATUS_SUCCESS;
         unsafe {
             if FspFileSystemAcquireDirectoryBufferEx(
-                self.0 .0.get(),
+                self.0.0.get(),
                 reset.into(),
                 capacity_hint.unwrap_or(0),
                 &mut result.0,
@@ -110,7 +109,7 @@ impl DirBuffer {
         let mut out = 0u32;
         unsafe {
             FspFileSystemReadDirectoryBuffer(
-                self.0 .0.get(),
+                self.0.0.get(),
                 marker
                     .0
                     .map_or(std::ptr::null_mut(), |v| v.as_ptr().cast_mut()),
@@ -133,7 +132,7 @@ impl DirBufferLock<'_> {
             let buffer = self.0;
             // this is cursed.
             if FspFileSystemFillDirectoryBuffer(
-                buffer.0 .0.get(),
+                buffer.0.0.get(),
                 (dir_info as *mut DirInfo<D>).cast(),
                 &mut status.0,
             ) == 0
@@ -148,7 +147,7 @@ impl DirBufferLock<'_> {
 impl Drop for DirBuffer {
     fn drop(&mut self) {
         unsafe {
-            FspFileSystemDeleteDirectoryBuffer(self.0 .0.get());
+            FspFileSystemDeleteDirectoryBuffer(self.0.0.get());
         }
     }
 }
@@ -156,7 +155,7 @@ impl Drop for DirBuffer {
 impl Drop for DirBufferLock<'_> {
     fn drop(&mut self) {
         let buffer = self.0;
-        unsafe { FspFileSystemReleaseDirectoryBuffer(buffer.0 .0.get()) }
+        unsafe { FspFileSystemReleaseDirectoryBuffer(buffer.0.0.get()) }
     }
 }
 

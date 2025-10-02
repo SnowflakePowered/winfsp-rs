@@ -1,4 +1,3 @@
-#![cfg_attr(feature = "io-error", feature(io_error_more))]
 #![cfg_attr(feature = "docsrs", feature(doc_cfg))]
 #![deny(unsafe_op_in_unsafe_fn)]
 #![forbid(missing_docs)]
@@ -49,7 +48,7 @@ mod notify;
 pub use error::FspError;
 pub use error::Result;
 
-pub use init::{winfsp_init, winfsp_init_or_die, FspInit};
+pub use init::{FspInit, winfsp_init, winfsp_init_or_die};
 
 pub use widestring::{U16CStr, U16CString};
 

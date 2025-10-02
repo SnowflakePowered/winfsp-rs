@@ -7,14 +7,17 @@ use std::pin::Pin;
 use std::ptr::addr_of;
 use std::task::{Context, Poll};
 use widestring::U16CStr;
-use windows::core::PCWSTR;
 use windows::Wdk::Storage::FileSystem::{
-    NtQueryDirectoryFile, NtReadFile, NtWriteFile, FILE_INFORMATION_CLASS,
+    FILE_INFORMATION_CLASS, NtQueryDirectoryFile, NtReadFile, NtWriteFile,
 };
-use windows::Win32::Foundation::{CloseHandle, HANDLE, NTSTATUS, STATUS_ABANDONED, STATUS_PENDING, STATUS_SUCCESS, UNICODE_STRING, WAIT_ABANDONED, WAIT_ABANDONED_0, WAIT_FAILED, WAIT_OBJECT_0};
+use windows::Win32::Foundation::{
+    CloseHandle, HANDLE, NTSTATUS, STATUS_ABANDONED, STATUS_PENDING, STATUS_SUCCESS,
+    UNICODE_STRING, WAIT_ABANDONED, WAIT_ABANDONED_0, WAIT_FAILED, WAIT_OBJECT_0,
+};
+use windows::Win32::System::IO::IO_STATUS_BLOCK;
 use windows::Win32::System::Threading::WaitForSingleObject;
 use windows::Win32::System::WindowsProgramming::RtlInitUnicodeString;
-use windows::Win32::System::IO::IO_STATUS_BLOCK;
+use windows::core::PCWSTR;
 use winfsp::FspError;
 use winfsp::util::{AtomicHandle, NtHandleDrop};
 
@@ -34,7 +37,11 @@ pub(crate) struct AssertThreadSafe<T>(pub T);
 unsafe impl<T> Send for AssertThreadSafe<T> {}
 
 impl<'a> LfsReadFuture<'a> {
-    fn new(file: AssertThreadSafe<HANDLE>, buffer: &'a mut [u8], offset: i64) -> winfsp::Result<Self> {
+    fn new(
+        file: AssertThreadSafe<HANDLE>,
+        buffer: &'a mut [u8],
+        offset: i64,
+    ) -> winfsp::Result<Self> {
         let event = AssertThreadSafe(lfs::new_event()?);
         Ok(Self {
             event,
@@ -114,7 +121,9 @@ pub async fn lfs_read_file_async(
     let transferred = async move {
         let lfs = LfsReadFuture::new(handle, buffer, offset as i64)?;
         lfs.await.map(|iosb| iosb.Information)
-    }.await.map_err(|_| FspError::IO(ErrorKind::Other))?;
+    }
+    .await
+    .map_err(|_| FspError::IO(ErrorKind::Other))?;
 
     *bytes_transferred = transferred as u32;
 
@@ -132,7 +141,7 @@ struct LfsWriteFuture<'a> {
 
 impl<'a> LfsWriteFuture<'a> {
     fn new(file: HANDLE, buffer: &'a [u8], offset: i64) -> winfsp::Result<Self> {
-        let event =  AssertThreadSafe(lfs::new_event()?);
+        let event = AssertThreadSafe(lfs::new_event()?);
 
         Ok(Self {
             event,
@@ -211,7 +220,9 @@ pub async fn lfs_write_file_async(
     let transferred = async move {
         let lfs = LfsWriteFuture::new(handle.handle(), buffer, offset as i64)?;
         lfs.await.map(|iosb| iosb.Information)
-    }.await.map_err(|_| FspError::IO(ErrorKind::Other))?;
+    }
+    .await
+    .map_err(|_| FspError::IO(ErrorKind::Other))?;
 
     *bytes_transferred = transferred as u32;
 
@@ -219,7 +230,7 @@ pub async fn lfs_write_file_async(
 }
 
 struct LfsQueryDirectoryFileFuture<'a> {
-    file:  AssertThreadSafe<HANDLE>,
+    file: AssertThreadSafe<HANDLE>,
     event: AssertThreadSafe<HANDLE>,
     file_name: Option<&'a U16CStr>,
     iosb: UnsafeCell<AssertThreadSafe<IO_STATUS_BLOCK>>,
