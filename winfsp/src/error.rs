@@ -58,8 +58,7 @@ impl FspError {
                     ErrorKind::IsADirectory => ERROR_DIRECTORY_NOT_SUPPORTED,
                     #[cfg(feature = "io-error")]
                     ErrorKind::NotADirectory => ERROR_DIRECTORY,
-                    // todo: return something sensible.
-                    _ => panic!("Unsupported IO error {:?}", e),
+                    _ =>  return 0xC00000E9u32 as i32, // STATUS_UNEXPECTED_IO_ERROR
                 };
                 unsafe { FspNtStatusFromWin32(win32_equiv.0) }
             }
