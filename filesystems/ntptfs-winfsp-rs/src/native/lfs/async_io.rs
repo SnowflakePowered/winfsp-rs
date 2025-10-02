@@ -122,8 +122,7 @@ pub async fn lfs_read_file_async(
         let lfs = LfsReadFuture::new(handle, buffer, offset as i64)?;
         lfs.await.map(|iosb| iosb.Information)
     }
-    .await
-    .map_err(|_| FspError::IO(ErrorKind::Other))?;
+    .await?;
 
     *bytes_transferred = transferred as u32;
 
@@ -221,8 +220,7 @@ pub async fn lfs_write_file_async(
         let lfs = LfsWriteFuture::new(handle.handle(), buffer, offset as i64)?;
         lfs.await.map(|iosb| iosb.Information)
     }
-    .await
-    .map_err(|_| FspError::IO(ErrorKind::Other))?;
+    .await?;
 
     *bytes_transferred = transferred as u32;
 
