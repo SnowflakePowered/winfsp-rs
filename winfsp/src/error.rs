@@ -2,9 +2,7 @@ use std::io::{Error, ErrorKind};
 use thiserror::Error;
 use windows::Win32::Foundation::{
     ERROR_ACCESS_DENIED, ERROR_ALREADY_EXISTS, ERROR_FILE_NOT_FOUND, ERROR_INVALID_PARAMETER,
-    NTSTATUS, WIN32_ERROR,
 };
-use windows::core::HRESULT;
 
 use windows::Win32::Foundation::{
     ERROR_DIRECTORY, ERROR_DIRECTORY_NOT_SUPPORTED, ERROR_FILENAME_EXCED_RANGE,
@@ -76,40 +74,55 @@ impl From<std::io::Error> for FspError {
     }
 }
 
-#[cfg(feature = "windows-rs-error")]
-impl From<HRESULT> for FspError {
-    fn from(h: HRESULT) -> Self {
-        FspError::HRESULT(h.0)
-    }
-}
+macro_rules! windows_rs_error {
+    ($windows_crate:ident, $module_name:ident) => {
+        mod $module_name {
+            use crate::FspError;
+            use $windows_crate as windows;
+            impl From<windows::core::HRESULT> for FspError {
+                fn from(h: windows::core::HRESULT) -> Self {
+                    FspError::HRESULT(h.0)
+                }
+            }
 
-#[cfg(feature = "windows-rs-error")]
-impl From<WIN32_ERROR> for FspError {
-    fn from(h: WIN32_ERROR) -> Self {
-        FspError::WIN32(h.0)
-    }
-}
+            impl From<windows::Win32::Foundation::WIN32_ERROR> for FspError {
+                fn from(h: windows::Win32::Foundation::WIN32_ERROR) -> Self {
+                    FspError::WIN32(h.0)
+                }
+            }
 
-#[cfg(feature = "windows-rs-error")]
-impl From<NTSTATUS> for FspError {
-    fn from(h: NTSTATUS) -> Self {
-        FspError::NTSTATUS(h.0)
-    }
-}
+            impl From<windows::Win32::Foundation::NTSTATUS> for FspError {
+                fn from(h: windows::Win32::Foundation::NTSTATUS) -> Self {
+                    FspError::NTSTATUS(h.0)
+                }
+            }
 
-#[cfg(feature = "windows-rs-error")]
-impl From<windows::core::Error> for FspError {
-    fn from(e: windows::core::Error) -> Self {
-        let code = e.code().0 as u32;
-        // https://learn.microsoft.com/en-us/windows/win32/com/structure-of-com-error-codes
-        // N bit indicates mapped NTSTATUS.
-        if (code & 0x1000_0000) >> 28 == 1 {
-            let nt_status = code & !(1 << 28);
-            return FspError::NTSTATUS(nt_status as i32);
+            impl From<windows::core::Error> for FspError {
+                fn from(e: windows::core::Error) -> Self {
+                    let code = e.code().0 as u32;
+                    // https://learn.microsoft.com/en-us/windows/win32/com/structure-of-com-error-codes
+                    // N bit indicates mapped NTSTATUS.
+                    if (code & 0x1000_0000) >> 28 == 1 {
+                        let nt_status = code & !(1 << 28);
+                        return FspError::NTSTATUS(nt_status as i32);
+                    }
+                    match windows::Win32::Foundation::WIN32_ERROR::from_error(&e) {
+                        None => FspError::HRESULT(e.code().0),
+                        Some(w) => FspError::WIN32(w.0),
+                    }
+                }
+            }
         }
-        match WIN32_ERROR::from_error(&e) {
-            None => FspError::HRESULT(e.code().0),
-            Some(w) => FspError::WIN32(w.0),
-        }
-    }
+    };
 }
+
+windows_rs_error!(windows, windows_rs_error);
+
+#[cfg(feature = "windows-56")]
+windows_rs_error!(windows_56, windows_56_rs_error);
+
+#[cfg(feature = "windows-60")]
+windows_rs_error!(windows_60, windows_60_rs_error);
+
+#[cfg(feature = "windows-62")]
+windows_rs_error!(windows_62, windows_62_rs_error);

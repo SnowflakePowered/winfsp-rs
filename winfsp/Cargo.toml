@@ -11,7 +11,7 @@ repository = "https://github.com/SnowflakePowered/winfsp-rs"
 
 [dependencies]
 winfsp-sys = { path = "../winfsp-sys", version = "0.3" }
-windows = { version = "0.61.1", features = ["Win32_Foundation", "Win32_System_LibraryLoader", "Win32_Security", "Win32_Storage_FileSystem", "Win32_System_WindowsProgramming", "Win32_System_Console", "Win32_System_Threading", "Win32_System_ProcessStatus", "Wdk_Foundation"] }
+windows = { package = "windows", version = "0.61.1", features = ["Win32_Foundation", "Win32_System_LibraryLoader", "Win32_Security", "Win32_Storage_FileSystem", "Win32_System_WindowsProgramming", "Win32_System_Console", "Win32_System_Threading", "Win32_System_ProcessStatus", "Wdk_Foundation"] }
 
 widestring = "1"
 thiserror = "2"
@@ -20,8 +20,12 @@ static_assertions = "1.1"
 bytemuck = "1.13"
 parking_lot = "0.12.4"
 
+windows-56 = { package = "windows", version = "0.56", features = ["Win32_Foundation"], optional = true }
+windows-60 = { package = "windows", version = "0.60", features = ["Win32_Foundation"], optional = true }
+windows-62 = { package = "windows", version = "0.62", features = ["Win32_Foundation"], optional = true }
+
 [features]
-default = ["full", "windows-rs"]
+default = ["full"]
 debug = []
 system = ["windows/Win32_System_Registry", "winfsp-sys/system"]
 notify = []
@@ -33,6 +37,7 @@ windows-rs-error = []
 handle-util = []
 async-io = []
 full = ["notify", "delayload", "async-io"]
+windows-61 = []
 
 [package.metadata.docs.rs]
 default-target = "x86_64-pc-windows-msvc"

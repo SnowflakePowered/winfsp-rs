@@ -47,15 +47,16 @@ and redirection of output is not configurable at this time.
 features = ["debug"]
 ```
 
-### Using with `windows-sys`
-With default features, the `winfsp` crate includes helper utilities and `From` implementations for error types in the
-version of the `windows` crate at the time of publishing. If you wish to use `winfsp` without `windows` types,
-disable the `windows-rs` crate feature.
+### Using with `windows-rs`
+
+WinFSP will not expose `windows-rs` features unless specified. Adding a `windows-` feature enables conversions between
+error types from the `windows` crate for the specific version to `FspError`.
+
+Supported versions are `windows-56`, `windows-60`, `windows-61`, `windows-62`.
 
 ```toml
 [dependencies.winfsp]
-default-features = false
-features = ["full"]
+features = ["full", "windows-61"]
 ```
 
 ## Testing
