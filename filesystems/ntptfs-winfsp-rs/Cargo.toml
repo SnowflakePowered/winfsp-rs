@@ -4,6 +4,10 @@ version = "0.1.0-alpha"
 edition = "2024"
 license = "GPL-3.0"
 description = "NTFS Passthrough File System via winfsp-rs"
+keywords = ["filesystem", "winfsp", "ntfs"]
+categories = ["filesystem", "os::windows-apis",]
+repository = "https://github.com/SnowflakePowered/winfsp-rs"
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
