@@ -1,5 +1,5 @@
 use std::env;
-use std::fs::File;
+use std::fs::{self, File};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 #[cfg(feature = "system")]
@@ -38,6 +38,47 @@ fn system() -> String {
     println!("cargo:rustc-link-search={}/lib", directory);
 
     format!("--include-directory={}/inc", directory)
+}
+
+fn copy_winfsp_dll(winfsp_lib: &str) {
+    // Get the output path from environment variable
+    let dll_out_path = match env::var("WINFSP_DLL_OUTPUT_PATH") {
+        Ok(path) => PathBuf::from(path),
+        Err(_) => {
+            return;
+        }
+    };
+
+    if let Err(e) = fs::create_dir_all(&dll_out_path) {
+        panic!(
+            "Failed to create WinFSP DLL output directory {}: {}",
+            dll_out_path.display(),
+            e
+        );
+    }
+
+    let project_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
+    let dll_path = project_dir
+        .join("winfsp/bin")
+        .join(format!("{}.dll", winfsp_lib));
+    if !dll_path.exists() {
+        panic!(
+            "WinFSP DLL source file does not exist: {}",
+            dll_path.display()
+        );
+    }
+
+    let dll_dest = dll_out_path.join(format!("{}.dll", winfsp_lib));
+    if let Err(e) = fs::copy(&dll_path, &dll_dest) {
+        panic!(
+            "Failed to copy {} to {}: {}",
+            dll_path.display(),
+            dll_dest.display(),
+            e
+        );
+    }
+
+    println!("cargo:rerun-if-env-changed=WINFSP_DLL_OUTPUT_PATH");
 }
 
 fn main() {
@@ -110,4 +151,7 @@ fn main() {
             .write_to_file(out_dir.join("bindings.rs"))
             .expect("Couldn't write bindings!");
     }
+
+    #[cfg(not(feature = "system"))]
+    copy_winfsp_dll(winfsp_lib);
 }

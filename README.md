@@ -39,6 +39,9 @@ fn main() {
 }
 ```
 
+### DLL Output Path
+When building without the `system` feature, you can use the `WINFSP_DLL_OUTPUT_PATH` environment variable to have the build script copy the DLL to a specified directory.
+
 ### Debugging
 Debug output can be enabled with the `debug` feature. Debug output will be written to standard output, 
 and redirection of output is not configurable at this time.
