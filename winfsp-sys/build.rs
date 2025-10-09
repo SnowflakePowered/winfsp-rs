@@ -41,6 +41,8 @@ fn system() -> String {
 }
 
 fn copy_winfsp_dll(winfsp_lib: &str) {
+    println!("cargo:rerun-if-env-changed=WINFSP_DLL_OUTPUT_PATH");
+
     // Get the output path from environment variable
     let dll_out_path = match env::var("WINFSP_DLL_OUTPUT_PATH") {
         Ok(path) => PathBuf::from(path),
@@ -77,8 +79,6 @@ fn copy_winfsp_dll(winfsp_lib: &str) {
             e
         );
     }
-
-    println!("cargo:rerun-if-env-changed=WINFSP_DLL_OUTPUT_PATH");
 }
 
 fn main() {
