@@ -36,6 +36,9 @@ handle-util = []
 async-io = []
 full = ["notify", "delayload", "async-io"]
 windows-61 = []
+windows-56 = [ "dep:windows-56" ]
+windows-60 = [ "dep:windows-60" ]
+windows-62 = [ "dep:windows-62" ]
 
 [package.metadata.docs.rs]
 default-target = "x86_64-pc-windows-msvc"
