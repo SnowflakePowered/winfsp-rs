@@ -350,6 +350,10 @@ pub trait FileSystemContext: Sized {
     /// ## Safety
     /// This function may be used only when servicing one of the `FileSystemContext` operations.
     /// The current operation context is stored in thread local storage.
+    ///
+    /// ## Warning
+    /// If implementing a filesystem, the default implementation should be sufficient for most if not
+    /// all cases. Be careful if providing your own implementation.
     unsafe fn with_operation_response<T, F>(&self, f: F) -> Option<T>
     where
         F: FnOnce(&mut FSP_FSCTL_TRANSACT_RSP) -> T,
@@ -369,6 +373,10 @@ pub trait FileSystemContext: Sized {
     /// ## Safety
     /// This function may be used only when servicing one of the `FileSystemContext` operations.
     /// The current operation context is stored in thread local storage.
+    ///
+    /// ## Warning
+    /// If implementing a filesystem, the default implementation should be sufficient for most if not
+    /// all cases. Be careful if providing your own implementation.
     unsafe fn with_operation_request<T, F>(&self, f: F) -> Option<T>
     where
         F: FnOnce(&FSP_FSCTL_TRANSACT_REQ) -> T,
