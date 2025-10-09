@@ -1,6 +1,6 @@
 [package]
 name = "ntptfs-winfsp-rs"
-version = "0.1.0-alpha"
+version = "0.12.1"
 edition = "2024"
 license = "GPL-3.0"
 description = "NTFS Passthrough File System via winfsp-rs"
