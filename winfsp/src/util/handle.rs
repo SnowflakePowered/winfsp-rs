@@ -145,6 +145,7 @@ pub trait HandleInnerMut<T> {
     fn handle_mut(&mut self) -> &mut T;
 }
 
+#[allow(unused)]
 macro_rules! windows_rs_handle {
     ($windows_crate:ident, $module_name:ident) => {
         mod $module_name {
@@ -159,7 +160,7 @@ macro_rules! windows_rs_handle {
             {
                 fn handle_mut(&mut self) -> &mut windows::Win32::Foundation::HANDLE {
                     // SAFETY: HANDLE is a transparent wrapper.
-                    unsafe { std::mem::transmute(&mut self.0) }
+                    unsafe { ::std::mem::transmute(&mut self.0) }
                 }
             }
 
@@ -168,7 +169,7 @@ macro_rules! windows_rs_handle {
                 T: HandleCloseHandler,
             {
                 fn from(h: windows::Win32::Foundation::HANDLE) -> Self {
-                    Self(h.0, PhantomData)
+                    Self(h.0 as *mut ::std::ffi::c_void, PhantomData)
                 }
             }
 
@@ -177,20 +178,15 @@ macro_rules! windows_rs_handle {
                 T: HandleCloseHandler,
             {
                 fn from(h: windows::Win32::Foundation::HANDLE) -> Self {
-                    Self(AtomicPtr::new(h.0), PhantomData)
+                    Self(AtomicPtr::new(h.0 as *mut ::std::ffi::c_void), PhantomData)
                 }
             }
         }
     };
 }
 
+#[cfg(any(feature = "windows-60", feature = "windows-61", feature = "windows-62"))]
 windows_rs_handle!(windows, windows_rs_handle);
 
 #[cfg(feature = "windows-56")]
 windows_rs_handle!(windows_56, windows_56_rs_handle);
-
-#[cfg(feature = "windows-60")]
-windows_rs_handle!(windows_60, windows_60_rs_handle);
-
-#[cfg(feature = "windows-62")]
-windows_rs_handle!(windows_62, windows_62_rs_handle);

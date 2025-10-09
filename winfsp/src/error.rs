@@ -120,9 +120,3 @@ windows_rs_error!(windows, windows_rs_error);
 
 #[cfg(feature = "windows-56")]
 windows_rs_error!(windows_56, windows_56_rs_error);
-
-#[cfg(feature = "windows-60")]
-windows_rs_error!(windows_60, windows_60_rs_error);
-
-#[cfg(feature = "windows-62")]
-windows_rs_error!(windows_62, windows_62_rs_error);
