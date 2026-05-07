@@ -29,10 +29,17 @@ fn system() -> String {
         panic!("'system' feature not supported for cross-platform compilation.");
     }
 
-    let directory = LOCAL_MACHINE
-        .open("SOFTWARE\\WOW6432Node\\WinFsp")
-        .ok()
-        .and_then(|u| u.get_string("InstallDir").ok())
+    // 32-bit installers land in WOW6432Node; ARM64 native installers
+    // write directly under SOFTWARE. Try both so that an ARM64 host
+    // with a native WinFsp install still resolves headers + libs.
+    let directory = ["SOFTWARE\\WOW6432Node\\WinFsp", "SOFTWARE\\WinFsp"]
+        .iter()
+        .find_map(|p| {
+            LOCAL_MACHINE
+                .open(p)
+                .ok()
+                .and_then(|u| u.get_string("InstallDir").ok())
+        })
         .expect("WinFsp installation directory not found.");
 
     println!("cargo:rustc-link-search={}/lib", directory);
@@ -81,6 +88,41 @@ fn copy_winfsp_dll(winfsp_lib: &str) {
     }
 }
 
+/// Linkage environment for the active target.
+///
+/// WinFSP ships MSVC-format `.lib` import libraries; both classic MSVC
+/// and `*-pc-windows-gnullvm` consume them through `lld-link`, so the
+/// link decisions are nearly identical between the two — but the clang
+/// `--target`, the delay-load syntax, and whether we ask rustc for
+/// `delayimp` all diverge, so we keep them as distinct cases.
+#[derive(Copy, Clone, PartialEq, Eq)]
+enum LinkEnv {
+    Msvc,
+    GnuLlvm,
+}
+
+impl LinkEnv {
+    fn detect(target_env: &str, target_abi: &str) -> Option<Self> {
+        match (target_env, target_abi) {
+            ("msvc", _) => Some(Self::Msvc),
+            ("gnu", "llvm") => Some(Self::GnuLlvm),
+            _ => None,
+        }
+    }
+
+    fn clang_target(self, target_arch: &str) -> Option<&'static str> {
+        Some(match (self, target_arch) {
+            (Self::Msvc, "x86_64") => "x86_64-pc-windows-msvc",
+            (Self::Msvc, "x86") => "x86-pc-windows-msvc",
+            (Self::Msvc, "aarch64") => "aarch64-pc-windows-msvc",
+            (Self::GnuLlvm, "x86_64") => "x86_64-w64-mingw32",
+            (Self::GnuLlvm, "x86") => "i686-w64-mingw32",
+            (Self::GnuLlvm, "aarch64") => "aarch64-w64-mingw32",
+            _ => return None,
+        })
+    }
+}
+
 fn main() {
     let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
 
@@ -95,28 +137,45 @@ fn main() {
     let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap_or_else(|_| "unknown".to_string());
     let target_arch = env::var("CARGO_CFG_TARGET_ARCH").unwrap_or_else(|_| "unknown".to_string());
     let target_env = env::var("CARGO_CFG_TARGET_ENV").unwrap_or_else(|_| "unknown".to_string());
+    let target_abi = env::var("CARGO_CFG_TARGET_ABI").unwrap_or_default();
 
     if target_os != "windows" {
         panic!("WinFSP is only supported on Windows.");
     }
+
+    let link_env = LinkEnv::detect(&target_env, &target_abi)
+        .unwrap_or_else(|| panic!("unsupported triple {}", env::var("TARGET").unwrap()));
 
     #[cfg(feature = "system")]
     let link_include = system();
     #[cfg(not(feature = "system"))]
     let link_include = local();
 
-    println!("cargo:rustc-link-lib=dylib=delayimp");
-
-    // Architecture-specific configuration
-    let (winfsp_lib, clang_target) = match (target_arch.as_str(), target_env.as_str()) {
-        ("x86_64", "msvc") => ("winfsp-x64", "x86_64-pc-windows-msvc"),
-        ("x86", "msvc") => ("winfsp-x86", "x86-pc-windows-msvc"),
-        ("aarch64", "msvc") => ("winfsp-a64", "aarch64-pc-windows-msvc"),
+    let winfsp_lib = match target_arch.as_str() {
+        "x86_64" => "winfsp-x64",
+        "x86" => "winfsp-x86",
+        "aarch64" => "winfsp-a64",
         _ => panic!("unsupported triple {}", env::var("TARGET").unwrap()),
     };
+    let clang_target = link_env
+        .clang_target(&target_arch)
+        .unwrap_or_else(|| panic!("unsupported triple {}", env::var("TARGET").unwrap()));
 
     println!("cargo:rustc-link-lib=dylib={}", winfsp_lib);
-    println!("cargo:rustc-link-arg=/DELAYLOAD:{}.dll", winfsp_lib);
+    match link_env {
+        LinkEnv::Msvc => {
+            // delayimp.lib provides __delayLoadHelper2 under MSVC.
+            println!("cargo:rustc-link-lib=dylib=delayimp");
+            println!("cargo:rustc-link-arg=/DELAYLOAD:{}.dll", winfsp_lib);
+        }
+        LinkEnv::GnuLlvm => {
+            // LLVM-MinGW's libdelayimp.a isn't on rustc's link search
+            // path by default; lld-link's --delayload lowering provides
+            // the helper itself, and ld.lld in mingw mode requires the
+            // GNU-style flag rather than MSVC's `/DELAYLOAD:`.
+            println!("cargo:rustc-link-arg=-Wl,--delayload={}.dll", winfsp_lib);
+        }
+    }
 
     let bindings_path_str = out_dir.join("bindings.rs");
 
@@ -141,6 +200,18 @@ fn main() {
             .clang_arg(link_include);
 
         let bindings = bindings.clang_arg(&format!("--target={}", clang_target));
+
+        // Under mingw/llvm-mingw clang defaults to C99, which rejects the
+        // `static_assert(e,m)` MSVC C extension used in winfsp/fsctl.h.
+        // C11 has it via <assert.h> macro mapping; ensure that mode + the
+        // standard headers are pulled in.
+        let bindings = match link_env {
+            LinkEnv::GnuLlvm => bindings
+                .clang_arg("-std=c11")
+                .clang_arg("-include")
+                .clang_arg("assert.h"),
+            LinkEnv::Msvc => bindings,
+        };
 
         let bindings = bindings
             .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
