@@ -4,7 +4,7 @@ use std::ptr::NonNull;
 use windows::Win32::Foundation::{NTSTATUS, STATUS_SUCCESS};
 use windows::Win32::System::Threading::{
     CloseThreadpoolTimer, CreateThreadpoolTimer, PTP_CALLBACK_INSTANCE, PTP_TIMER,
-    SetThreadpoolTimer,
+    SetThreadpoolTimer, WaitForThreadpoolTimerCallbacks,
 };
 use windows::core::Result;
 use winfsp_sys::{FSP_FILE_SYSTEM, FspFileSystemNotifyBegin, FspFileSystemNotifyEnd};
@@ -46,7 +46,18 @@ impl Timer {
 
 impl Drop for Timer {
     fn drop(&mut self) {
-        unsafe { CloseThreadpoolTimer(self.0) }
+        unsafe {
+            // Stop the timer from firing again. A null due-time disarms it
+            // (see the SetThreadpoolTimer docs); period and window length are
+            // ignored in that case.
+            SetThreadpoolTimer(self.0, None, 0, Some(0));
+            // Cancel any queued-but-not-yet-running callbacks AND block until
+            // any in-flight callback has returned. Without this, the threadpool
+            // worker can still be inside `timer_callback` when the surrounding
+            // FileSystemHost frees its user context, which would be a UAF.
+            WaitForThreadpoolTimerCallbacks(self.0, true);
+            CloseThreadpoolTimer(self.0);
+        }
     }
 }
 

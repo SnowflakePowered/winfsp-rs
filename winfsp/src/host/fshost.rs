@@ -436,16 +436,24 @@ impl<T: FileSystemContext> FileSystemHost<T> {
 /// ```
 impl<T: FileSystemContext> Drop for FileSystemHost<T> {
     fn drop(&mut self) {
+        // Tear the notify timer down FIRST, before anything else. Its Drop
+        // disarms the threadpool timer and blocks until in-flight callbacks
+        // return. Struct fields drop *after* this user-impl finishes, which
+        // would be too late: the timer callback dereferences `UserContext`
+        // and `FSP_FILE_SYSTEM`, both of which we're about to free below.
+        drop(self.timer.take());
+
         self.unmount();
         self.stop();
         unsafe {
-            // SAFETY: FSP is stopped an no longer running anything on this filesystem
+            // SAFETY: FSP is stopped and no longer running anything on this
+            // filesystem, and the notify timer (if any) has been fully joined
+            // above, so nothing else can reach UserContext or fsp_struct.
             let user_context = self.fsp_struct.as_ref().UserContext as *mut UnsafeCell<T>;
             let interface = self.fsp_struct.as_ref().Interface as *mut UnsafeCell<Interface>;
 
             FspFileSystemDelete(self.fsp_struct.as_ptr());
 
-            // self.user_ctx_dtor is a valid destructor for UnsafeCell<T>
             // user context is an UnsafeCell<T>
             let user_context = Box::<UnsafeCell<T>>::from_raw(user_context);
             drop(user_context);
