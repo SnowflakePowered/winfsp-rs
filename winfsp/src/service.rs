@@ -2,7 +2,6 @@
 use crate::FspInit;
 use crate::Result;
 use crate::error::FspError;
-use crate::util::AssertThreadSafe;
 use parking_lot::RwLock;
 use std::cell::UnsafeCell;
 use std::ffi::{OsStr, c_void};
@@ -16,6 +15,18 @@ use winfsp_sys::{
     FSP_SERVICE, FspServiceAllowConsoleMode, FspServiceCreate, FspServiceDelete, FspServiceLoop,
     FspServiceStop,
 };
+
+/// Send-able wrapper around the WinFSP service pointer so the worker thread
+/// in [`FileSystemService::start`] can hold onto it.
+struct ServicePtr(*mut FSP_SERVICE);
+
+// SAFETY: The pointer references an FSP_SERVICE that is owned by the
+// FileSystemService instance which spawned the worker. FileSystemService::Drop
+// signals stop and joins the worker before calling FspServiceDelete, so the
+// pointer stays valid for the worker's entire lifetime. FspServiceLoop and
+// FspServiceAllowConsoleMode are documented to be safe to call from a thread
+// other than the one that created the service.
+unsafe impl Send for ServicePtr {}
 
 // internal aliases for callback types
 type FileSystemStartCallback<'a, T> =
@@ -97,7 +108,7 @@ impl<T> FileSystemService<T> {
         if self.worker.is_some() {
             return Err(FspError::NTSTATUS(STATUS_INVALID_PARAMETER.0));
         }
-        let ptr = AssertThreadSafe(self.service_ptr.as_ptr());
+        let ptr = ServicePtr(self.service_ptr.as_ptr());
         let worker = std::thread::spawn(move || {
             let ptr = ptr;
             let result = unsafe {
