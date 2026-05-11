@@ -32,8 +32,13 @@ struct FileSystemServiceContext<'a, T> {
 }
 
 /// A service that runs a filesystem implemented by a [`FileSystemHost`](crate::host::FileSystemHost).
+///
+/// The service owns a worker thread that runs `FspServiceLoop`. The thread is
+/// joined automatically on [`Drop`], so the underlying `FSP_SERVICE` is never
+/// freed while a worker is still touching it.
 pub struct FileSystemService<T> {
     service_ptr: NonNull<FSP_SERVICE>,
+    worker: Option<JoinHandle<Result<()>>>,
     _pd: PhantomData<T>,
 }
 
@@ -75,18 +80,25 @@ impl<T> FileSystemServiceHelper<T> {
 }
 
 impl<T> FileSystemService<T> {
-    /// Stops the file system host service.
+    /// Signals the file system host service to stop. The worker thread will
+    /// exit shortly after this call returns; use [`join`](Self::join) (or let
+    /// the service drop) to wait for it.
     pub fn stop(&self) {
         unsafe {
             FspServiceStop(self.service_ptr.as_ptr());
         };
     }
 
-    /// Spawns a thread and starts the file host system service.
-    pub fn start(&self) -> JoinHandle<Result<()>> {
+    /// Spawns the worker thread that runs `FspServiceLoop`. The handle is
+    /// retained internally so [`Drop`] can join it before tearing down the
+    /// `FSP_SERVICE`. Returns `STATUS_INVALID_PARAMETER` if the service is
+    /// already running.
+    pub fn start(&mut self) -> Result<()> {
+        if self.worker.is_some() {
+            return Err(FspError::NTSTATUS(STATUS_INVALID_PARAMETER.0));
+        }
         let ptr = AssertThreadSafe(self.service_ptr.as_ptr());
-        std::thread::spawn(|| {
-            #[allow(clippy::redundant_locals)]
+        let worker = std::thread::spawn(move || {
             let ptr = ptr;
             let result = unsafe {
                 FspServiceAllowConsoleMode(ptr.0);
@@ -98,7 +110,25 @@ impl<T> FileSystemService<T> {
             } else {
                 Err(FspError::NTSTATUS(result))
             }
-        })
+        });
+        self.worker = Some(worker);
+        Ok(())
+    }
+
+    /// Block until the worker thread exits and return its result.
+    ///
+    /// Returns `Ok(())` immediately if the service was never started or has
+    /// already been joined.
+    pub fn join(&mut self) -> Result<()> {
+        let Some(worker) = self.worker.take() else {
+            return Ok(());
+        };
+        match worker.join() {
+            Ok(result) => result,
+            Err(_) => Err(FspError::NTSTATUS(
+                windows::Win32::Foundation::EXCEPTION_NONCONTINUABLE_EXCEPTION.0,
+            )),
+        }
     }
 }
 
@@ -188,6 +218,7 @@ impl<'a, T> FileSystemServiceBuilder<'a, T> {
             Ok(unsafe {
                 FileSystemService {
                     service_ptr: NonNull::new_unchecked(service.get().read()),
+                    worker: None,
                     _pd: PhantomData,
                 }
             })
@@ -199,7 +230,13 @@ impl<'a, T> FileSystemServiceBuilder<'a, T> {
 
 impl<'a, T> Drop for FileSystemService<T> {
     fn drop(&mut self) {
+        // Signal the worker to stop, then wait for it to leave FspServiceLoop
+        // BEFORE we free the FSP_SERVICE it's still pointing at. If we skipped
+        // the join, FspServiceDelete would race with the worker thread.
         self.stop();
+        if let Some(worker) = self.worker.take() {
+            let _ = worker.join();
+        }
         let service_context_ptr = unsafe {
             // SAFETY: FSP_SERVICE pointer and UserContext field are not mutated by other threads
             self.service_ptr.as_ref().UserContext as *mut UnsafeCell<FileSystemServiceContext<T>>
@@ -208,8 +245,8 @@ impl<'a, T> Drop for FileSystemService<T> {
             FspServiceDelete(self.service_ptr.as_ptr());
         };
         let service_context_box = unsafe {
-            // SAFETY: No other threads exist with access to the service context and its type is correct.
-            //
+            // SAFETY: worker thread has been joined and the service has been
+            // deleted, so nothing else can reach the service context.
             Box::<UnsafeCell<FileSystemServiceContext<T>>>::from_raw(service_context_ptr)
         };
         drop(service_context_box);
