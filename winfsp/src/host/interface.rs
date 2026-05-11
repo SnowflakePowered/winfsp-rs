@@ -858,13 +858,12 @@ unsafe extern "C" fn flush<T: FileSystemContext>(
     catch_panic!({
         require_ctx(fs, |context| {
             let fctx = fctx.cast::<T::FileContext>();
-            unsafe {
-                T::flush(
-                    context,
-                    fctx.as_ref(),
-                    &mut *out_file_info.cast::<FileInfo>(),
-                )
-            }
+            T::flush(
+                context,
+                unsafe { fctx.as_ref() },
+                unsafe { out_file_info.cast::<FileInfo>().as_mut() }
+                    .expect("FSP_FSCTL_FILE_INFO buffer was not allocated."),
+            )
         })
     })
 }
@@ -920,14 +919,13 @@ unsafe extern "C" fn set_ea<T: FileSystemContext>(
     catch_panic!({
         require_fctx(fs, fctx, |context, fctx| {
             let buffer = unsafe { slice::from_raw_parts(ea.cast::<u8>(), ea_len as usize) };
-            unsafe {
-                T::set_extended_attributes(
-                    context,
-                    fctx,
-                    buffer,
-                    &mut *out_file_info.cast::<FileInfo>(),
-                )
-            }
+            T::set_extended_attributes(
+                context,
+                fctx,
+                buffer,
+                unsafe { out_file_info.cast::<FileInfo>().as_mut() }
+                    .expect("FSP_FSCTL_FILE_INFO buffer was not allocated."),
+            )
         })
     })
 }
