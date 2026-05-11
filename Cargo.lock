@@ -331,6 +331,7 @@ dependencies = [
  "anyhow",
  "bytemuck",
  "clap",
+ "parking_lot",
  "tokio",
  "widestring",
  "windows 0.62.2",
