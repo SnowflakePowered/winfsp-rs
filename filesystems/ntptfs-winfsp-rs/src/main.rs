@@ -34,7 +34,7 @@ pub struct Args {
 
 fn main() {
     let init = winfsp_init_or_die();
-    let fsp = FileSystemServiceBuilder::new()
+    let mut fsp = FileSystemServiceBuilder::new()
         .with_start(|| {
             let args = Args::parse();
             Ok(service::svc_start(args).map_err(|_e| STATUS_NONCONTINUABLE_EXCEPTION)?)
@@ -46,5 +46,6 @@ fn main() {
         .build("ntptfs-winfsp-rs", init)
         .expect("failed to build fsp");
 
-    let _ = fsp.start().join();
+    fsp.start().expect("failed to start fsp");
+    let _ = fsp.join();
 }
