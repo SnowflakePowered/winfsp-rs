@@ -12,7 +12,7 @@ pub use widenameinfo::WideNameInfo;
 pub(crate) const fn assert_layout<T, J>() -> bool {
     let a = Layout::new::<T>();
     let b = Layout::new::<J>();
-    a.size() == b.size() && b.align() == b.align()
+    a.size() == b.size() && a.align() == b.align()
 }
 
 macro_rules! ensure_layout {
