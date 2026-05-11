@@ -19,7 +19,7 @@ feature. The path will automatically be determined via the Registry.
 
 ```toml
 [dependencies.winfsp]
-version = "0.12"
+version = "0.13"
 features = ["system"]
 ```
 ### Delay-loading
@@ -29,7 +29,7 @@ the build script. This is required for winfsp-rs.
 #### Cargo.toml
 ```toml
 [build-dependencies]
-winfsp = "0.12"
+winfsp = "0.13"
 ```
 
 #### build.rs
