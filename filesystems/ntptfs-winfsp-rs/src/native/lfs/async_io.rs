@@ -1,5 +1,31 @@
+//! Cancellation-safe wrappers around overlapped NT I/O.
+//!
+//! ## Why is this file shaped like this?
+//!
+//! `NtReadFile` / `NtWriteFile` / `NtQueryDirectoryFile` are overlapped I/O
+//! primitives. When they return `STATUS_PENDING`, the kernel keeps the
+//! `IO_STATUS_BLOCK` pointer AND the user-buffer pointer until the I/O
+//! actually completes. If the surrounding `Future` is dropped before that —
+//! e.g. inside `tokio::select!`, `tokio::time::timeout`, or executor shutdown —
+//! the kernel will eventually write into freed/reused memory. That is a UAF.
+//!
+//! The fix here is to make every in-flight I/O own its `IO_STATUS_BLOCK` and
+//! data buffer on the heap (`Box<UnsafeCell<IO_STATUS_BLOCK>>` / `Box<[u8]>`),
+//! never borrowing the caller's buffer for the kernel call. On a normal
+//! completion the public wrapper memcpys our owned buffer back to the
+//! caller's slice. On `Drop` while still pending we hand the heap state off
+//! to a process-threadpool wait that fires when the kernel finally signals
+//! the event, at which point the wait callback drops the iosb + buffer boxes
+//! and closes the event. `Drop` itself returns immediately, so it never
+//! blocks the executor.
+//!
+//! These `lfs_*_async` functions are crate-internal — there are no external
+//! callers, so the API is free to memcpy in/out behind the public
+//! `&mut [u8]` / `&[u8]` facade.
+
 use crate::native::lfs;
 use std::cell::UnsafeCell;
+use std::ffi::c_void;
 use std::future::Future;
 use std::mem::MaybeUninit;
 use std::pin::Pin;
@@ -7,104 +33,216 @@ use std::ptr::addr_of;
 use std::task::{Context, Poll};
 use widestring::U16CStr;
 use windows::Wdk::Storage::FileSystem::{
-    FILE_INFORMATION_CLASS, NtQueryDirectoryFile, NtReadFile, NtWriteFile,
+    FILE_INFORMATION_CLASS, NtCancelIoFileEx, NtQueryDirectoryFile, NtReadFile, NtWriteFile,
 };
 use windows::Win32::Foundation::{
     CloseHandle, HANDLE, NTSTATUS, STATUS_ABANDONED, STATUS_PENDING, STATUS_SUCCESS,
     UNICODE_STRING, WAIT_ABANDONED, WAIT_ABANDONED_0, WAIT_FAILED, WAIT_OBJECT_0,
 };
 use windows::Win32::System::IO::IO_STATUS_BLOCK;
-use windows::Win32::System::Threading::WaitForSingleObject;
+use windows::Win32::System::Threading::{
+    CloseThreadpoolWait, CreateThreadpoolWait, INFINITE, PTP_CALLBACK_INSTANCE, PTP_WAIT,
+    SetThreadpoolWait, WaitForSingleObject,
+};
 use windows::Win32::System::WindowsProgramming::RtlInitUnicodeString;
 use windows::core::PCWSTR;
 use winfsp::FspError;
 use winfsp::util::{AtomicHandle, NtHandleDrop};
 
-struct LfsReadFuture<'a> {
-    event: AssertThreadSafe<HANDLE>,
-    file: AssertThreadSafe<HANDLE>,
-    iosb: UnsafeCell<AssertThreadSafe<IO_STATUS_BLOCK>>,
+/// Heap-owned state for a single overlapped I/O.
+///
+/// `iosb` and `buffer` are addressed directly by the kernel for the duration
+/// of the I/O; their stable heap addresses outlive both the surrounding
+/// `Future` and any cancellation, which is the whole point of this module.
+struct InflightIo {
+    event: HANDLE,
+    file: HANDLE,
+    iosb: Box<UnsafeCell<IO_STATUS_BLOCK>>,
+    buffer: Box<[u8]>,
+}
+
+// SAFETY: All fields are either owned heap allocations or thread-agnostic
+// Windows handle values. We hand an `InflightIo` from the dropping future to
+// a threadpool callback exactly once (via `detach_pending`); after that
+// hand-off nothing else aliases it.
+unsafe impl Send for InflightIo {}
+
+/// Drop case for an in-flight overlapped I/O.
+///
+/// Cancels the pending operation, then registers a threadpool wait that will
+/// free the `InflightIo` (closing the event and dropping the iosb + buffer
+/// boxes) once the kernel signals the event. The dropping thread returns
+/// immediately; no blocking.
+unsafe fn detach_pending(state: InflightIo) {
+    let raw = Box::into_raw(Box::new(state));
+
+    // Best-effort cancel to shorten the time we hold the heap allocations
+    // alive. If the I/O has already completed this fails harmlessly; the
+    // threadpool wait below still finishes the right thing.
+    unsafe {
+        let mut cancel_iosb: IO_STATUS_BLOCK = std::mem::zeroed();
+        let _ = NtCancelIoFileEx(
+            (*raw).file,
+            Some((*raw).iosb.get() as *const _),
+            &mut cancel_iosb,
+        );
+    }
+
+    let wait = match unsafe {
+        CreateThreadpoolWait(Some(inflight_complete), Some(raw.cast::<c_void>()), None)
+    } {
+        Ok(w) => w,
+        Err(_) => {
+            // Couldn't register a threadpool wait (extremely rare). Fall
+            // back to blocking this thread until the kernel finishes, so
+            // we still avoid the UAF.
+            unsafe {
+                let _ = WaitForSingleObject((*raw).event, INFINITE);
+                let boxed = Box::from_raw(raw);
+                let _ = CloseHandle(boxed.event);
+            }
+            return;
+        }
+    };
+
+    // Hand the state off to the threadpool. After this point the threadpool
+    // owns `raw`; `inflight_complete` will free it.
+    unsafe { SetThreadpoolWait(wait, Some((*raw).event), None) };
+}
+
+/// Threadpool callback that runs once the kernel has signaled completion of
+/// a detached (cancelled) I/O. At this point the kernel has released its
+/// pointers into `state.iosb` and `state.buffer`, so we can safely drop them.
+unsafe extern "system" fn inflight_complete(
+    _instance: PTP_CALLBACK_INSTANCE,
+    context: *mut c_void,
+    wait: PTP_WAIT,
+    _wait_result: u32,
+) {
+    // SAFETY: `context` is the `Box<InflightIo>` raw pointer leaked into the
+    // threadpool by `detach_pending`. The threadpool fires this callback
+    // exactly once for a one-shot wait, so taking ownership here is sound.
+    let state: Box<InflightIo> = unsafe { Box::from_raw(context.cast()) };
+    unsafe {
+        let _ = CloseHandle(state.event);
+        // Closing the wait from inside its own callback is documented as
+        // safe for one-shot waits.
+        CloseThreadpoolWait(wait);
+    }
+    // `state` drops here, freeing iosb and buffer boxes.
+}
+
+/// Non-blocking observation of the event + iosb status. Returns `Some(status)`
+/// if the kernel has signaled completion, `None` if the I/O is still pending.
+fn observe_completion(event: HANDLE, iosb: *mut IO_STATUS_BLOCK) -> Option<NTSTATUS> {
+    let wait_result = unsafe { WaitForSingleObject(event, 0) };
+    if wait_result == WAIT_OBJECT_0 {
+        let code = unsafe { addr_of!((*iosb).Anonymous.Status).read() };
+        Some(code)
+    } else if wait_result == WAIT_FAILED
+        || wait_result == WAIT_ABANDONED
+        || wait_result == WAIT_ABANDONED_0
+    {
+        Some(STATUS_ABANDONED)
+    } else {
+        None
+    }
+}
+
+/// Common `Drop` body: if the I/O is still pending in the kernel, detach to
+/// the threadpool; otherwise just close the event and let the heap allocations
+/// drop normally.
+fn drop_inflight(inflight: Option<InflightIo>, result: Option<NTSTATUS>) {
+    let Some(state) = inflight else { return };
+    if matches!(result, Some(s) if s == STATUS_PENDING) {
+        unsafe { detach_pending(state) };
+    } else {
+        unsafe {
+            let _ = CloseHandle(state.event);
+        }
+    }
+}
+
+// --------------------------------- READ ---------------------------------
+
+struct LfsReadFuture {
+    inflight: Option<InflightIo>,
     result: Option<NTSTATUS>,
-    buffer: &'a mut [u8],
     offset: i64,
 }
 
-#[derive(Debug)]
-#[repr(transparent)]
-pub(crate) struct AssertThreadSafe<T>(pub T);
+// SAFETY: All fields are Send (see `InflightIo` Send impl). The future
+// itself stores no thread-bound state.
+unsafe impl Send for LfsReadFuture {}
 
-unsafe impl<T> Send for AssertThreadSafe<T> {}
-
-impl<'a> LfsReadFuture<'a> {
-    fn new(
-        file: AssertThreadSafe<HANDLE>,
-        buffer: &'a mut [u8],
-        offset: i64,
-    ) -> winfsp::Result<Self> {
-        let event = AssertThreadSafe(lfs::new_event()?);
+impl LfsReadFuture {
+    fn new(file: HANDLE, buf_len: usize, offset: i64) -> winfsp::Result<Self> {
+        let event = lfs::new_event()?;
+        let buffer = vec![0u8; buf_len].into_boxed_slice();
         Ok(Self {
-            event,
-            file,
-            iosb: UnsafeCell::new(AssertThreadSafe(IO_STATUS_BLOCK::default())),
+            inflight: Some(InflightIo {
+                event,
+                file,
+                iosb: Box::new(UnsafeCell::new(IO_STATUS_BLOCK::default())),
+                buffer,
+            }),
             result: None,
-            buffer,
             offset,
         })
     }
 }
 
-impl<'a> Drop for LfsReadFuture<'a> {
+impl Drop for LfsReadFuture {
     fn drop(&mut self) {
-        unsafe {
-            let _ = CloseHandle(self.event.0);
-        }
+        drop_inflight(self.inflight.take(), self.result);
     }
 }
 
-impl<'a> Future for LfsReadFuture<'a> {
-    type Output = Result<IO_STATUS_BLOCK, FspError>;
+impl Future for LfsReadFuture {
+    type Output = winfsp::Result<usize>;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        let Some(result) = self.result else {
-            let initial_result = unsafe {
+        let this = self.as_mut().get_mut();
+
+        if this.result.is_none() {
+            let offset = this.offset;
+            let inflight = this.inflight.as_mut().expect("inflight taken");
+            let initial = unsafe {
                 NtReadFile(
-                    self.file.0,
-                    Some(self.event.0),
+                    inflight.file,
+                    Some(inflight.event),
                     None,
                     None,
-                    self.iosb.get() as *mut _,
-                    self.buffer.as_mut_ptr() as *mut _,
-                    self.buffer.len() as u32,
-                    Some(&self.offset),
+                    inflight.iosb.get(),
+                    inflight.buffer.as_mut_ptr().cast(),
+                    inflight.buffer.len() as u32,
+                    Some(&offset),
                     None,
                 )
             };
-            self.result = Some(initial_result);
+            this.result = Some(initial);
             cx.waker().wake_by_ref();
             return Poll::Pending;
-        };
+        }
 
+        let result = this.result.unwrap();
         if result != STATUS_PENDING {
             return if result != STATUS_SUCCESS {
                 Poll::Ready(Err(FspError::from(result)))
             } else {
-                Poll::Ready(Ok(unsafe { self.iosb.get().read().0 }))
+                let inflight = this.inflight.as_ref().expect("inflight taken");
+                let info = unsafe { (*inflight.iosb.get()).Information };
+                Poll::Ready(Ok(info))
             };
         }
 
-        let wait_result = unsafe { WaitForSingleObject(self.event.0, 0) };
-
-        if wait_result == WAIT_OBJECT_0 {
-            let code = unsafe { addr_of!((*self.iosb.get()).0.Anonymous.Status).read() };
-            self.result = Some(code);
-        } else if wait_result == WAIT_FAILED
-            || wait_result == WAIT_ABANDONED
-            || wait_result == WAIT_ABANDONED_0
-        {
-            self.result = Some(STATUS_ABANDONED);
+        let observed = {
+            let inflight = this.inflight.as_ref().expect("inflight taken");
+            observe_completion(inflight.event, inflight.iosb.get())
+        };
+        if let Some(code) = observed {
+            this.result = Some(code);
         }
-
-        // if timed out, io isn't ready
         cx.waker().wake_by_ref();
         Poll::Pending
     }
@@ -112,98 +250,96 @@ impl<'a> Future for LfsReadFuture<'a> {
 
 pub async fn lfs_read_file_async(
     handle: &AtomicHandle<NtHandleDrop>,
-    buffer: &mut [u8],
+    dst: &mut [u8],
     offset: u64,
     bytes_transferred: &mut u32,
 ) -> winfsp::Result<()> {
-    let handle = AssertThreadSafe(HANDLE(handle.handle()));
-    let transferred = async move {
-        let lfs = LfsReadFuture::new(handle, buffer, offset as i64)?;
-        lfs.await.map(|iosb| iosb.Information)
-    }
-    .await?;
-
-    *bytes_transferred = transferred as u32;
-
+    let mut future = LfsReadFuture::new(HANDLE(handle.handle()), dst.len(), offset as i64)?;
+    let n = (&mut future).await?;
+    // Copy out of the owned buffer directly into `dst` before `future` drops.
+    let inflight = future.inflight.as_ref().expect("inflight taken");
+    dst[..n].copy_from_slice(&inflight.buffer[..n]);
+    *bytes_transferred = n as u32;
     Ok(())
 }
 
-struct LfsWriteFuture<'a> {
-    event: AssertThreadSafe<HANDLE>,
-    file: AssertThreadSafe<HANDLE>,
-    iosb: UnsafeCell<AssertThreadSafe<IO_STATUS_BLOCK>>,
+// --------------------------------- WRITE --------------------------------
+
+struct LfsWriteFuture {
+    inflight: Option<InflightIo>,
     result: Option<NTSTATUS>,
-    buffer: &'a [u8],
     offset: i64,
 }
 
-impl<'a> LfsWriteFuture<'a> {
-    fn new(file: HANDLE, buffer: &'a [u8], offset: i64) -> winfsp::Result<Self> {
-        let event = AssertThreadSafe(lfs::new_event()?);
+unsafe impl Send for LfsWriteFuture {}
 
+impl LfsWriteFuture {
+    fn new(file: HANDLE, owned: Box<[u8]>, offset: i64) -> winfsp::Result<Self> {
+        let event = lfs::new_event()?;
         Ok(Self {
-            event,
-            file: AssertThreadSafe(file),
-            iosb: UnsafeCell::new(AssertThreadSafe(IO_STATUS_BLOCK::default())),
+            inflight: Some(InflightIo {
+                event,
+                file,
+                iosb: Box::new(UnsafeCell::new(IO_STATUS_BLOCK::default())),
+                buffer: owned,
+            }),
             result: None,
-            buffer,
             offset,
         })
     }
 }
 
-impl<'a> Drop for LfsWriteFuture<'a> {
+impl Drop for LfsWriteFuture {
     fn drop(&mut self) {
-        unsafe {
-            let _ = CloseHandle(self.event.0);
-        }
+        drop_inflight(self.inflight.take(), self.result);
     }
 }
 
-impl<'a> Future for LfsWriteFuture<'a> {
-    type Output = Result<IO_STATUS_BLOCK, FspError>;
+impl Future for LfsWriteFuture {
+    type Output = winfsp::Result<usize>;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        let Some(result) = self.result else {
-            let initial_result = unsafe {
+        let this = self.as_mut().get_mut();
+
+        if this.result.is_none() {
+            let offset = this.offset;
+            let inflight = this.inflight.as_mut().expect("inflight taken");
+            let initial = unsafe {
                 NtWriteFile(
-                    self.file.0,
-                    Some(self.event.0),
+                    inflight.file,
+                    Some(inflight.event),
                     None,
                     None,
-                    self.iosb.get() as *mut _,
-                    self.buffer.as_ptr() as *const _,
-                    self.buffer.len() as u32,
-                    Some(&self.offset),
+                    inflight.iosb.get(),
+                    inflight.buffer.as_ptr().cast(),
+                    inflight.buffer.len() as u32,
+                    Some(&offset),
                     None,
                 )
             };
-            self.result = Some(initial_result);
+            this.result = Some(initial);
             cx.waker().wake_by_ref();
             return Poll::Pending;
-        };
+        }
 
+        let result = this.result.unwrap();
         if result != STATUS_PENDING {
             return if result != STATUS_SUCCESS {
                 Poll::Ready(Err(FspError::from(result)))
             } else {
-                Poll::Ready(Ok(unsafe { self.iosb.get().read().0 }))
+                let inflight = this.inflight.as_ref().expect("inflight taken");
+                let info = unsafe { (*inflight.iosb.get()).Information };
+                Poll::Ready(Ok(info))
             };
         }
 
-        let wait_result = unsafe { WaitForSingleObject(self.event.0, 0) };
-
-        if wait_result == WAIT_OBJECT_0 {
-            let code = unsafe { addr_of!((*self.iosb.get()).0.Anonymous.Status).read() };
-            self.result = Some(code);
-        } else if wait_result == WAIT_FAILED
-            || wait_result == WAIT_ABANDONED
-            || wait_result == WAIT_ABANDONED_0
-        {
-            self.result = Some(STATUS_ABANDONED);
+        let observed = {
+            let inflight = this.inflight.as_ref().expect("inflight taken");
+            observe_completion(inflight.event, inflight.iosb.get())
+        };
+        if let Some(code) = observed {
+            this.result = Some(code);
         }
-
-        // if timed out, io isn't ready
         cx.waker().wake_by_ref();
         Poll::Pending
     }
@@ -211,51 +347,54 @@ impl<'a> Future for LfsWriteFuture<'a> {
 
 pub async fn lfs_write_file_async(
     handle: &AtomicHandle<NtHandleDrop>,
-    buffer: &[u8],
+    src: &[u8],
     offset: u64,
     bytes_transferred: &mut u32,
 ) -> winfsp::Result<()> {
-    let transferred = async move {
-        let lfs = LfsWriteFuture::new(HANDLE(handle.handle()), buffer, offset as i64)?;
-        lfs.await.map(|iosb| iosb.Information)
-    }
-    .await?;
-
-    *bytes_transferred = transferred as u32;
-
+    // Copy the source bytes into an owned buffer. After this point the caller
+    // can do whatever they want with `src` — the kernel reads from `owned`.
+    let owned: Box<[u8]> = src.to_vec().into_boxed_slice();
+    let mut future = LfsWriteFuture::new(HANDLE(handle.handle()), owned, offset as i64)?;
+    let n = (&mut future).await?;
+    *bytes_transferred = n as u32;
     Ok(())
 }
 
+// ----------------------------- QUERY DIRECTORY --------------------------
+
 struct LfsQueryDirectoryFileFuture<'a> {
-    file: AssertThreadSafe<HANDLE>,
-    event: AssertThreadSafe<HANDLE>,
-    file_name: Option<&'a U16CStr>,
-    iosb: UnsafeCell<AssertThreadSafe<IO_STATUS_BLOCK>>,
+    inflight: Option<InflightIo>,
     result: Option<NTSTATUS>,
-    buffer: &'a mut [u8],
+    file_name: Option<&'a U16CStr>,
     return_single_entry: bool,
     restart_scan: bool,
     class: FILE_INFORMATION_CLASS,
 }
 
+// SAFETY: HANDLEs in `inflight` are thread-agnostic; the borrowed `&U16CStr`
+// is Send because `[u16]` is Sync.
+unsafe impl<'a> Send for LfsQueryDirectoryFileFuture<'a> {}
+
 impl<'a> LfsQueryDirectoryFileFuture<'a> {
     fn new(
         file: HANDLE,
+        buf_len: usize,
         file_name: Option<&'a U16CStr>,
-        buffer: &'a mut [u8],
         return_single_entry: bool,
         restart_scan: bool,
         class: FILE_INFORMATION_CLASS,
     ) -> winfsp::Result<Self> {
         let event = lfs::new_event()?;
-
+        let buffer = vec![0u8; buf_len].into_boxed_slice();
         Ok(Self {
-            file: AssertThreadSafe(file),
-            event: AssertThreadSafe(event),
-            file_name,
-            iosb: UnsafeCell::new(AssertThreadSafe(IO_STATUS_BLOCK::default())),
+            inflight: Some(InflightIo {
+                event,
+                file,
+                iosb: Box::new(UnsafeCell::new(IO_STATUS_BLOCK::default())),
+                buffer,
+            }),
             result: None,
-            buffer,
+            file_name,
             return_single_entry,
             restart_scan,
             class,
@@ -265,66 +404,69 @@ impl<'a> LfsQueryDirectoryFileFuture<'a> {
 
 impl<'a> Drop for LfsQueryDirectoryFileFuture<'a> {
     fn drop(&mut self) {
-        unsafe {
-            let _ = CloseHandle(self.event.0);
-        }
+        drop_inflight(self.inflight.take(), self.result);
     }
 }
 
 impl<'a> Future for LfsQueryDirectoryFileFuture<'a> {
-    type Output = Result<IO_STATUS_BLOCK, FspError>;
+    type Output = winfsp::Result<usize>;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        let Some(result) = self.result else {
-            let unicode_filename = self.file_name.map(|f| unsafe {
-                let mut unicode_filename: MaybeUninit<UNICODE_STRING> = MaybeUninit::zeroed();
-                RtlInitUnicodeString(unicode_filename.as_mut_ptr(), PCWSTR(f.as_ptr()));
-                unicode_filename.assume_init()
-            });
+        let this = self.as_mut().get_mut();
 
-            let initial_result = unsafe {
+        if this.result.is_none() {
+            // Build the UNICODE_STRING locally. The kernel captures the
+            // input strings during the syscall (before returning STATUS_*),
+            // so this does not need to outlive the call.
+            let unicode_filename = this.file_name.map(|f| unsafe {
+                let mut u: MaybeUninit<UNICODE_STRING> = MaybeUninit::zeroed();
+                RtlInitUnicodeString(u.as_mut_ptr(), PCWSTR(f.as_ptr()));
+                u.assume_init()
+            });
+            let class = this.class;
+            let return_single_entry = this.return_single_entry;
+            let restart_scan = this.restart_scan;
+            let inflight = this.inflight.as_mut().expect("inflight taken");
+            let initial = unsafe {
                 NtQueryDirectoryFile(
-                    self.file.0,
-                    Some(self.event.0),
+                    inflight.file,
+                    Some(inflight.event),
                     None,
                     None,
-                    self.iosb.get() as *mut _,
-                    self.buffer.as_mut_ptr() as *mut _,
-                    self.buffer.len() as u32,
-                    self.class,
-                    self.return_single_entry,
+                    inflight.iosb.get(),
+                    inflight.buffer.as_mut_ptr().cast(),
+                    inflight.buffer.len() as u32,
+                    class,
+                    return_single_entry,
                     unicode_filename
                         .as_ref()
                         .map(|p| p as *const UNICODE_STRING as *const _),
-                    self.restart_scan,
+                    restart_scan,
                 )
             };
-            self.result = Some(initial_result);
+            this.result = Some(initial);
             cx.waker().wake_by_ref();
             return Poll::Pending;
-        };
+        }
 
+        let result = this.result.unwrap();
         if result != STATUS_PENDING {
             return if result != STATUS_SUCCESS {
                 Poll::Ready(Err(FspError::from(result)))
             } else {
-                Poll::Ready(Ok(unsafe { self.iosb.get().read().0 }))
+                let inflight = this.inflight.as_ref().expect("inflight taken");
+                let info = unsafe { (*inflight.iosb.get()).Information };
+                Poll::Ready(Ok(info))
             };
         }
 
-        let wait_result = unsafe { WaitForSingleObject(self.event.0, 0) };
-
-        if wait_result == WAIT_OBJECT_0 {
-            let code = unsafe { addr_of!((*self.iosb.get()).0.Anonymous.Status).read() };
-            self.result = Some(code);
-        } else if wait_result == WAIT_FAILED
-            || wait_result == WAIT_ABANDONED
-            || wait_result == WAIT_ABANDONED_0
-        {
-            self.result = Some(STATUS_ABANDONED);
+        let observed = {
+            let inflight = this.inflight.as_ref().expect("inflight taken");
+            observe_completion(inflight.event, inflight.iosb.get())
+        };
+        if let Some(code) = observed {
+            this.result = Some(code);
         }
-
-        // if timed out, io isn't ready
         cx.waker().wake_by_ref();
         Poll::Pending
     }
@@ -332,21 +474,22 @@ impl<'a> Future for LfsQueryDirectoryFileFuture<'a> {
 
 pub async fn lfs_query_directory_file_async(
     handle: &AtomicHandle<NtHandleDrop>,
-    buffer: &mut [u8],
+    dst: &mut [u8],
     class: FILE_INFORMATION_CLASS,
     return_single_entry: bool,
     file_name: Option<&U16CStr>,
     restart_scan: bool,
 ) -> winfsp::Result<usize> {
-    let query_ft = LfsQueryDirectoryFileFuture::new(
+    let mut future = LfsQueryDirectoryFileFuture::new(
         HANDLE(handle.handle()),
+        dst.len(),
         file_name,
-        buffer,
         return_single_entry,
         restart_scan,
         class,
     )?;
-    let iosb = query_ft.await?;
-
-    Ok(iosb.Information)
+    let n = (&mut future).await?;
+    let inflight = future.inflight.as_ref().expect("inflight taken");
+    dst[..n].copy_from_slice(&inflight.buffer[..n]);
+    Ok(n)
 }
