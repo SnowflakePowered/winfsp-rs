@@ -118,13 +118,18 @@ where
     }
 
     /// Invalidate the handle without dropping it.
+    ///
+    /// Atomically swaps in `INVALID_HANDLE_VALUE` and only closes the previous
+    /// handle if it was the thread that observed a valid value. This prevents
+    /// concurrent `invalidate` calls from both passing a "not invalid" check
+    /// and double-closing the same kernel handle — which would be unsound
+    /// because Windows can recycle handle values almost immediately.
     pub fn invalidate(&self) {
-        let handle = self.handle();
-
-        if !HANDLE(handle).is_invalid() {
-            T::close(HANDLE(handle))
+        let previous = self.0.swap(INVALID_HANDLE_VALUE.0, Ordering::AcqRel);
+        let handle = HANDLE(previous);
+        if !handle.is_invalid() {
+            T::close(handle)
         }
-        self.0.store(INVALID_HANDLE_VALUE.0, Ordering::Relaxed);
     }
 }
 
