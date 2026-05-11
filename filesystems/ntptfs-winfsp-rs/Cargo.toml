@@ -19,6 +19,7 @@ widestring = "1"
 winfsp = { path = "../../winfsp", features = ["debug", "system", "full", "windows-62", "handle-util"] }
 anyhow = "1"
 tokio =  { version = "1.32.0", features = ["rt", "rt-multi-thread"] }
+parking_lot = "0.12.4"
 
 [build-dependencies]
 winfsp = { path = "../../winfsp", features = ["delayload"] }

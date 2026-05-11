@@ -30,7 +30,8 @@ use std::future::Future;
 use std::mem::MaybeUninit;
 use std::pin::Pin;
 use std::ptr::addr_of;
-use std::task::{Context, Poll};
+use parking_lot::Mutex;
+use std::task::{Context, Poll, Waker};
 use widestring::U16CStr;
 use windows::Wdk::Storage::FileSystem::{
     FILE_INFORMATION_CLASS, NtCancelIoFileEx, NtQueryDirectoryFile, NtReadFile, NtWriteFile,
@@ -42,7 +43,7 @@ use windows::Win32::Foundation::{
 use windows::Win32::System::IO::IO_STATUS_BLOCK;
 use windows::Win32::System::Threading::{
     CloseThreadpoolWait, CreateThreadpoolWait, INFINITE, PTP_CALLBACK_INSTANCE, PTP_WAIT,
-    SetThreadpoolWait, WaitForSingleObject,
+    SetThreadpoolWait, WaitForSingleObject, WaitForThreadpoolWaitCallbacks,
 };
 use windows::Win32::System::WindowsProgramming::RtlInitUnicodeString;
 use windows::core::PCWSTR;
@@ -132,6 +133,89 @@ unsafe extern "system" fn inflight_complete(
     // `state` drops here, freeing iosb and buffer boxes.
 }
 
+/// Shared waker slot for the polling threadpool wait.
+///
+/// The future writes its current `Waker` here on each poll that returns
+/// `Pending`; the threadpool callback consumes it when the kernel signals
+/// completion. Synchronisation is via `Mutex` because poll runs on an
+/// executor thread while the callback runs on a process-threadpool thread.
+struct WaiterState {
+    waker: Mutex<Option<Waker>>,
+}
+
+/// Owns a threadpool wait registered on the I/O event. When the event
+/// becomes signalled the threadpool calls [`wake_waiter`], which wakes the
+/// future. `Drop` synchronously drains any in-flight callback and closes the
+/// wait object, so by the time `Drop` returns the boxed [`WaiterState`] can
+/// be safely freed.
+struct Waiter {
+    wait: PTP_WAIT,
+    state: Box<WaiterState>,
+}
+
+// SAFETY: `PTP_WAIT` and `Box<WaiterState>` are both Send. The threadpool
+// only accesses `state` through the raw pointer we hand it; the future
+// updates `state.waker` under its `Mutex`.
+unsafe impl Send for Waiter {}
+
+impl Waiter {
+    /// Register a threadpool wait on `event` that will call `waker.wake()`
+    /// once the event becomes signalled. Returns `None` if `CreateThreadpoolWait`
+    /// fails — in that case the caller should fall back to busy-polling so
+    /// the I/O eventually completes.
+    fn register(event: HANDLE, waker: Waker) -> Option<Self> {
+        let state = Box::new(WaiterState {
+            waker: Mutex::new(Some(waker)),
+        });
+        // Stable address of the WaiterState — the box is owned by `Waiter`,
+        // so as long as `Waiter` outlives the wait callbacks the pointer is
+        // valid.
+        let ctx_ptr = (&*state) as *const WaiterState as *mut c_void;
+        let wait = match unsafe {
+            CreateThreadpoolWait(Some(wake_waiter), Some(ctx_ptr), None)
+        } {
+            Ok(w) => w,
+            Err(_) => return None,
+        };
+        unsafe { SetThreadpoolWait(wait, Some(event), None) };
+        Some(Self { wait, state })
+    }
+
+    /// Replace the stored waker with `waker`. Called on every re-poll so the
+    /// callback wakes the *current* task even if the executor handed us a
+    /// fresh `Waker` since the last poll.
+    fn refresh(&self, waker: &Waker) {
+        *self.state.waker.lock() = Some(waker.clone());
+    }
+}
+
+impl Drop for Waiter {
+    fn drop(&mut self) {
+        // Synchronise with the threadpool: cancel pending callbacks and
+        // block until any in-flight callback finishes. After this returns
+        // no thread is reading `self.state`, so the box drops safely.
+        unsafe {
+            WaitForThreadpoolWaitCallbacks(self.wait, true);
+            CloseThreadpoolWait(self.wait);
+        }
+    }
+}
+
+unsafe extern "system" fn wake_waiter(
+    _instance: PTP_CALLBACK_INSTANCE,
+    context: *mut c_void,
+    _wait: PTP_WAIT,
+    _wait_result: u32,
+) {
+    // SAFETY: `context` points into the `Box<WaiterState>` owned by a live
+    // `Waiter`. `Waiter::Drop` calls `WaitForThreadpoolWaitCallbacks` before
+    // freeing the box, so this reference cannot outlive the box.
+    let state = unsafe { &*(context as *const WaiterState) };
+    if let Some(w) = state.waker.lock().take() {
+        w.wake();
+    }
+}
+
 /// Non-blocking observation of the event + iosb status. Returns `Some(status)`
 /// if the kernel has signaled completion, `None` if the I/O is still pending.
 fn observe_completion(event: HANDLE, iosb: *mut IO_STATUS_BLOCK) -> Option<NTSTATUS> {
@@ -146,6 +230,23 @@ fn observe_completion(event: HANDLE, iosb: *mut IO_STATUS_BLOCK) -> Option<NTSTA
         Some(STATUS_ABANDONED)
     } else {
         None
+    }
+}
+
+/// Ensure a threadpool wait is armed on `event` and that its stored waker is
+/// the current task's. Called from every `poll` that is about to return
+/// `Pending`.
+///
+/// On `CreateThreadpoolWait` failure (extremely rare) the slot stays `None`
+/// and we fall back to busy-waking the current task; the I/O will still
+/// complete, just less efficiently.
+fn arm_waiter(slot: &mut Option<Waiter>, event: HANDLE, cx: &Context<'_>) {
+    match slot {
+        Some(w) => w.refresh(cx.waker()),
+        None => match Waiter::register(event, cx.waker().clone()) {
+            Some(w) => *slot = Some(w),
+            None => cx.waker().wake_by_ref(),
+        },
     }
 }
 
@@ -169,10 +270,10 @@ struct LfsReadFuture {
     inflight: Option<InflightIo>,
     result: Option<NTSTATUS>,
     offset: i64,
+    waiter: Option<Waiter>,
 }
 
-// SAFETY: All fields are Send (see `InflightIo` Send impl). The future
-// itself stores no thread-bound state.
+// SAFETY: All fields are Send (see `InflightIo` and `Waiter` Send impls).
 unsafe impl Send for LfsReadFuture {}
 
 impl LfsReadFuture {
@@ -188,12 +289,17 @@ impl LfsReadFuture {
             }),
             result: None,
             offset,
+            waiter: None,
         })
     }
 }
 
 impl Drop for LfsReadFuture {
     fn drop(&mut self) {
+        // Drop the polling waiter first — its Drop synchronously joins any
+        // in-flight callback, so the boxed WaiterState can be freed before
+        // we touch the inflight state.
+        self.waiter = None;
         drop_inflight(self.inflight.take(), self.result);
     }
 }
@@ -204,47 +310,54 @@ impl Future for LfsReadFuture {
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let this = self.as_mut().get_mut();
 
-        if this.result.is_none() {
-            let offset = this.offset;
-            let inflight = this.inflight.as_mut().expect("inflight taken");
-            let initial = unsafe {
-                NtReadFile(
-                    inflight.file,
-                    Some(inflight.event),
-                    None,
-                    None,
-                    inflight.iosb.get(),
-                    inflight.buffer.as_mut_ptr().cast(),
-                    inflight.buffer.len() as u32,
-                    Some(&offset),
-                    None,
-                )
+        loop {
+            // First poll: kick off the NT call.
+            if this.result.is_none() {
+                let offset = this.offset;
+                let inflight = this.inflight.as_mut().expect("inflight taken");
+                let initial = unsafe {
+                    NtReadFile(
+                        inflight.file,
+                        Some(inflight.event),
+                        None,
+                        None,
+                        inflight.iosb.get(),
+                        inflight.buffer.as_mut_ptr().cast(),
+                        inflight.buffer.len() as u32,
+                        Some(&offset),
+                        None,
+                    )
+                };
+                this.result = Some(initial);
+                continue;
+            }
+
+            let result = this.result.unwrap();
+            if result != STATUS_PENDING {
+                let inflight = this.inflight.as_ref().expect("inflight taken");
+                return if result != STATUS_SUCCESS {
+                    Poll::Ready(Err(FspError::from(result)))
+                } else {
+                    let info = unsafe { (*inflight.iosb.get()).Information };
+                    Poll::Ready(Ok(info))
+                };
+            }
+
+            // Pending. Re-check the event one last time before sleeping so we
+            // don't miss a signal that arrived between two polls.
+            let observed = {
+                let inflight = this.inflight.as_ref().expect("inflight taken");
+                observe_completion(inflight.event, inflight.iosb.get())
             };
-            this.result = Some(initial);
-            cx.waker().wake_by_ref();
+            if let Some(code) = observed {
+                this.result = Some(code);
+                continue;
+            }
+
+            // Arm the threadpool wait (or refresh its stored waker).
+            arm_waiter(&mut this.waiter, this.inflight.as_ref().unwrap().event, cx);
             return Poll::Pending;
         }
-
-        let result = this.result.unwrap();
-        if result != STATUS_PENDING {
-            return if result != STATUS_SUCCESS {
-                Poll::Ready(Err(FspError::from(result)))
-            } else {
-                let inflight = this.inflight.as_ref().expect("inflight taken");
-                let info = unsafe { (*inflight.iosb.get()).Information };
-                Poll::Ready(Ok(info))
-            };
-        }
-
-        let observed = {
-            let inflight = this.inflight.as_ref().expect("inflight taken");
-            observe_completion(inflight.event, inflight.iosb.get())
-        };
-        if let Some(code) = observed {
-            this.result = Some(code);
-        }
-        cx.waker().wake_by_ref();
-        Poll::Pending
     }
 }
 
@@ -269,6 +382,7 @@ struct LfsWriteFuture {
     inflight: Option<InflightIo>,
     result: Option<NTSTATUS>,
     offset: i64,
+    waiter: Option<Waiter>,
 }
 
 unsafe impl Send for LfsWriteFuture {}
@@ -285,12 +399,14 @@ impl LfsWriteFuture {
             }),
             result: None,
             offset,
+            waiter: None,
         })
     }
 }
 
 impl Drop for LfsWriteFuture {
     fn drop(&mut self) {
+        self.waiter = None;
         drop_inflight(self.inflight.take(), self.result);
     }
 }
@@ -301,47 +417,50 @@ impl Future for LfsWriteFuture {
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let this = self.as_mut().get_mut();
 
-        if this.result.is_none() {
-            let offset = this.offset;
-            let inflight = this.inflight.as_mut().expect("inflight taken");
-            let initial = unsafe {
-                NtWriteFile(
-                    inflight.file,
-                    Some(inflight.event),
-                    None,
-                    None,
-                    inflight.iosb.get(),
-                    inflight.buffer.as_ptr().cast(),
-                    inflight.buffer.len() as u32,
-                    Some(&offset),
-                    None,
-                )
+        loop {
+            if this.result.is_none() {
+                let offset = this.offset;
+                let inflight = this.inflight.as_mut().expect("inflight taken");
+                let initial = unsafe {
+                    NtWriteFile(
+                        inflight.file,
+                        Some(inflight.event),
+                        None,
+                        None,
+                        inflight.iosb.get(),
+                        inflight.buffer.as_ptr().cast(),
+                        inflight.buffer.len() as u32,
+                        Some(&offset),
+                        None,
+                    )
+                };
+                this.result = Some(initial);
+                continue;
+            }
+
+            let result = this.result.unwrap();
+            if result != STATUS_PENDING {
+                let inflight = this.inflight.as_ref().expect("inflight taken");
+                return if result != STATUS_SUCCESS {
+                    Poll::Ready(Err(FspError::from(result)))
+                } else {
+                    let info = unsafe { (*inflight.iosb.get()).Information };
+                    Poll::Ready(Ok(info))
+                };
+            }
+
+            let observed = {
+                let inflight = this.inflight.as_ref().expect("inflight taken");
+                observe_completion(inflight.event, inflight.iosb.get())
             };
-            this.result = Some(initial);
-            cx.waker().wake_by_ref();
+            if let Some(code) = observed {
+                this.result = Some(code);
+                continue;
+            }
+
+            arm_waiter(&mut this.waiter, this.inflight.as_ref().unwrap().event, cx);
             return Poll::Pending;
         }
-
-        let result = this.result.unwrap();
-        if result != STATUS_PENDING {
-            return if result != STATUS_SUCCESS {
-                Poll::Ready(Err(FspError::from(result)))
-            } else {
-                let inflight = this.inflight.as_ref().expect("inflight taken");
-                let info = unsafe { (*inflight.iosb.get()).Information };
-                Poll::Ready(Ok(info))
-            };
-        }
-
-        let observed = {
-            let inflight = this.inflight.as_ref().expect("inflight taken");
-            observe_completion(inflight.event, inflight.iosb.get())
-        };
-        if let Some(code) = observed {
-            this.result = Some(code);
-        }
-        cx.waker().wake_by_ref();
-        Poll::Pending
     }
 }
 
@@ -369,6 +488,7 @@ struct LfsQueryDirectoryFileFuture<'a> {
     return_single_entry: bool,
     restart_scan: bool,
     class: FILE_INFORMATION_CLASS,
+    waiter: Option<Waiter>,
 }
 
 // SAFETY: HANDLEs in `inflight` are thread-agnostic; the borrowed `&U16CStr`
@@ -398,12 +518,14 @@ impl<'a> LfsQueryDirectoryFileFuture<'a> {
             return_single_entry,
             restart_scan,
             class,
+            waiter: None,
         })
     }
 }
 
 impl<'a> Drop for LfsQueryDirectoryFileFuture<'a> {
     fn drop(&mut self) {
+        self.waiter = None;
         drop_inflight(self.inflight.take(), self.result);
     }
 }
@@ -414,61 +536,64 @@ impl<'a> Future for LfsQueryDirectoryFileFuture<'a> {
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let this = self.as_mut().get_mut();
 
-        if this.result.is_none() {
-            // Build the UNICODE_STRING locally. The kernel captures the
-            // input strings during the syscall (before returning STATUS_*),
-            // so this does not need to outlive the call.
-            let unicode_filename = this.file_name.map(|f| unsafe {
-                let mut u: MaybeUninit<UNICODE_STRING> = MaybeUninit::zeroed();
-                RtlInitUnicodeString(u.as_mut_ptr(), PCWSTR(f.as_ptr()));
-                u.assume_init()
-            });
-            let class = this.class;
-            let return_single_entry = this.return_single_entry;
-            let restart_scan = this.restart_scan;
-            let inflight = this.inflight.as_mut().expect("inflight taken");
-            let initial = unsafe {
-                NtQueryDirectoryFile(
-                    inflight.file,
-                    Some(inflight.event),
-                    None,
-                    None,
-                    inflight.iosb.get(),
-                    inflight.buffer.as_mut_ptr().cast(),
-                    inflight.buffer.len() as u32,
-                    class,
-                    return_single_entry,
-                    unicode_filename
-                        .as_ref()
-                        .map(|p| p as *const UNICODE_STRING as *const _),
-                    restart_scan,
-                )
+        loop {
+            if this.result.is_none() {
+                // Build the UNICODE_STRING locally. The kernel captures the
+                // input strings during the syscall (before returning STATUS_*),
+                // so this does not need to outlive the call.
+                let unicode_filename = this.file_name.map(|f| unsafe {
+                    let mut u: MaybeUninit<UNICODE_STRING> = MaybeUninit::zeroed();
+                    RtlInitUnicodeString(u.as_mut_ptr(), PCWSTR(f.as_ptr()));
+                    u.assume_init()
+                });
+                let class = this.class;
+                let return_single_entry = this.return_single_entry;
+                let restart_scan = this.restart_scan;
+                let inflight = this.inflight.as_mut().expect("inflight taken");
+                let initial = unsafe {
+                    NtQueryDirectoryFile(
+                        inflight.file,
+                        Some(inflight.event),
+                        None,
+                        None,
+                        inflight.iosb.get(),
+                        inflight.buffer.as_mut_ptr().cast(),
+                        inflight.buffer.len() as u32,
+                        class,
+                        return_single_entry,
+                        unicode_filename
+                            .as_ref()
+                            .map(|p| p as *const UNICODE_STRING as *const _),
+                        restart_scan,
+                    )
+                };
+                this.result = Some(initial);
+                continue;
+            }
+
+            let result = this.result.unwrap();
+            if result != STATUS_PENDING {
+                let inflight = this.inflight.as_ref().expect("inflight taken");
+                return if result != STATUS_SUCCESS {
+                    Poll::Ready(Err(FspError::from(result)))
+                } else {
+                    let info = unsafe { (*inflight.iosb.get()).Information };
+                    Poll::Ready(Ok(info))
+                };
+            }
+
+            let observed = {
+                let inflight = this.inflight.as_ref().expect("inflight taken");
+                observe_completion(inflight.event, inflight.iosb.get())
             };
-            this.result = Some(initial);
-            cx.waker().wake_by_ref();
+            if let Some(code) = observed {
+                this.result = Some(code);
+                continue;
+            }
+
+            arm_waiter(&mut this.waiter, this.inflight.as_ref().unwrap().event, cx);
             return Poll::Pending;
         }
-
-        let result = this.result.unwrap();
-        if result != STATUS_PENDING {
-            return if result != STATUS_SUCCESS {
-                Poll::Ready(Err(FspError::from(result)))
-            } else {
-                let inflight = this.inflight.as_ref().expect("inflight taken");
-                let info = unsafe { (*inflight.iosb.get()).Information };
-                Poll::Ready(Ok(info))
-            };
-        }
-
-        let observed = {
-            let inflight = this.inflight.as_ref().expect("inflight taken");
-            observe_completion(inflight.event, inflight.iosb.get())
-        };
-        if let Some(code) = observed {
-            this.result = Some(code);
-        }
-        cx.waker().wake_by_ref();
-        Poll::Pending
     }
 }
 
