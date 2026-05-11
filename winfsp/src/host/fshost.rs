@@ -54,18 +54,58 @@ where
     }
 }
 
-/// The usermode file system locking strategy.
-pub enum OperationGuardStrategy {
-    /// A fine-grained concurrency model where file system NAMESPACE accesses are guarded using an exclusive-shared (read-write) lock.
-    /// File I/O is not guarded and concurrent reads/writes/etc. are possible.
-    /// Note that the FSD will still apply an exclusive-shared lock PER INDIVIDUAL FILE, but it will not limit I/O operations for different files.
-    /// The fine-grained concurrency model applies the exclusive-shared lock as follows:
-    /// * EXCL: `set_volume_label`, `flush(None)`, `create`, `cleanup` (delete), `rename`
-    /// * SHRD: `get_volume_info`, `open`, `set_delete`, `read_directory`
-    /// * NONE:  all other operations
-    Fine,
-    /// A coarse-grained concurrency model where all file system accesses are guarded by a mutually exclusive lock.
-    Coarse,
+mod sealed {
+    pub trait Sealed {}
+}
+
+/// Sealed marker trait that selects the WinFSP operation-guard locking strategy
+/// at the type level.
+///
+/// Only [`FineStrategy`] and [`CoarseStrategy`] implement this trait. It is used as a type
+/// parameter on [`FileSystemHost`] to drive both the runtime call to
+/// `FspFileSystemSetOperationGuardStrategy` and the bounds required to start the
+/// dispatcher safely.
+pub trait OperationGuardStrategy: sealed::Sealed {
+    #[doc(hidden)]
+    const RAW: i32;
+}
+
+/// Fine-grained concurrency strategy.
+///
+/// File system NAMESPACE accesses are guarded using an exclusive-shared
+/// (read-write) lock. File I/O is not guarded and concurrent reads/writes/etc.
+/// are possible. Note that the FSD will still apply an exclusive-shared lock
+/// PER INDIVIDUAL FILE, but it will not limit I/O operations for different files.
+///
+/// The fine-grained concurrency model applies the exclusive-shared lock as follows:
+/// * EXCL: `set_volume_label`, `flush(None)`, `create`, `cleanup` (delete), `rename`
+/// * SHRD: `get_volume_info`, `open`, `set_delete`, `read_directory`
+/// * NONE: all other operations
+///
+/// This is the default strategy. Because callbacks may run concurrently on
+/// multiple dispatcher threads, [`FileSystemHost::start`] requires both `T` and
+/// `T::FileContext` to be [`Sync`] under this strategy.
+#[derive(Debug)]
+pub enum FineStrategy {}
+impl sealed::Sealed for FineStrategy {}
+impl OperationGuardStrategy for FineStrategy {
+    const RAW: i32 =
+        FSP_FILE_SYSTEM_OPERATION_GUARD_STRATEGY_FSP_FILE_SYSTEM_OPERATION_GUARD_STRATEGY_FINE;
+}
+
+/// Coarse-grained concurrency strategy.
+///
+/// All file system accesses are guarded by a mutually exclusive lock held by
+/// WinFSP. As a result, only one callback runs at a time even across multiple
+/// dispatcher threads — equivalent to wrapping the entire filesystem in a
+/// `Mutex<T>`. Under this strategy [`FileSystemHost::start`] only requires
+/// `T` and `T::FileContext` to be [`Send`].
+#[derive(Debug)]
+pub enum CoarseStrategy {}
+impl sealed::Sealed for CoarseStrategy {}
+impl OperationGuardStrategy for CoarseStrategy {
+    const RAW: i32 =
+        FSP_FILE_SYSTEM_OPERATION_GUARD_STRATEGY_FSP_FILE_SYSTEM_OPERATION_GUARD_STRATEGY_COARSE;
 }
 
 /// Options to create the filesystem with.
@@ -74,8 +114,6 @@ pub struct FileSystemParams {
     pub use_dir_info_by_name: bool,
     /// The parameters to mount the volume with.
     pub volume_params: VolumeParams,
-    /// The usermode file system locking strategy to use.
-    pub guard_strategy: OperationGuardStrategy,
     /// Set the debug output mask. Debug output is only displayed if the
     /// `debug` crate feature is enabled, regardless of the mask.
     ///
@@ -89,7 +127,6 @@ impl FileSystemParams {
         Self {
             use_dir_info_by_name: false,
             volume_params,
-            guard_strategy: OperationGuardStrategy::Fine,
             debug_mode: Default::default(),
         }
     }
@@ -99,7 +136,6 @@ impl FileSystemParams {
         Self {
             use_dir_info_by_name: false,
             volume_params,
-            guard_strategy: OperationGuardStrategy::Fine,
             debug_mode,
         }
     }
@@ -109,16 +145,20 @@ impl FileSystemParams {
 /// This is separate from the lifetime of the service which is managed by
 /// [`FileSystemService`](crate::service::FileSystemService). A `FileSystemHost`
 /// should start within the context of a service.
-pub struct FileSystemHost<T: FileSystemContext> {
+///
+/// The locking strategy used by WinFSP is selected via the `S` type parameter,
+/// which defaults to [`Fine`]. See [`OperationGuardStrategy`] for the available
+/// choices and their soundness implications.
+pub struct FileSystemHost<T: FileSystemContext, S: OperationGuardStrategy = FineStrategy> {
     fsp_struct: NonNull<FSP_FILE_SYSTEM>,
     #[allow(dead_code)]
     timer: Option<Timer>,
-    phantom: PhantomData<T>,
+    phantom: PhantomData<(T, S)>,
 }
 
 #[cfg(feature = "async-io")]
 #[cfg_attr(feature = "docsrs", doc(cfg(feature = "async-io")))]
-impl<T: FileSystemContext + AsyncFileSystemContext> FileSystemHost<T>
+impl<T: FileSystemContext + AsyncFileSystemContext, S: OperationGuardStrategy> FileSystemHost<T, S>
 where
     <T as FileSystemContext>::FileContext: Sync,
 {
@@ -130,7 +170,6 @@ where
         let FileSystemParams {
             use_dir_info_by_name,
             volume_params,
-            guard_strategy,
             debug_mode,
         } = options;
 
@@ -140,13 +179,7 @@ where
             Interface::create_with_read_directory_async::<T>()
         };
 
-        Self::new_filesystem_inner_iface(
-            interface,
-            volume_params,
-            guard_strategy,
-            debug_mode,
-            context,
-        )
+        Self::new_filesystem_inner_iface(interface, volume_params, debug_mode, context)
     }
 
     /// Create a `FileSystemHost` with the default settings
@@ -156,7 +189,6 @@ where
             FileSystemParams {
                 use_dir_info_by_name: false,
                 volume_params,
-                guard_strategy: OperationGuardStrategy::Fine,
                 debug_mode: DebugMode::none(),
             },
             context,
@@ -199,12 +231,11 @@ where
     }
 }
 
-impl<T: FileSystemContext> FileSystemHost<T> {
+impl<T: FileSystemContext, S: OperationGuardStrategy> FileSystemHost<T, S> {
     #[allow(unused_variables)]
     fn new_filesystem_inner_iface(
         interface: Interface,
         volume_params: VolumeParams,
-        guard_strategy: OperationGuardStrategy,
         debug_mode: DebugMode,
         context: T,
     ) -> Result<NonNull<FSP_FILE_SYSTEM>> {
@@ -241,10 +272,7 @@ impl<T: FileSystemContext> FileSystemHost<T> {
                 FileSystemUserContext::new(context),
             ))) as *mut _;
 
-            match guard_strategy {
-                OperationGuardStrategy::Fine => FspFileSystemSetOperationGuardStrategyF(fsp_struct, FSP_FILE_SYSTEM_OPERATION_GUARD_STRATEGY_FSP_FILE_SYSTEM_OPERATION_GUARD_STRATEGY_FINE),
-                OperationGuardStrategy::Coarse => FspFileSystemSetOperationGuardStrategyF(fsp_struct, FSP_FILE_SYSTEM_OPERATION_GUARD_STRATEGY_FSP_FILE_SYSTEM_OPERATION_GUARD_STRATEGY_COARSE),
-            }
+            FspFileSystemSetOperationGuardStrategyF(fsp_struct, S::RAW);
         }
 
         assert!(!fsp_struct.is_null());
@@ -259,7 +287,6 @@ impl<T: FileSystemContext> FileSystemHost<T> {
         let FileSystemParams {
             use_dir_info_by_name,
             volume_params,
-            guard_strategy,
             debug_mode,
         } = options;
 
@@ -269,13 +296,7 @@ impl<T: FileSystemContext> FileSystemHost<T> {
             Interface::create_with_read_directory::<T>()
         };
 
-        Self::new_filesystem_inner_iface(
-            interface,
-            volume_params,
-            guard_strategy,
-            debug_mode,
-            context,
-        )
+        Self::new_filesystem_inner_iface(interface, volume_params, debug_mode, context)
     }
 
     /// Create a `FileSystemHost` with the default settings
@@ -285,7 +306,6 @@ impl<T: FileSystemContext> FileSystemHost<T> {
             FileSystemParams {
                 use_dir_info_by_name: false,
                 volume_params,
-                guard_strategy: OperationGuardStrategy::Fine,
                 debug_mode: DebugMode::none(),
             },
             context,
@@ -323,18 +343,6 @@ impl<T: FileSystemContext> FileSystemHost<T> {
         })
     }
 
-    /// Start the filesystem dispatcher for this filesystem.
-    pub fn start(&mut self) -> Result<()> {
-        self.start_with_threads(0)
-    }
-
-    /// Start the filesystem dispatcher for this filesystem with the specified number of threads.
-    pub fn start_with_threads(&mut self, num_threads: u32) -> Result<()> {
-        let result = unsafe { FspFileSystemStartDispatcher(self.fsp_struct.as_ptr(), num_threads) };
-        let result = NTSTATUS(result);
-        result.ok()
-    }
-
     /// Stop the filesystem dispatcher for this filesystem.
     pub fn stop(&mut self) {
         unsafe { FspFileSystemStopDispatcher(self.fsp_struct.as_ptr()) }
@@ -358,14 +366,14 @@ impl<T: FileSystemContext> FileSystemHost<T> {
     ///     Ok(())
     /// }
     /// ```
-    pub fn mount<S>(&mut self, mount: S) -> Result<()>
+    pub fn mount<M>(&mut self, mount: M) -> Result<()>
     where
         // Convert a reference to the provided value in order to allow the
         // caller to provide owned values such as `String`:
-        for<'b> &'b S: Into<MountPoint<'b>>,
+        for<'b> &'b M: Into<MountPoint<'b>>,
     {
         let mount_str: HSTRING;
-        let mount_ptr = match <&S as Into<MountPoint<'_>>>::into(&mount) {
+        let mount_ptr = match <&M as Into<MountPoint<'_>>>::into(&mount) {
             MountPoint::MountPoint(mount) => {
                 mount_str = HSTRING::from(mount);
                 // Pointer is valid until `mount_str` is dropped at the end of the function.
@@ -383,6 +391,58 @@ impl<T: FileSystemContext> FileSystemHost<T> {
     /// file system is not mounted.
     pub fn unmount(&mut self) {
         unsafe { FspFileSystemRemoveMountPoint(self.fsp_struct.as_ptr()) }
+    }
+}
+
+impl<T: FileSystemContext + Sync> FileSystemHost<T, FineStrategy>
+where
+    <T as FileSystemContext>::FileContext: Sync,
+{
+    /// Start the filesystem dispatcher for this filesystem.
+    ///
+    /// Under the [`Fine`] guard strategy WinFSP invokes filesystem callbacks
+    /// from multiple kernel-managed dispatcher threads concurrently through
+    /// shared references, so both `T` and `T::FileContext` must be [`Sync`].
+    pub fn start(&mut self) -> Result<()> {
+        self.start_with_threads(0)
+    }
+
+    /// Start the filesystem dispatcher for this filesystem with the specified number of threads.
+    ///
+    /// Under the [`Fine`] guard strategy WinFSP invokes filesystem callbacks
+    /// from multiple kernel-managed dispatcher threads concurrently through
+    /// shared references, so both `T` and `T::FileContext` must be [`Sync`].
+    pub fn start_with_threads(&mut self, num_threads: u32) -> Result<()> {
+        let result = unsafe { FspFileSystemStartDispatcher(self.fsp_struct.as_ptr(), num_threads) };
+        let result = NTSTATUS(result);
+        result.ok()
+    }
+}
+
+impl<T: FileSystemContext + Send> FileSystemHost<T, CoarseStrategy>
+where
+    <T as FileSystemContext>::FileContext: Send,
+{
+    /// Start the filesystem dispatcher for this filesystem.
+    ///
+    /// Under the [`Coarse`] guard strategy WinFSP serialises all callbacks
+    /// behind an exclusive lock, so `T` and `T::FileContext` only need to be
+    /// [`Send`] — never two threads inside a callback at once, equivalent to
+    /// wrapping the whole filesystem in a `Mutex`.
+    pub fn start(&mut self) -> Result<()> {
+        self.start_with_threads(0)
+    }
+
+    /// Start the filesystem dispatcher for this filesystem with the specified number of threads.
+    ///
+    /// Under the [`Coarse`] guard strategy WinFSP serialises all callbacks
+    /// behind an exclusive lock, so `T` and `T::FileContext` only need to be
+    /// [`Send`] — never two threads inside a callback at once, equivalent to
+    /// wrapping the whole filesystem in a `Mutex`.
+    pub fn start_with_threads(&mut self, num_threads: u32) -> Result<()> {
+        let result = unsafe { FspFileSystemStartDispatcher(self.fsp_struct.as_ptr(), num_threads) };
+        let result = NTSTATUS(result);
+        result.ok()
     }
 }
 
@@ -434,7 +494,7 @@ impl<T: FileSystemContext> FileSystemHost<T> {
 /// drop(host);
 ///
 /// ```
-impl<T: FileSystemContext> Drop for FileSystemHost<T> {
+impl<T: FileSystemContext, S: OperationGuardStrategy> Drop for FileSystemHost<T, S> {
     fn drop(&mut self) {
         self.unmount();
         self.stop();
@@ -455,5 +515,6 @@ impl<T: FileSystemContext> Drop for FileSystemHost<T> {
     }
 }
 
-/// SAFETY: FileSystemHost does not expose fsp_struct and cannot be cloned
-unsafe impl<T: FileSystemContext + Send> Send for FileSystemHost<T> {}
+/// SAFETY: FileSystemHost does not expose fsp_struct and cannot be cloned. The
+/// `S` marker is uninhabited so it imposes no auto-trait constraints.
+unsafe impl<T: FileSystemContext + Send, S: OperationGuardStrategy> Send for FileSystemHost<T, S> {}
