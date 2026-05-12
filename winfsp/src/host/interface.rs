@@ -25,20 +25,36 @@ use crate::filesystem::{
 #[cfg(feature = "async-io")]
 use crate::{constants::FspTransactKind, filesystem::AsyncFileSystemContext};
 #[cfg(feature = "async-io")]
+use parking_lot::{Condvar, Mutex};
+#[cfg(feature = "async-io")]
+use std::sync::Arc;
+#[cfg(feature = "async-io")]
 use std::sync::atomic::AtomicPtr;
 #[cfg(feature = "async-io")]
-use windows::Win32::Foundation::{STATUS_PENDING, STATUS_TRANSACTION_NOT_FOUND};
+use windows::Win32::Foundation::{
+    STATUS_PENDING, STATUS_TRANSACTION_NOT_FOUND, STATUS_VOLUME_DISMOUNTED,
+};
 #[cfg(feature = "async-io")]
 use winfsp_sys::FSP_FSCTL_TRANSACT_RSP;
 
 #[repr(C)]
 pub(crate) struct FileSystemUserContext<C: FileSystemContext> {
     context: C,
+    /// Wait-group counting spawned async tasks that currently borrow this
+    /// context or any WinFSP request buffer. `FileSystemHost::Drop` parks on
+    /// this barrier so it never tears the host down while a task is still
+    /// alive. See [`InFlightBarrier`] for the full rationale.
+    #[cfg(feature = "async-io")]
+    pub(crate) in_flight: Arc<InFlightBarrier>,
 }
 
 impl<C: FileSystemContext> FileSystemUserContext<C> {
     pub(crate) fn new(fctx: C) -> Self {
-        Self { context: fctx }
+        Self {
+            context: fctx,
+            #[cfg(feature = "async-io")]
+            in_flight: InFlightBarrier::new(),
+        }
     }
 }
 
@@ -48,6 +64,95 @@ impl<C: FileSystemContext> Deref for FileSystemUserContext<C> {
 
     fn deref(&self) -> &Self::Target {
         &self.context
+    }
+}
+
+/// Cooperative wait-group used by `FileSystemHost::Drop` to ensure no
+/// spawned async task is still touching the user context or a WinFSP
+/// request buffer when `FspFileSystemStopDispatcher` runs.
+///
+/// Each successful call to `enter` returns an `InFlightGuard` that
+/// decrements the count on drop. The host calls `begin_drain_and_wait`
+/// to atomically (a) refuse all subsequent `enter` calls and (b) park
+/// until every outstanding guard has been dropped — which happens
+/// regardless of *how* the task finished (natural completion, executor
+/// abort, panic), because the guard lives inside the spawned future's
+/// state and is dropped along with it.
+///
+/// The draining flag closes a TOCTOU race that the count alone cannot:
+/// once `begin_drain_and_wait` has returned the host proceeds to free
+/// `FileSystemUserContext`, but the WinFSP dispatcher may still be
+/// running and could otherwise spawn one last task whose `&context`
+/// would be left dangling.
+#[cfg(feature = "async-io")]
+pub(crate) struct InFlightBarrier {
+    state: Mutex<BarrierState>,
+    quiesced: Condvar,
+}
+
+#[cfg(feature = "async-io")]
+struct BarrierState {
+    count: usize,
+    draining: bool,
+}
+
+#[cfg(feature = "async-io")]
+impl InFlightBarrier {
+    pub(crate) fn new() -> Arc<Self> {
+        Arc::new(Self {
+            state: Mutex::new(BarrierState {
+                count: 0,
+                draining: false,
+            }),
+            quiesced: Condvar::new(),
+        })
+    }
+
+    /// Bump the live-task count and hand back an RAII guard. Returns
+    /// `None` if the host has begun draining — in that case the C
+    /// callback should refuse the IRP rather than spawn a task whose
+    /// `&FileSystemUserContext` will outlive the box.
+    pub(crate) fn enter(self: &Arc<Self>) -> Option<InFlightGuard> {
+        let mut s = self.state.lock();
+        if s.draining {
+            return None;
+        }
+        s.count += 1;
+        Some(InFlightGuard(Arc::clone(self)))
+    }
+
+    /// Mark the barrier as draining and park until every outstanding
+    /// `InFlightGuard` has been dropped. Called from
+    /// `FileSystemHost::Drop` between dropping the notify timer and
+    /// stopping the dispatcher.
+    ///
+    /// Setting `draining` and reading `count` happen under the same
+    /// lock as `enter`'s read-check-increment, so no new task can slip
+    /// past the drain.
+    pub(crate) fn begin_drain_and_wait(&self) {
+        let mut s = self.state.lock();
+        s.draining = true;
+        while s.count > 0 {
+            self.quiesced.wait(&mut s);
+        }
+    }
+}
+
+/// RAII handle held inside each spawned async task. Dropping it (whether
+/// by natural completion, executor cancellation, or panic unwind)
+/// decrements the live-task count and wakes the host if it has reached
+/// zero.
+#[cfg(feature = "async-io")]
+pub(crate) struct InFlightGuard(Arc<InFlightBarrier>);
+
+#[cfg(feature = "async-io")]
+impl Drop for InFlightGuard {
+    fn drop(&mut self) {
+        let mut s = self.0.state.lock();
+        s.count -= 1;
+        if s.count == 0 {
+            self.0.quiesced.notify_all();
+        }
     }
 }
 
@@ -471,7 +576,11 @@ where
             let buffer =
                 unsafe { slice::from_raw_parts_mut(buffer as *mut _, buffer_len as usize) };
 
+            let Some(guard) = context.in_flight.enter() else {
+                return STATUS_VOLUME_DISMOUNTED.0;
+            };
             let readdir_ft = async move {
+                let _guard = guard;
                 let mut response = FSP_FSCTL_TRANSACT_RSP::default();
                 response.Size = std::mem::size_of_val(&response) as u16;
                 response.Kind = FspTransactKind::FspFsctlTransactQueryDirectoryKind as u32;
@@ -572,7 +681,11 @@ where
         return if !buffer.is_null() {
             let fs = AtomicPtr::new(fs);
             let buffer = unsafe { slice::from_raw_parts_mut(buffer as *mut u8, length as usize) };
+            let Some(guard) = context.in_flight.enter() else {
+                return STATUS_VOLUME_DISMOUNTED.0;
+            };
             let read_ft = async move {
+                let _guard = guard;
                 let mut response = FSP_FSCTL_TRANSACT_RSP::default();
                 response.Size = std::mem::size_of_val(&response) as u16;
                 response.Kind = FspTransactKind::FspFsctlTransactReadKind as u32;
@@ -664,7 +777,11 @@ where
         if !buffer.is_null() {
             let buffer = unsafe { slice::from_raw_parts(buffer as *const u8, length as usize) };
             let fs = AtomicPtr::new(fs);
+            let Some(guard) = context.in_flight.enter() else {
+                return STATUS_VOLUME_DISMOUNTED.0;
+            };
             let write_ft = async move {
+                let _guard = guard;
                 let mut response = FSP_FSCTL_TRANSACT_RSP::default();
                 response.Size = std::mem::size_of_val(&response) as u16;
                 response.Kind = FspTransactKind::FspFsctlTransactWriteKind as u32;
