@@ -503,19 +503,48 @@ impl<T: FileSystemContext, S: OperationGuardStrategy> Drop for FileSystemHost<T,
         // and `FSP_FILE_SYSTEM`, both of which we're about to free below.
         drop(self.timer.take());
 
+        // Wait for any spawned async filesystem callbacks to release their
+        // borrow of UserContext and any WinFSP request buffers. The barrier
+        // lives inside the UserContext box (still allocated at this point);
+        // each spawned task holds an `InFlightGuard` that decrements the
+        // barrier on drop, whether by natural completion, executor
+        // cancellation, or panic.
+        //
+        // `begin_drain_and_wait` atomically (a) refuses any further `enter`
+        // attempts and (b) parks until the live-task count reaches zero.
+        // The atomicity matters: without the draining flag the WinFSP
+        // dispatcher could spawn one last task between the `count == 0`
+        // observation and `stop()` below, leaving its `&UserContext` to
+        // dangle past the `Box::from_raw` further down.
+        //
+        // By the time this returns, no task is in scope and no new task
+        // can be spawned by the framework, so it's safe to call `stop`
+        // (which triggers FspIoqStop and tears down IRP buffer mappings)
+        // and then free the UserContext box.
+        #[cfg(feature = "async-io")]
+        unsafe {
+            let uc = &*self
+                .fsp_struct
+                .as_ref()
+                .UserContext
+                .cast::<FileSystemUserContext<T>>();
+            uc.in_flight.begin_drain_and_wait();
+        }
+
         self.unmount();
         self.stop();
         unsafe {
             // SAFETY: FSP is stopped and no longer running anything on this
-            // filesystem, and the notify timer (if any) has been fully joined
-            // above, so nothing else can reach UserContext or fsp_struct.
-            let user_context = self.fsp_struct.as_ref().UserContext as *mut UnsafeCell<T>;
+            // filesystem, the notify timer (if any) has been fully joined,
+            // and any spawned async tasks have released their barrier guard,
+            // so nothing else can reach UserContext or fsp_struct.
+            let user_context = self.fsp_struct.as_ref().UserContext
+                as *mut UnsafeCell<FileSystemUserContext<T>>;
             let interface = self.fsp_struct.as_ref().Interface as *mut UnsafeCell<Interface>;
 
             FspFileSystemDelete(self.fsp_struct.as_ptr());
 
-            // user context is an UnsafeCell<T>
-            let user_context = Box::<UnsafeCell<T>>::from_raw(user_context);
+            let user_context = Box::from_raw(user_context);
             drop(user_context);
             let interface = Box::<UnsafeCell<Interface>>::from_raw(interface);
             drop(interface);
