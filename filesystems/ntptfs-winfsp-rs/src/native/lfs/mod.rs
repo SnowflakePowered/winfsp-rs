@@ -42,7 +42,7 @@ use windows::Win32::Storage::FileSystem::{
 use windows::Win32::System::Threading::{CreateEventW, INFINITE, WaitForSingleObject};
 
 use windows::Win32::Foundation::UNICODE_STRING;
-use windows::Win32::Foundation::WAIT_FAILED;
+use windows::Win32::Foundation::{STATUS_ABANDONED, WAIT_FAILED, WAIT_OBJECT_0};
 use windows::Win32::Storage::FileSystem::{
     FILE_ATTRIBUTE_NORMAL, FILE_FLAGS_AND_ATTRIBUTES, INVALID_FILE_ATTRIBUTES,
 };
@@ -187,8 +187,19 @@ fn nt_check_pending(
 ) -> winfsp::Result<NTSTATUS> {
     if status == STATUS_PENDING {
         let wait_result = unsafe { WaitForSingleObject(*event, INFINITE) };
-        if wait_result == WAIT_FAILED {
-            unsafe { GetLastError() }.ok()?;
+        // Exhaustive: only `WAIT_OBJECT_0` means the kernel has written to
+        // `iosb`. Anything else (WAIT_FAILED, WAIT_ABANDONED, WAIT_TIMEOUT —
+        // even with `INFINITE`, alerts can interrupt) leaves the iosb
+        // potentially uninitialised, so we must NOT read it.
+        if wait_result != WAIT_OBJECT_0 {
+            if wait_result == WAIT_FAILED {
+                // `GetLastError` should always be set when WAIT_FAILED is
+                // returned. Surface it if it is; otherwise fall through to a
+                // synthesised STATUS_ABANDONED so we never read an
+                // uninitialised iosb on the WAIT_FAILED + GLE==0 edge.
+                unsafe { GetLastError() }.ok()?;
+            }
+            return Err(FspError::from(STATUS_ABANDONED));
         }
         let code = unsafe { addr_of!((*iosb.as_ptr()).Anonymous.Status).read() };
         Ok(code)
