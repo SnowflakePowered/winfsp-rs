@@ -1,12 +1,11 @@
-﻿//! Interfaces to the WinFSP service API to run a filesystem.
+//! Interfaces to the WinFSP service API to run a filesystem.
 use crate::FspInit;
 use crate::Result;
 use crate::error::FspError;
-use parking_lot::RwLock;
+use parking_lot::Mutex;
 use std::cell::UnsafeCell;
 use std::ffi::{OsStr, c_void};
 use std::marker::PhantomData;
-use std::ops::DerefMut;
 use std::ptr::NonNull;
 use std::thread::JoinHandle;
 use windows::Win32::Foundation::{STATUS_INVALID_PARAMETER, STATUS_SUCCESS};
@@ -29,17 +28,31 @@ struct ServicePtr(*mut FSP_SERVICE);
 unsafe impl Send for ServicePtr {}
 
 // internal aliases for callback types
+//
+// `Send + Sync` is required because the WinFSP SCM control dispatcher invokes
+// `on_stop` / `on_control` on a *different* thread from the service main
+// thread that runs `on_start` (see `FspServiceCtrlHandler` /
+// `FspServiceMain` in winfsp's `src/dll/service.c`). The boxed trait
+// objects are reached through `&FileSystemServiceContext` from both threads,
+// so the underlying closures must themselves be `Sync`.
 type FileSystemStartCallback<'a, T> =
-    Option<Box<dyn Fn() -> std::result::Result<T, FspError> + 'a>>;
+    Option<Box<dyn Fn() -> std::result::Result<T, FspError> + Send + Sync + 'a>>;
 type FileSystemStopCallback<'a, T> =
-    Option<Box<dyn Fn(Option<&mut T>) -> std::result::Result<(), FspError> + 'a>>;
+    Option<Box<dyn Fn(Option<&mut T>) -> std::result::Result<(), FspError> + Send + Sync + 'a>>;
 type FileSystemControlCallback<'a, T> =
-    Option<Box<dyn Fn(Option<&mut T>, u32, u32, *mut c_void) -> i32 + 'a>>;
+    Option<Box<dyn Fn(Option<&mut T>, u32, u32, *mut c_void) -> i32 + Send + Sync + 'a>>;
+
 struct FileSystemServiceContext<'a, T> {
     start: FileSystemStartCallback<'a, T>,
     stop: FileSystemStopCallback<'a, T>,
     control: FileSystemControlCallback<'a, T>,
-    context: Option<Box<RwLock<T>>>,
+    /// Holds the user-supplied filesystem context, written once by `on_start`
+    /// and mutated by `on_stop` / `on_control`. The `Mutex` is mandatory:
+    /// `on_start` runs on the service main thread while `on_stop` /
+    /// `on_control` run on the SCM control-dispatcher thread, and
+    /// user-defined controls (codes 128–255) can be dispatched concurrently
+    /// with `on_start` because `dwControlsAccepted` does not gate them.
+    context: Mutex<Option<T>>,
 }
 
 /// A service that runs a filesystem implemented by a [`FileSystemHost`](crate::host::FileSystemHost).
@@ -51,43 +64,6 @@ pub struct FileSystemService<T> {
     service_ptr: NonNull<FSP_SERVICE>,
     worker: Option<JoinHandle<Result<()>>>,
     _pd: PhantomData<T>,
-}
-
-struct FileSystemServiceHelper<T>(NonNull<FSP_SERVICE>, PhantomData<T>);
-
-impl<T> FileSystemServiceHelper<T> {
-    /// # Safety
-    /// `raw` is valid and not null.
-    unsafe fn from_raw_unchecked(raw: *mut FSP_SERVICE) -> Self {
-        unsafe { FileSystemServiceHelper(NonNull::new_unchecked(raw), Default::default()) }
-    }
-
-    /// Set the context.
-    fn set_context(&mut self, context: T) {
-        unsafe {
-            let ptr: *mut UnsafeCell<FileSystemServiceContext<T>> =
-                self.0.as_mut().UserContext.cast();
-            if let Some(ptr) = ptr.as_mut() {
-                ptr.get_mut().context = Some(Box::new(RwLock::new(context)))
-            }
-        }
-    }
-
-    fn get_context(&self) -> Option<&RwLock<T>> {
-        unsafe {
-            if let Some(p) = self
-                .0
-                .as_ref()
-                .UserContext
-                .cast::<UnsafeCell<FileSystemServiceContext<T>>>()
-                .as_mut()
-            {
-                p.get_mut().context.as_deref()
-            } else {
-                None
-            }
-        }
-    }
 }
 
 impl<T> FileSystemService<T> {
@@ -170,7 +146,7 @@ impl<'a, T> FileSystemServiceBuilder<'a, T> {
     /// The returned file system context must be mounted before returning.
     pub fn with_start<F>(mut self, start: F) -> Self
     where
-        F: Fn() -> std::result::Result<T, FspError> + 'a,
+        F: Fn() -> std::result::Result<T, FspError> + Send + Sync + 'a,
     {
         self.start = Some(Box::new(start));
         self
@@ -179,7 +155,7 @@ impl<'a, T> FileSystemServiceBuilder<'a, T> {
     /// The stop callback is responsible for safely terminating the mounted file system.
     pub fn with_stop<F>(mut self, stop: F) -> Self
     where
-        F: Fn(Option<&mut T>) -> std::result::Result<(), FspError> + 'a,
+        F: Fn(Option<&mut T>) -> std::result::Result<(), FspError> + Send + Sync + 'a,
     {
         self.stop = Some(Box::new(stop));
         self
@@ -188,7 +164,7 @@ impl<'a, T> FileSystemServiceBuilder<'a, T> {
     /// The control callback handles DeviceIoControl requests.
     pub fn with_control<F>(mut self, control: F) -> Self
     where
-        F: Fn(Option<&mut T>, u32, u32, *mut c_void) -> i32 + 'static,
+        F: Fn(Option<&mut T>, u32, u32, *mut c_void) -> i32 + Send + Sync + 'static,
     {
         self.control = Some(Box::new(control));
         self
@@ -223,12 +199,12 @@ impl<'a, T> FileSystemServiceBuilder<'a, T> {
             return Err(FspError::NTSTATUS(result));
         }
 
-        let context = Box::into_raw(Box::new(UnsafeCell::new(FileSystemServiceContext::<T> {
+        let context = Box::into_raw(Box::new(FileSystemServiceContext::<T> {
             start: self.start,
             stop: self.stop,
             control: self.control,
-            context: None,
-        })));
+            context: Mutex::new(None),
+        }));
         unsafe {
             (&raw mut (*service_ptr).UserContext).write(context as *mut _);
             Ok(FileSystemService {
@@ -240,7 +216,7 @@ impl<'a, T> FileSystemServiceBuilder<'a, T> {
     }
 }
 
-impl<'a, T> Drop for FileSystemService<T> {
+impl<T> Drop for FileSystemService<T> {
     fn drop(&mut self) {
         // Signal the worker to stop, then wait for it to leave FspServiceLoop
         // BEFORE we free the FSP_SERVICE it's still pointing at. If we skipped
@@ -251,7 +227,7 @@ impl<'a, T> Drop for FileSystemService<T> {
         }
         let service_context_ptr = unsafe {
             // SAFETY: FSP_SERVICE pointer and UserContext field are not mutated by other threads
-            self.service_ptr.as_ref().UserContext as *mut UnsafeCell<FileSystemServiceContext<T>>
+            self.service_ptr.as_ref().UserContext as *mut FileSystemServiceContext<T>
         };
         unsafe {
             FspServiceDelete(self.service_ptr.as_ptr());
@@ -259,63 +235,58 @@ impl<'a, T> Drop for FileSystemService<T> {
         let service_context_box = unsafe {
             // SAFETY: worker thread has been joined and the service has been
             // deleted, so nothing else can reach the service context.
-            Box::<UnsafeCell<FileSystemServiceContext<T>>>::from_raw(service_context_ptr)
+            Box::<FileSystemServiceContext<T>>::from_raw(service_context_ptr)
         };
         drop(service_context_box);
     }
 }
 
+// SAFETY (for `on_start` / `on_stop` / `on_control`): `fsp` is a valid
+// `FSP_SERVICE` whose `UserContext` was populated with a
+// `Box<FileSystemServiceContext<T>>` of the matching `T` by
+// `FileSystemServiceBuilder::build`, and the box is alive until
+// `FileSystemService::Drop` joins the worker.
+
 unsafe extern "C" fn on_start<T>(fsp: *mut FSP_SERVICE, _argc: u32, _argv: *mut *mut u16) -> i32 {
-    if let Some(context) = unsafe {
-        fsp.as_mut()
-            .unwrap_unchecked()
-            .UserContext
-            .cast::<FileSystemServiceContext<T>>()
-            .as_mut()
-    } {
-        if let Some(start) = &context.start {
-            return match start() {
-                Err(e) => e.to_ntstatus(),
-                Ok(context) => {
-                    unsafe {
-                        FileSystemServiceHelper::from_raw_unchecked(fsp).set_context(context);
-                    }
-                    STATUS_SUCCESS.0
-                }
-            };
+    let Some(context) = (unsafe {
+        fsp.as_ref().and_then(|fsp| {
+            fsp.UserContext
+                .cast::<FileSystemServiceContext<T>>()
+                .as_ref()
+        })
+    }) else {
+        return STATUS_INVALID_PARAMETER.0;
+    };
+    let Some(start) = context.start.as_ref() else {
+        return STATUS_INVALID_PARAMETER.0;
+    };
+    match start() {
+        Err(e) => e.to_ntstatus(),
+        Ok(user_ctx) => {
+            *context.context.lock() = Some(user_ctx);
+            STATUS_SUCCESS.0
         }
     }
-    STATUS_INVALID_PARAMETER.0
 }
 
 unsafe extern "C" fn on_stop<T>(fsp: *mut FSP_SERVICE) -> i32 {
-    if let Some(context) = unsafe {
-        fsp.as_mut()
-            .unwrap_unchecked()
-            .UserContext
-            .cast::<FileSystemServiceContext<T>>()
-            .as_mut()
-    } {
-        if let Some(stop) = &context.stop {
-            let fsp: FileSystemServiceHelper<T> =
-                unsafe { FileSystemServiceHelper::from_raw_unchecked(fsp) };
-            let context = fsp.get_context();
-
-            let result = 'result: {
-                let Some(context) = context else {
-                    break 'result stop(None);
-                };
-                let mut context = context.write();
-                stop(Some(context.deref_mut()))
-            };
-
-            return match result {
-                Ok(()) => STATUS_SUCCESS.0,
-                Err(e) => e.to_ntstatus(),
-            };
-        }
+    let Some(context) = (unsafe {
+        fsp.as_ref().and_then(|fsp| {
+            fsp.UserContext
+                .cast::<FileSystemServiceContext<T>>()
+                .as_ref()
+        })
+    }) else {
+        return STATUS_INVALID_PARAMETER.0;
+    };
+    let Some(stop) = context.stop.as_ref() else {
+        return STATUS_INVALID_PARAMETER.0;
+    };
+    let mut guard = context.context.lock();
+    match stop(guard.as_mut()) {
+        Ok(()) => STATUS_SUCCESS.0,
+        Err(e) => e.to_ntstatus(),
     }
-    STATUS_INVALID_PARAMETER.0
 }
 
 unsafe extern "C" fn on_control<T>(
@@ -324,23 +295,18 @@ unsafe extern "C" fn on_control<T>(
     event_type: u32,
     event_data: *mut c_void,
 ) -> i32 {
-    if let Some(context) = unsafe {
-        fsp.as_mut()
-            .unwrap_unchecked()
-            .UserContext
-            .cast::<FileSystemServiceContext<T>>()
-            .as_mut()
-    } {
-        if let Some(control) = &context.control {
-            let fsp: FileSystemServiceHelper<T> =
-                unsafe { FileSystemServiceHelper::from_raw_unchecked(fsp) };
-            let context = fsp.get_context();
-            let Some(context) = context else {
-                return control(None, ctl, event_type, event_data);
-            };
-            let mut context = context.write();
-            return control(Some(context.deref_mut()), ctl, event_type, event_data);
-        }
-    }
-    STATUS_INVALID_PARAMETER.0
+    let Some(context) = (unsafe {
+        fsp.as_ref().and_then(|fsp| {
+            fsp.UserContext
+                .cast::<FileSystemServiceContext<T>>()
+                .as_ref()
+        })
+    }) else {
+        return STATUS_INVALID_PARAMETER.0;
+    };
+    let Some(control) = context.control.as_ref() else {
+        return STATUS_INVALID_PARAMETER.0;
+    };
+    let mut guard = context.context.lock();
+    control(guard.as_mut(), ctl, event_type, event_data)
 }
