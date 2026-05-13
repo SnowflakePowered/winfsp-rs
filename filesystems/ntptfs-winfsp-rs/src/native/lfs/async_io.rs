@@ -1,4 +1,4 @@
-//! Cancellation-safe wrappers around overlapped NT I/O.
+﻿//! Cancellation-safe wrappers around overlapped NT I/O.
 //!
 //! ## Why is this file shaped like this?
 //!
@@ -30,7 +30,6 @@ use std::ffi::c_void;
 use std::future::Future;
 use std::mem::MaybeUninit;
 use std::pin::Pin;
-use std::ptr::addr_of;
 use std::task::{Context, Poll, Waker};
 use widestring::U16CStr;
 use windows::Wdk::Storage::FileSystem::{
@@ -219,7 +218,7 @@ unsafe extern "system" fn wake_waiter(
 fn observe_completion(event: HANDLE, iosb: *mut IO_STATUS_BLOCK) -> Option<NTSTATUS> {
     let wait_result = unsafe { WaitForSingleObject(event, 0) };
     if wait_result == WAIT_OBJECT_0 {
-        let code = unsafe { addr_of!((*iosb).Anonymous.Status).read() };
+        let code = unsafe { (&raw const (*iosb).Anonymous.Status).read() };
         Some(code)
     } else if wait_result == WAIT_FAILED
         || wait_result == WAIT_ABANDONED

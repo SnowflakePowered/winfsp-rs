@@ -1,4 +1,4 @@
-//! Interfaces to the WinFSP service API to run a filesystem.
+﻿//! Interfaces to the WinFSP service API to run a filesystem.
 use crate::FspInit;
 use crate::Result;
 use crate::error::FspError;
@@ -7,7 +7,7 @@ use std::cell::UnsafeCell;
 use std::ffi::{OsStr, c_void};
 use std::marker::PhantomData;
 use std::ops::DerefMut;
-use std::ptr::{NonNull, addr_of_mut};
+use std::ptr::NonNull;
 use std::thread::JoinHandle;
 use windows::Win32::Foundation::{STATUS_INVALID_PARAMETER, STATUS_SUCCESS};
 use windows::core::HSTRING;
@@ -230,7 +230,7 @@ impl<'a, T> FileSystemServiceBuilder<'a, T> {
             context: None,
         })));
         unsafe {
-            addr_of_mut!((*service_ptr).UserContext).write(context as *mut _);
+            (&raw mut (*service_ptr).UserContext).write(context as *mut _);
             Ok(FileSystemService {
                 service_ptr: NonNull::new_unchecked(service_ptr),
                 worker: None,

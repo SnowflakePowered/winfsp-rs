@@ -508,7 +508,7 @@ where
             STATUS_PENDING.0
         } else {
             STATUS_INSUFFICIENT_RESOURCES.0
-        }
+        };
     })
 }
 
@@ -669,8 +669,7 @@ where
                         // `file_info`, so no aliasing reference remains.
                         unsafe {
                             std::ptr::copy_nonoverlapping(
-                                &file_info as *const FileInfo
-                                    as *const FSP_FSCTL_FILE_INFO,
+                                &file_info as *const FileInfo as *const FSP_FSCTL_FILE_INFO,
                                 &mut response.Rsp.Write.FileInfo,
                                 1,
                             );
