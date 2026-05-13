@@ -24,7 +24,14 @@ impl Timer {
             )?
         };
 
-        let timer_due = -(TIMEOUT as i64);
+        // `pftDueTime` is a FILETIME (100-ns units). A negative value means
+        // relative time, per the SetThreadpoolTimer docs:
+        // <https://learn.microsoft.com/en-us/windows/win32/api/threadpoolapiset/nf-threadpoolapiset-setthreadpooltimer>
+        // — "a value of -5*10*1000*1000 indicates a delay of 5 seconds".
+        // `TIMEOUT` is in milliseconds, so multiply by 10_000 to convert to
+        // 100-ns ticks. `msPeriod` (next arg), in contrast, is already in
+        // milliseconds.
+        let timer_due = -(TIMEOUT as i64) * 10_000;
         unsafe {
             SetThreadpoolTimer(
                 timer.0,
