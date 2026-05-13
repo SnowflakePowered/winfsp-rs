@@ -174,25 +174,26 @@ impl<'a, T> FileSystemServiceBuilder<'a, T> {
             )
         };
 
-        unsafe {
-            addr_of_mut!((*(*service.get())).UserContext).write(Box::into_raw(Box::new(
-                UnsafeCell::new(FileSystemServiceContext::<T> {
-                    start: self.start,
-                    stop: self.stop,
-                    control: self.control,
-                    context: None,
-                }),
-            )) as *mut _)
+        let service_ptr = unsafe { service.get().read() };
+        if result != STATUS_SUCCESS.0 || service_ptr.is_null() {
+            // FspServiceCreate did not produce a valid FSP_SERVICE; the
+            // out pointer may be null or partially initialized, so we
+            // must not write into it. Drop the prepared callbacks.
+            return Err(FspError::NTSTATUS(result));
         }
-        if result == STATUS_SUCCESS.0 && unsafe { !service.get().read().is_null() } {
-            Ok(unsafe {
-                FileSystemService {
-                    service_ptr: NonNull::new_unchecked(service.get().read()),
-                    _pd: PhantomData,
-                }
+
+        let context = Box::into_raw(Box::new(UnsafeCell::new(FileSystemServiceContext::<T> {
+            start: self.start,
+            stop: self.stop,
+            control: self.control,
+            context: None,
+        })));
+        unsafe {
+            addr_of_mut!((*service_ptr).UserContext).write(context as *mut _);
+            Ok(FileSystemService {
+                service_ptr: NonNull::new_unchecked(service_ptr),
+                _pd: PhantomData,
             })
-        } else {
-            Err(FspError::NTSTATUS(result))
         }
     }
 }
