@@ -363,6 +363,8 @@ pub trait FileSystemContext: Sized {
     /// Do **NOT** call this when servicing a `AsyncFileSystemContext` operation. Instead, you must call
     /// [`AsyncFileSystemContext::with_operation_request_async`], which is async aware.
     ///
+    /// This function should **NOT** be called within the provided `FnOnce`.
+    ///
     /// ## Warning
     /// If implementing a filesystem, the default implementation should be sufficient for most if not
     /// all cases. Be careful if providing your own implementation.
@@ -396,6 +398,7 @@ pub trait FileSystemContext: Sized {
     /// Do **NOT** call this when servicing a `AsyncFileSystemContext` operation. Instead, you must call
     /// [`AsyncFileSystemContext::with_operation_request_async`], which is async aware.
     ///
+    /// This function should **NOT** be called within the provided `FnOnce`.
     /// ## Warning
     /// If implementing a filesystem, the default implementation should be sufficient for most if not
     /// all cases. Be careful if providing your own implementation.
@@ -519,10 +522,12 @@ where
     ///
     /// ## Safety
     /// This function may be used only when servicing one of the
-    /// `AsyncFileSystemContext` operations.
+    /// `AsyncFileSystemContext` operations. This function should **not** be called recursively.
     ///
     /// If calling this within [`AsyncFileSystemContext::write_async`], the output `FileInfo`
     /// overwrites the file info in the transaction response.
+    ///
+    /// This function should **NOT** be called within the provided `FnOnce`.
     /// ## Warning
     /// This method can **not** be safely reimplemented by consumers.
     unsafe fn with_operation_response_async<T, F>(&self, f: F) -> Option<T>
@@ -555,8 +560,9 @@ where
     ///
     /// ## Safety
     /// This function may be used only when servicing one of the
-    /// `AsyncFileSystemContext` operations.
+    /// `AsyncFileSystemContext` operations. This function should **not** be called recursively.
     ///
+    /// This function should **NOT** be called within the provided `FnOnce`.
     /// ## Warning
     /// This method can **not** be safely reimplemented by consumers.
     unsafe fn with_operation_request_async<T, F>(&self, f: F) -> Option<T>

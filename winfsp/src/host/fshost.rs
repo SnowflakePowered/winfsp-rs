@@ -61,7 +61,7 @@ mod sealed {
 /// Sealed marker trait that selects the WinFSP operation-guard locking strategy
 /// at the type level.
 ///
-/// Only [`FineStrategy`] and [`CoarseStrategy`] implement this trait. It is used as a type
+/// Only [`FineGuard`] and [`CoarseGuard`] implement this trait. It is used as a type
 /// parameter on [`FileSystemHost`] to drive both the runtime call to
 /// `FspFileSystemSetOperationGuardStrategy` and the bounds required to start the
 /// dispatcher safely.
@@ -86,9 +86,9 @@ pub trait OperationGuardStrategy: sealed::Sealed {
 /// multiple dispatcher threads, [`FileSystemHost::start`] requires both `T` and
 /// `T::FileContext` to be [`Sync`] under this strategy.
 #[derive(Debug)]
-pub enum FineStrategy {}
-impl sealed::Sealed for FineStrategy {}
-impl OperationGuardStrategy for FineStrategy {
+pub enum FineGuard {}
+impl sealed::Sealed for FineGuard {}
+impl OperationGuardStrategy for FineGuard {
     const RAW: i32 =
         FSP_FILE_SYSTEM_OPERATION_GUARD_STRATEGY_FSP_FILE_SYSTEM_OPERATION_GUARD_STRATEGY_FINE;
 }
@@ -101,9 +101,9 @@ impl OperationGuardStrategy for FineStrategy {
 /// `Mutex<T>`. Under this strategy [`FileSystemHost::start`] only requires
 /// `T` and `T::FileContext` to be [`Send`].
 #[derive(Debug)]
-pub enum CoarseStrategy {}
-impl sealed::Sealed for CoarseStrategy {}
-impl OperationGuardStrategy for CoarseStrategy {
+pub enum CoarseGuard {}
+impl sealed::Sealed for CoarseGuard {}
+impl OperationGuardStrategy for CoarseGuard {
     const RAW: i32 =
         FSP_FILE_SYSTEM_OPERATION_GUARD_STRATEGY_FSP_FILE_SYSTEM_OPERATION_GUARD_STRATEGY_COARSE;
 }
@@ -147,9 +147,9 @@ impl FileSystemParams {
 /// should start within the context of a service.
 ///
 /// The locking strategy used by WinFSP is selected via the `S` type parameter,
-/// which defaults to [`Fine`]. See [`OperationGuardStrategy`] for the available
+/// which defaults to [`FineGuard`]. See [`OperationGuardStrategy`] for the available
 /// choices and their soundness implications.
-pub struct FileSystemHost<T: FileSystemContext, S: OperationGuardStrategy = FineStrategy> {
+pub struct FileSystemHost<T: FileSystemContext, S: OperationGuardStrategy = FineGuard> {
     fsp_struct: NonNull<FSP_FILE_SYSTEM>,
     #[allow(dead_code)]
     timer: Option<Timer>,
@@ -394,7 +394,7 @@ impl<T: FileSystemContext, S: OperationGuardStrategy> FileSystemHost<T, S> {
     }
 }
 
-impl<T: FileSystemContext + Sync> FileSystemHost<T, FineStrategy>
+impl<T: FileSystemContext + Sync> FileSystemHost<T, FineGuard>
 where
     <T as FileSystemContext>::FileContext: Sync,
 {
@@ -419,7 +419,7 @@ where
     }
 }
 
-impl<T: FileSystemContext + Send> FileSystemHost<T, CoarseStrategy>
+impl<T: FileSystemContext + Send> FileSystemHost<T, CoarseGuard>
 where
     <T as FileSystemContext>::FileContext: Send,
 {
