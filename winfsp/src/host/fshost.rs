@@ -553,5 +553,11 @@ impl<T: FileSystemContext, S: OperationGuardStrategy> Drop for FileSystemHost<T,
 }
 
 /// SAFETY: FileSystemHost does not expose fsp_struct and cannot be cloned. The
-/// `S` marker is uninhabited so it imposes no auto-trait constraints.
-unsafe impl<T: FileSystemContext + Send, S: OperationGuardStrategy> Send for FileSystemHost<T, S> {}
+/// `S` marker is uninhabited so it imposes no auto-trait constraints. The host
+/// transitively owns `T::FileContext` instances through the boxed user context
+/// attached to `FSP_FILE_SYSTEM`, so they must also be `Send` to send the host
+/// across threads.
+unsafe impl<T: FileSystemContext + Send, S: OperationGuardStrategy> Send for FileSystemHost<T, S> where
+    <T as FileSystemContext>::FileContext: Send
+{
+}
