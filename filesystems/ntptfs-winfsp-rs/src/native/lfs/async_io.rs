@@ -24,13 +24,13 @@
 //! `&mut [u8]` / `&[u8]` facade.
 
 use crate::native::lfs;
+use parking_lot::Mutex;
 use std::cell::UnsafeCell;
 use std::ffi::c_void;
 use std::future::Future;
 use std::mem::MaybeUninit;
 use std::pin::Pin;
 use std::ptr::addr_of;
-use parking_lot::Mutex;
 use std::task::{Context, Poll, Waker};
 use widestring::U16CStr;
 use windows::Wdk::Storage::FileSystem::{
@@ -171,9 +171,7 @@ impl Waiter {
         // so as long as `Waiter` outlives the wait callbacks the pointer is
         // valid.
         let ctx_ptr = (&*state) as *const WaiterState as *mut c_void;
-        let wait = match unsafe {
-            CreateThreadpoolWait(Some(wake_waiter), Some(ctx_ptr), None)
-        } {
+        let wait = match unsafe { CreateThreadpoolWait(Some(wake_waiter), Some(ctx_ptr), None) } {
             Ok(w) => w,
             Err(_) => return None,
         };

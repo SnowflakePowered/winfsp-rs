@@ -235,7 +235,7 @@ impl FileSystemContext for NtPassthroughContext {
         } else {
             0
         };
-
+        
         Ok(FileSecurity {
             reparse: false,
             sz_security_descriptor: needed_size as u64,

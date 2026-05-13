@@ -126,7 +126,6 @@ macro_rules! windows_core_rs_error {
 windows_core_rs_error!(windows, windows_rs_error);
 windows_rs_error!(windows, windows_core_rs_error);
 
-
 #[cfg(feature = "windows-60")]
 windows_rs_error!(windows_60, windows_60_rs_error);
 

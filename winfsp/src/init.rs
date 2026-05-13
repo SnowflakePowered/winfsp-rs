@@ -146,8 +146,8 @@ pub fn winfsp_link_delayload() {
     if target_os != "windows" {
         panic!("unsupported triple");
     }
-    let link_env = LinkEnv::detect(&target_env, &target_abi)
-        .unwrap_or_else(|| panic!("unsupported triple"));
+    let link_env =
+        LinkEnv::detect(&target_env, &target_abi).unwrap_or_else(|| panic!("unsupported triple"));
 
     let dll = match target_arch.as_str() {
         "x86_64" => "winfsp-x64.dll",

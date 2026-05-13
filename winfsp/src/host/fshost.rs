@@ -538,8 +538,8 @@ impl<T: FileSystemContext, S: OperationGuardStrategy> Drop for FileSystemHost<T,
             // filesystem, the notify timer (if any) has been fully joined,
             // and any spawned async tasks have released their barrier guard,
             // so nothing else can reach UserContext or fsp_struct.
-            let user_context = self.fsp_struct.as_ref().UserContext
-                as *mut UnsafeCell<FileSystemUserContext<T>>;
+            let user_context =
+                self.fsp_struct.as_ref().UserContext as *mut UnsafeCell<FileSystemUserContext<T>>;
             let interface = self.fsp_struct.as_ref().Interface as *mut UnsafeCell<Interface>;
 
             FspFileSystemDelete(self.fsp_struct.as_ptr());
