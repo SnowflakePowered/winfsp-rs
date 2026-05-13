@@ -1,0 +1,34 @@
+name: Test memfs-rs
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+  schedule:
+    - cron: "0 0 * * 6"
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    strategy:
+      matrix:
+        profile: [ 'dev', 'release' ]
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Install nightly Rust
+      uses: dtolnay/rust-toolchain@nightly
+    - name: Install WinFSP
+      run: choco install winfsp
+    - name: Build memfs
+      run: cargo build --profile ${{ matrix.profile }} -p memfs-winfsp-rs --verbose
+    - name: Test memfs
+      shell: cmd
+      run: |
+        start /b "" cargo run --profile ${{ matrix.profile }} --bin memfs-winfsp-rs -- -i -F NTFS -n 65536 -s 67108864 -m M:
+        echo "Waiting 45 seconds for memfs to start"
+        waitfor /T 45 pause 2>NUL
+        M:
+        ${{ github.workspace }}\test\winfsp-test\winfsp-tests-x64 --external --resilient +*

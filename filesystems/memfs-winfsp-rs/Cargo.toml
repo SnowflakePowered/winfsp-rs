@@ -1,0 +1,25 @@
+[package]
+name = "memfs-winfsp-rs"
+version = "0.13.0"
+edition = "2024"
+license = "GPL-3.0"
+description = "In-memory file system via winfsp-rs (port of winfsp memfs)"
+keywords = ["filesystem", "winfsp", "memfs"]
+categories = ["filesystem", "os::windows-apis"]
+repository = "https://github.com/SnowflakePowered/winfsp-rs"
+publish = false
+
+[dependencies]
+clap = { version = "4.5.4", features = ["derive"] }
+windows = { version = "0.62", features = ["Win32_Foundation", "Win32_Security", "Win32_Security_Authorization", "Win32_Storage_FileSystem", "Win32_System_SystemServices"] }
+widestring = "1"
+winfsp = { path = "../../winfsp", features = ["debug", "system", "full", "windows-62"] }
+winfsp-sys = { path = "../../winfsp-sys" }
+anyhow = "1"
+bitflags = "2"
+parking_lot = "0.12.4"
+rand = "0.9"
+tokio = { version = "1", features = ["rt-multi-thread", "time"] }
+
+[build-dependencies]
+winfsp = { path = "../../winfsp", features = ["delayload"] }
