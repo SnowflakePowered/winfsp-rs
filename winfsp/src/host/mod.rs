@@ -3,6 +3,8 @@
 mod debug;
 mod fshost;
 pub(crate) mod interface;
+#[cfg(feature = "async-io")]
+pub(crate) mod interface_async;
 mod volumeparams;
 
 pub use debug::*;

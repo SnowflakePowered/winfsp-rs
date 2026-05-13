@@ -68,6 +68,10 @@ pub trait FileSystemContext: Sized {
     ///    Ok(security)
     /// }
     /// ```
+    ///
+    /// File systems that don't support ACLs do not need to implement this.
+    ///
+    /// When this function returns the security descriptor should be written in the provided buffer.
     fn get_security_by_name(
         &self,
         file_name: &U16CStr,
@@ -120,6 +124,11 @@ pub trait FileSystemContext: Sized {
     }
 
     /// Get file or directory security descriptor.
+    ///
+    /// File systems that don't support ACLs do not need to implement this.
+    ///
+    /// When this function returns the security descriptor should be written in the provided buffer.
+    /// Returns the number of bytes written to the buffer.
     fn get_security(
         &self,
         context: &Self::FileContext,
@@ -351,6 +360,9 @@ pub trait FileSystemContext: Sized {
     /// This function may be used only when servicing one of the `FileSystemContext` operations.
     /// The current operation context is stored in thread local storage.
     ///
+    /// Do **NOT** call this when servicing a `AsyncFileSystemContext` operation. Instead, you must call
+    /// [`AsyncFileSystemContext::with_operation_request_async`], which is async aware.
+    ///
     /// ## Warning
     /// If implementing a filesystem, the default implementation should be sufficient for most if not
     /// all cases. Be careful if providing your own implementation.
@@ -358,14 +370,21 @@ pub trait FileSystemContext: Sized {
     where
         F: FnOnce(&mut FSP_FSCTL_TRANSACT_RSP) -> T,
     {
+        // SAFETY: caller is responsible for invoking this only during a
+        // synchronous `FileSystemContext` operation, when the WinFSP
+        // dispatcher has populated TLS for this thread. Async callbacks
+        // must use
+        // [`AsyncFileSystemContext::with_operation_response_async`], which
+        // also consults the framework's per-spawn snapshot so the response
+        // is reachable even after a `.await`.
         unsafe {
             if let Some(context) = winfsp_sys::FspFileSystemGetOperationContext().as_ref() {
                 if let Some(response) = context.Response.as_mut() {
                     return Some(f(response));
                 }
             }
+            None
         }
-        None
     }
 
     /// Get the context request of the current FSP interface operation.
@@ -374,6 +393,9 @@ pub trait FileSystemContext: Sized {
     /// This function may be used only when servicing one of the `FileSystemContext` operations.
     /// The current operation context is stored in thread local storage.
     ///
+    /// Do **NOT** call this when servicing a `AsyncFileSystemContext` operation. Instead, you must call
+    /// [`AsyncFileSystemContext::with_operation_request_async`], which is async aware.
+    ///
     /// ## Warning
     /// If implementing a filesystem, the default implementation should be sufficient for most if not
     /// all cases. Be careful if providing your own implementation.
@@ -381,14 +403,20 @@ pub trait FileSystemContext: Sized {
     where
         F: FnOnce(&FSP_FSCTL_TRANSACT_REQ) -> T,
     {
+        // SAFETY: caller is responsible for invoking this only during a
+        // synchronous `FileSystemContext` operation. Async callbacks
+        // should use
+        // [`AsyncFileSystemContext::with_operation_request_async`], which
+        // falls back to a framework-owned snapshot when WinFSP's TLS has
+        // been cleared.
         unsafe {
             if let Some(context) = winfsp_sys::FspFileSystemGetOperationContext().as_ref() {
                 if let Some(request) = context.Request.as_ref() {
                     return Some(f(request));
                 }
             }
+            None
         }
-        None
     }
 }
 
@@ -475,4 +503,78 @@ where
     /// The implementations of `read_async`, `write_async`, and `read_directory_async` must
     /// be compatible with the executor the future is spawned on.
     fn spawn_task(&self, future: impl std::future::Future<Output = ()> + Send + 'static);
+
+    /// Async-aware variant of
+    /// [`FileSystemContext::with_operation_response`].
+    ///
+    /// The default implementation snapshots the response so that it can be
+    /// preserved in the dispatched async operation, where it is automatically
+    /// injected in the future.
+    ///
+    /// Mutations made through this method are preserved across awaits
+    /// and visible to the framework when it sends the final
+    /// `FspFileSystemSendResponse` — except for `Size`, `Kind`, `Hint`,
+    /// and (after the future resolves) `IoStatus`, which the framework
+    /// overwrites.
+    ///
+    /// ## Safety
+    /// This function may be used only when servicing one of the
+    /// `AsyncFileSystemContext` operations.
+    ///
+    /// If calling this within [`AsyncFileSystemContext::write_async`], the output `FileInfo`
+    /// overwrites the file info in the transaction response.
+    /// ## Warning
+    /// This method can **not** be safely reimplemented by consumers.
+    unsafe fn with_operation_response_async<T, F>(&self, f: F) -> Option<T>
+    where
+        F: FnOnce(&mut FSP_FSCTL_TRANSACT_RSP) -> T,
+    {
+        if let Some(ctx) = unsafe { winfsp_sys::FspFileSystemGetOperationContext().as_ref() } {
+            if let Some(response) = unsafe { ctx.Response.as_mut() } {
+                return Some(f(response));
+            }
+        }
+        crate::host::interface_async::ASYNC_OP_CTX.with(|c| {
+            let ptr = c.get()?;
+            // SAFETY: `ptr` was installed by `InjectContextFuture::poll` on
+            // this thread and will be restored before that poll returns. We
+            // only run synchronously inside the user's `f`, so the pointee
+            // stays alive for the entire borrow.
+            let op = unsafe { ptr.as_ref() };
+            let response = unsafe { &mut *op.response_mut() };
+            Some(f(response))
+        })
+    }
+
+    /// Async-aware variant of
+    /// [`FileSystemContext::with_operation_request`].
+    ///
+    /// The default implementation snapshots the request so that it can be
+    /// preserved in the dispatched async operation, where it is automatically
+    /// injected in the future.
+    ///
+    /// ## Safety
+    /// This function may be used only when servicing one of the
+    /// `AsyncFileSystemContext` operations.
+    ///
+    /// ## Warning
+    /// This method can **not** be safely reimplemented by consumers.
+    unsafe fn with_operation_request_async<T, F>(&self, f: F) -> Option<T>
+    where
+        F: FnOnce(&FSP_FSCTL_TRANSACT_REQ) -> T,
+    {
+        if let Some(ctx) = unsafe { winfsp_sys::FspFileSystemGetOperationContext().as_ref() } {
+            if let Some(request) = unsafe { ctx.Request.as_ref() } {
+                return Some(f(request));
+            }
+        }
+        crate::host::interface_async::ASYNC_OP_CTX.with(|c| {
+            let ptr = c.get()?;
+            // SAFETY: same as `with_current_response`. `op.request` was value-
+            // copied from a valid `FSP_FSCTL_TRANSACT_REQ` before any await,
+            // so it's still a valid header for the duration of `f`.
+            let op = unsafe { ptr.as_ref() };
+            Some(f(op.request()))
+        })
+    }
 }

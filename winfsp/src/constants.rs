@@ -100,11 +100,11 @@ pub const FSP_FSCTL_DEVICECONTROL_SIZEMAX: usize =
 pub const FSP_FSCTL_TRANSACT_BUFFER_SIZEMIN: usize =
     winfsp_sys::FSP_FSCTL_TRANSACT_BUFFER_SIZEMIN as usize;
 
-/// The minimum size of a request buffer in a WinFSP transaction.
+/// The maximum size of a request buffer in a WinFSP transaction.
 pub const FSP_FSCTL_TRANSACT_REQ_SIZEMAX: usize =
     winfsp_sys::FSP_FSCTL_TRANSACT_REQ_SIZEMAX as usize;
 
-/// The minimum size of a response buffer in a WinFSP transaction.
+/// The maximum size of a response buffer in a WinFSP transaction.
 pub const FSP_FSCTL_TRANSACT_RSP_SIZEMAX: usize =
     winfsp_sys::FSP_FSCTL_TRANSACT_RSP_SIZEMAX as usize;
 

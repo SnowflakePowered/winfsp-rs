@@ -23,19 +23,13 @@ use crate::filesystem::{
 };
 
 #[cfg(feature = "async-io")]
-use crate::{constants::FspTransactKind, filesystem::AsyncFileSystemContext};
+use crate::filesystem::AsyncFileSystemContext;
 #[cfg(feature = "async-io")]
-use parking_lot::{Condvar, Mutex};
-#[cfg(feature = "async-io")]
-use std::sync::Arc;
-#[cfg(feature = "async-io")]
-use std::sync::atomic::AtomicPtr;
-#[cfg(feature = "async-io")]
-use windows::Win32::Foundation::{
-    STATUS_PENDING, STATUS_TRANSACTION_NOT_FOUND, STATUS_VOLUME_DISMOUNTED,
+use crate::host::interface_async::{
+    InFlightBarrier, read_async, read_directory_async, write_async,
 };
 #[cfg(feature = "async-io")]
-use winfsp_sys::FSP_FSCTL_TRANSACT_RSP;
+use std::sync::Arc;
 
 #[repr(C)]
 pub(crate) struct FileSystemUserContext<C: FileSystemContext> {
@@ -67,95 +61,11 @@ impl<C: FileSystemContext> Deref for FileSystemUserContext<C> {
     }
 }
 
-/// Cooperative wait-group used by `FileSystemHost::Drop` to ensure no
-/// spawned async task is still touching the user context or a WinFSP
-/// request buffer when `FspFileSystemStopDispatcher` runs.
-///
-/// Each successful call to `enter` returns an `InFlightGuard` that
-/// decrements the count on drop. The host calls `begin_drain_and_wait`
-/// to atomically (a) refuse all subsequent `enter` calls and (b) park
-/// until every outstanding guard has been dropped — which happens
-/// regardless of *how* the task finished (natural completion, executor
-/// abort, panic), because the guard lives inside the spawned future's
-/// state and is dropped along with it.
-///
-/// The draining flag closes a TOCTOU race that the count alone cannot:
-/// once `begin_drain_and_wait` has returned the host proceeds to free
-/// `FileSystemUserContext`, but the WinFSP dispatcher may still be
-/// running and could otherwise spawn one last task whose `&context`
-/// would be left dangling.
-#[cfg(feature = "async-io")]
-pub(crate) struct InFlightBarrier {
-    state: Mutex<BarrierState>,
-    quiesced: Condvar,
-}
-
-#[cfg(feature = "async-io")]
-struct BarrierState {
-    count: usize,
-    draining: bool,
-}
-
-#[cfg(feature = "async-io")]
-impl InFlightBarrier {
-    pub(crate) fn new() -> Arc<Self> {
-        Arc::new(Self {
-            state: Mutex::new(BarrierState {
-                count: 0,
-                draining: false,
-            }),
-            quiesced: Condvar::new(),
-        })
-    }
-
-    /// Bump the live-task count and hand back an RAII guard. Returns
-    /// `None` if the host has begun draining — in that case the C
-    /// callback should refuse the IRP rather than spawn a task whose
-    /// `&FileSystemUserContext` will outlive the box.
-    pub(crate) fn enter(self: &Arc<Self>) -> Option<InFlightGuard> {
-        let mut s = self.state.lock();
-        if s.draining {
-            return None;
-        }
-        s.count += 1;
-        Some(InFlightGuard(Arc::clone(self)))
-    }
-
-    /// Mark the barrier as draining and park until every outstanding
-    /// `InFlightGuard` has been dropped. Called from
-    /// `FileSystemHost::Drop` between dropping the notify timer and
-    /// stopping the dispatcher.
-    ///
-    /// Setting `draining` and reading `count` happen under the same
-    /// lock as `enter`'s read-check-increment, so no new task can slip
-    /// past the drain.
-    pub(crate) fn begin_drain_and_wait(&self) {
-        let mut s = self.state.lock();
-        s.draining = true;
-        while s.count > 0 {
-            self.quiesced.wait(&mut s);
-        }
-    }
-}
-
-/// RAII handle held inside each spawned async task. Dropping it (whether
-/// by natural completion, executor cancellation, or panic unwind)
-/// decrements the live-task count and wakes the host if it has reached
-/// zero.
-#[cfg(feature = "async-io")]
-pub(crate) struct InFlightGuard(Arc<InFlightBarrier>);
-
-#[cfg(feature = "async-io")]
-impl Drop for InFlightGuard {
-    fn drop(&mut self) {
-        let mut s = self.0.state.lock();
-        s.count -= 1;
-        if s.count == 0 {
-            self.0.quiesced.notify_all();
-        }
-    }
-}
-
+// The `InFlightBarrier` wait-group, the `AsyncFileOperationContext` /
+// `InjectContextFuture` machinery, and the async `read_directory_async` /
+// `read_async` / `write_async` C callbacks live in
+// [`super::interface_async`] (gated on `feature = "async-io"`). They are
+// re-imported above for use here.
 /// Catch panic and return EXECPTION_NONCONTINUABLE_EXCEPTION
 macro_rules! catch_panic {
     ($bl:block) => {
@@ -163,6 +73,7 @@ macro_rules! catch_panic {
             .unwrap_or_else(|_| ::windows::Win32::Foundation::EXCEPTION_NONCONTINUABLE_EXCEPTION.0)
     };
 }
+pub(crate) use catch_panic;
 
 macro_rules! assert_ctx {
     ($fs:expr) => {
@@ -176,6 +87,7 @@ macro_rules! assert_ctx {
         }
     };
 }
+pub(crate) use assert_ctx;
 
 #[inline(always)]
 fn require_fctx<C: FileSystemContext, F>(
@@ -532,85 +444,6 @@ unsafe extern "C" fn get_security<T: FileSystemContext>(
     })
 }
 
-#[cfg(feature = "async-io")]
-unsafe extern "C" fn read_directory_async<T: AsyncFileSystemContext>(
-    fs: *mut FSP_FILE_SYSTEM,
-    fctx: PVOID,
-    pattern: *mut u16,
-    marker: *mut u16,
-    buffer: PVOID,
-    buffer_len: u32,
-    bytes_transferred: *mut u32,
-) -> FSP_STATUS
-where
-    <T as FileSystemContext>::FileContext: Sync,
-{
-    catch_panic!({
-        assert_ctx!(fs);
-        assert_ctx!(fctx);
-        let context: &FileSystemUserContext<T> =
-            unsafe { &*(*fs).UserContext.cast::<FileSystemUserContext<T>>() };
-        let fctx = unsafe { &*fctx.cast::<T::FileContext>() };
-
-        if !bytes_transferred.is_null() {
-            unsafe { bytes_transferred.write(0) }
-        }
-
-        let Some(hint) = (unsafe { T::with_operation_response(context, |resp| resp.Hint) }) else {
-            return STATUS_TRANSACTION_NOT_FOUND.0;
-        };
-
-        if !buffer.is_null() {
-            let fs = AtomicPtr::new(fs);
-            let pattern = if !pattern.is_null() {
-                Some(unsafe { U16CStr::from_ptr_str(pattern) })
-            } else {
-                None
-            };
-            let marker = if !marker.is_null() {
-                Some(unsafe { U16CStr::from_ptr_str(marker) })
-            } else {
-                None
-            };
-
-            let buffer =
-                unsafe { slice::from_raw_parts_mut(buffer as *mut _, buffer_len as usize) };
-
-            let Some(guard) = context.in_flight.enter() else {
-                return STATUS_VOLUME_DISMOUNTED.0;
-            };
-            let readdir_ft = async move {
-                let _guard = guard;
-                let mut response = FSP_FSCTL_TRANSACT_RSP::default();
-                response.Size = std::mem::size_of_val(&response) as u16;
-                response.Kind = FspTransactKind::FspFsctlTransactQueryDirectoryKind as u32;
-                response.Hint = hint;
-
-                match T::read_directory_async(context, fctx, pattern, DirMarker(marker), buffer)
-                    .await
-                {
-                    Ok(read) => {
-                        response.IoStatus.Status = STATUS_SUCCESS.0 as u32;
-                        response.IoStatus.Information = read;
-                    }
-                    Err(e) => {
-                        response.IoStatus.Status = e.to_ntstatus() as u32;
-                    }
-                }
-
-                unsafe {
-                    winfsp_sys::FspFileSystemSendResponse(fs.into_inner(), &mut response);
-                }
-            };
-
-            context.spawn_task(readdir_ft);
-            return STATUS_PENDING.0;
-        } else {
-            return STATUS_INSUFFICIENT_RESOURCES.0;
-        }
-    })
-}
-
 unsafe extern "C" fn read_directory<T: FileSystemContext>(
     fs: *mut FSP_FILE_SYSTEM,
     fctx: PVOID,
@@ -651,69 +484,6 @@ unsafe extern "C" fn read_directory<T: FileSystemContext>(
     })
 }
 
-#[cfg(feature = "async-io")]
-unsafe extern "C" fn read_async<T: AsyncFileSystemContext>(
-    fs: *mut FSP_FILE_SYSTEM,
-    fctx: PVOID,
-    buffer: PVOID,
-    offset: u64,
-    length: u32,
-    bytes_transferred: *mut u32,
-) -> FSP_STATUS
-where
-    <T as FileSystemContext>::FileContext: Sync,
-{
-    catch_panic!({
-        assert_ctx!(fs);
-        assert_ctx!(fctx);
-        let context: &FileSystemUserContext<T> =
-            unsafe { &*(*fs).UserContext.cast::<FileSystemUserContext<T>>() };
-        let fctx = unsafe { &*fctx.cast::<T::FileContext>() };
-
-        if !bytes_transferred.is_null() {
-            unsafe { bytes_transferred.write(0) }
-        }
-
-        let Some(hint) = (unsafe { T::with_operation_response(context, |resp| resp.Hint) }) else {
-            return STATUS_TRANSACTION_NOT_FOUND.0;
-        };
-
-        return if !buffer.is_null() {
-            let fs = AtomicPtr::new(fs);
-            let buffer = unsafe { slice::from_raw_parts_mut(buffer as *mut u8, length as usize) };
-            let Some(guard) = context.in_flight.enter() else {
-                return STATUS_VOLUME_DISMOUNTED.0;
-            };
-            let read_ft = async move {
-                let _guard = guard;
-                let mut response = FSP_FSCTL_TRANSACT_RSP::default();
-                response.Size = std::mem::size_of_val(&response) as u16;
-                response.Kind = FspTransactKind::FspFsctlTransactReadKind as u32;
-                response.Hint = hint;
-
-                match T::read_async(context, fctx, buffer, offset).await {
-                    Ok(read) => {
-                        response.IoStatus.Status = STATUS_SUCCESS.0 as u32;
-                        response.IoStatus.Information = read;
-                    }
-                    Err(e) => {
-                        response.IoStatus.Status = e.to_ntstatus() as u32;
-                    }
-                }
-
-                unsafe {
-                    winfsp_sys::FspFileSystemSendResponse(fs.into_inner(), &mut response);
-                }
-            };
-
-            context.spawn_task(read_ft);
-            STATUS_PENDING.0
-        } else {
-            STATUS_INSUFFICIENT_RESOURCES.0
-        };
-    })
-}
-
 unsafe extern "C" fn read<T: FileSystemContext>(
     fs: *mut FSP_FILE_SYSTEM,
     fctx: PVOID,
@@ -740,87 +510,6 @@ unsafe extern "C" fn read<T: FileSystemContext>(
                 Err(STATUS_INSUFFICIENT_RESOURCES.into())
             }
         })
-    })
-}
-
-#[cfg(feature = "async-io")]
-unsafe extern "C" fn write_async<T: AsyncFileSystemContext>(
-    fs: *mut FSP_FILE_SYSTEM,
-    fctx: PVOID,
-    buffer: PVOID,
-    offset: u64,
-    length: u32,
-    write_to_eof: u8,
-    constrained_io: u8,
-    bytes_transferred: *mut u32,
-    _out_file_info: *mut FSP_FSCTL_FILE_INFO,
-) -> FSP_STATUS
-where
-    <T as FileSystemContext>::FileContext: Sync,
-{
-    catch_panic!({
-        assert_ctx!(fs);
-        assert_ctx!(fctx);
-
-        let context: &FileSystemUserContext<T> =
-            unsafe { &*(*fs).UserContext.cast::<FileSystemUserContext<T>>() };
-        let fctx = unsafe { &*fctx.cast::<T::FileContext>() };
-
-        if !bytes_transferred.is_null() {
-            unsafe { bytes_transferred.write(0) }
-        }
-
-        let Some(hint) = (unsafe { T::with_operation_response(context, |resp| resp.Hint) }) else {
-            return STATUS_TRANSACTION_NOT_FOUND.0;
-        };
-
-        if !buffer.is_null() {
-            let buffer = unsafe { slice::from_raw_parts(buffer as *const u8, length as usize) };
-            let fs = AtomicPtr::new(fs);
-            let Some(guard) = context.in_flight.enter() else {
-                return STATUS_VOLUME_DISMOUNTED.0;
-            };
-            let write_ft = async move {
-                let _guard = guard;
-                let mut response = FSP_FSCTL_TRANSACT_RSP::default();
-                response.Size = std::mem::size_of_val(&response) as u16;
-                response.Kind = FspTransactKind::FspFsctlTransactWriteKind as u32;
-                response.Hint = hint;
-
-                match T::write_async(
-                    context,
-                    fctx,
-                    buffer,
-                    offset,
-                    write_to_eof != 0,
-                    constrained_io != 0,
-                    unsafe {
-                        // SAFETY:  FSP_FSCTL_FILE_INFO and FileInfo have the same type
-                        std::mem::transmute(&mut response.Rsp.Write.FileInfo)
-                    },
-                )
-                .await
-                {
-                    Ok(written) => {
-                        response.IoStatus.Status = STATUS_SUCCESS.0 as u32;
-                        response.IoStatus.Information = written;
-                    }
-                    Err(e) => {
-                        response.IoStatus.Status = e.to_ntstatus() as u32;
-                    }
-                }
-
-                unsafe {
-                    winfsp_sys::FspFileSystemSendResponse(fs.into_inner(), &mut response);
-                }
-            };
-
-            context.spawn_task(write_ft);
-
-            return STATUS_PENDING.0;
-        } else {
-            return STATUS_INSUFFICIENT_RESOURCES.0;
-        }
     })
 }
 
