@@ -26,8 +26,8 @@ use std::sync::atomic::AtomicPtr;
 use std::task::{Context, Poll};
 use widestring::{U16CStr, U16CString};
 use windows::Win32::Foundation::{
-    STATUS_INSUFFICIENT_RESOURCES, STATUS_PENDING, STATUS_SUCCESS, STATUS_TRANSACTION_NOT_FOUND,
-    STATUS_VOLUME_DISMOUNTED,
+    STATUS_CANCELLED, STATUS_INSUFFICIENT_RESOURCES, STATUS_PENDING, STATUS_SUCCESS,
+    STATUS_TRANSACTION_NOT_FOUND, STATUS_VOLUME_DISMOUNTED,
 };
 use winfsp_sys::{
     FSP_FILE_SYSTEM, FSP_FSCTL_FILE_INFO, FSP_FSCTL_TRANSACT_REQ, FSP_FSCTL_TRANSACT_RSP,
@@ -315,10 +315,94 @@ impl<F: Future + Unpin> Future for InjectContextFuture<F> {
 }
 
 // ============================================================================
+// IrpCompletion — RAII handle owning the IRP's response buffer + FS pointer.
+//
+// The async callbacks below return `STATUS_PENDING` to WinFSP and then spawn
+// a future that must eventually call `FspFileSystemSendResponse` to complete
+// the IRP. If that future is cancelled by the executor or panics before
+// reaching the send site, the IRP would stay pending forever — leaking the
+// kernel buffer mapping and (worse) hanging the volume.
+//
+// `IrpCompletion` enforces the "exactly once" send: the success path calls
+// `send()` after filling in the response, which disarms the drop guard. Any
+// other exit path (drop / unwind / cancel) hits `Drop`, which falls back to
+// `STATUS_CANCELLED` so the kernel can complete the IRP and reclaim its
+// buffer.
+// ============================================================================
+
+pub(crate) struct IrpCompletion {
+    fs: AtomicPtr<FSP_FILE_SYSTEM>,
+    op_ctx: Box<AsyncFileOperationContext>,
+    armed: bool,
+}
+
+impl IrpCompletion {
+    pub(crate) fn new(
+        fs: AtomicPtr<FSP_FILE_SYSTEM>,
+        op_ctx: Box<AsyncFileOperationContext>,
+    ) -> Self {
+        Self {
+            fs,
+            op_ctx,
+            armed: true,
+        }
+    }
+
+    /// Borrow the underlying `AsyncFileOperationContext`, e.g. to hand to
+    /// `InjectContextFuture::new`.
+    pub(crate) fn op_ctx(&self) -> &AsyncFileOperationContext {
+        &self.op_ctx
+    }
+
+    /// Raw pointer to the framework-owned response. Callers fill in
+    /// `IoStatus` / op-specific fields here before calling [`send`].
+    pub(crate) fn response_mut(&self) -> *mut FSP_FSCTL_TRANSACT_RSP {
+        self.op_ctx.response_mut()
+    }
+
+    /// Commit the response to WinFSP. Disarms the cancellation fallback so
+    /// `Drop` becomes a no-op.
+    pub(crate) fn send(&mut self) {
+        // Disarm before the FFI call: if `FspFileSystemSendResponse` itself
+        // panics, we'd rather leak than risk a double-send.
+        self.armed = false;
+        let response = unsafe { &mut *self.op_ctx.response_mut() };
+        unsafe {
+            winfsp_sys::FspFileSystemSendResponse(
+                self.fs.load(std::sync::atomic::Ordering::Relaxed),
+                response,
+            );
+        }
+    }
+}
+
+impl Drop for IrpCompletion {
+    fn drop(&mut self) {
+        if !self.armed {
+            return;
+        }
+        // The success path didn't call `send()` — we're being unwound by a
+        // cancelled future or a panic. Complete the IRP with
+        // `STATUS_CANCELLED` so the kernel can release the request/response
+        // buffer mapping instead of leaving it pending indefinitely.
+        let response = unsafe { &mut *self.op_ctx.response_mut() };
+        response.IoStatus.Status = STATUS_CANCELLED.0 as u32;
+        response.IoStatus.Information = 0;
+        unsafe {
+            winfsp_sys::FspFileSystemSendResponse(
+                self.fs.load(std::sync::atomic::Ordering::Relaxed),
+                response,
+            );
+        }
+    }
+}
+
+// ============================================================================
 // Async `unsafe extern "C"` callbacks dispatched by the WinFSP vtable.
-// Each one snapshots the dispatcher context, builds an `AsyncOpCtx`, wraps
-// the user's future with `InjectOpCtx`, and arranges for
-// `FspFileSystemSendResponse` to be called when the future resolves.
+// Each one snapshots the dispatcher context, builds an
+// `AsyncFileOperationContext`, wraps the user's future with
+// `InjectContextFuture`, and arranges for `FspFileSystemSendResponse` to be
+// called when the future resolves.
 // ============================================================================
 
 pub(crate) unsafe extern "C" fn read_directory_async<T: AsyncFileSystemContext>(
@@ -393,6 +477,7 @@ where
             }) else {
                 return STATUS_TRANSACTION_NOT_FOUND.0;
             };
+            let mut irp = IrpCompletion::new(fs, op_ctx);
             let readdir_ft = async move {
                 let _guard = guard;
                 let user_fut = T::read_directory_async(
@@ -402,11 +487,11 @@ where
                     DirMarker(marker_owned.as_deref()),
                     buffer,
                 );
-                let outcome = InjectContextFuture::new(Box::pin(user_fut), &op_ctx).await;
+                let outcome = InjectContextFuture::new(Box::pin(user_fut), irp.op_ctx()).await;
 
                 // SAFETY: `InjectContextFuture` has finished; no thread is still
-                // borrowing the response through our TL. We own `op_ctx`.
-                let response = unsafe { &mut *op_ctx.response_mut() };
+                // borrowing the response through our TL. We own `irp`.
+                let response = unsafe { &mut *irp.response_mut() };
                 match outcome {
                     Ok(read) => {
                         response.IoStatus.Status = STATUS_SUCCESS.0 as u32;
@@ -416,10 +501,7 @@ where
                         response.IoStatus.Status = e.to_ntstatus() as u32;
                     }
                 }
-
-                unsafe {
-                    winfsp_sys::FspFileSystemSendResponse(fs.into_inner(), response);
-                }
+                irp.send();
             };
 
             context.spawn_task(readdir_ft);
@@ -474,12 +556,13 @@ where
             }) else {
                 return STATUS_TRANSACTION_NOT_FOUND.0;
             };
+            let mut irp = IrpCompletion::new(fs, op_ctx);
             let read_ft = async move {
                 let _guard = guard;
                 let user_fut = T::read_async(context, fctx, buffer, offset);
-                let outcome = InjectContextFuture::new(Box::pin(user_fut), &op_ctx).await;
+                let outcome = InjectContextFuture::new(Box::pin(user_fut), irp.op_ctx()).await;
 
-                let response = unsafe { &mut *op_ctx.response_mut() };
+                let response = unsafe { &mut *irp.response_mut() };
                 match outcome {
                     Ok(read) => {
                         response.IoStatus.Status = STATUS_SUCCESS.0 as u32;
@@ -489,10 +572,7 @@ where
                         response.IoStatus.Status = e.to_ntstatus() as u32;
                     }
                 }
-
-                unsafe {
-                    winfsp_sys::FspFileSystemSendResponse(fs.into_inner(), response);
-                }
+                irp.send();
             };
 
             context.spawn_task(read_ft);
@@ -554,6 +634,7 @@ where
             }) else {
                 return STATUS_TRANSACTION_NOT_FOUND.0;
             };
+            let mut irp = IrpCompletion::new(fs, op_ctx);
             let write_ft = async move {
                 let _guard = guard;
                 // Hand the user a separately-owned `FileInfo` rather than
@@ -575,9 +656,9 @@ where
                     constrained_io != 0,
                     &mut file_info,
                 );
-                let outcome = InjectContextFuture::new(Box::pin(user_fut), &op_ctx).await;
+                let outcome = InjectContextFuture::new(Box::pin(user_fut), irp.op_ctx()).await;
 
-                let response = unsafe { &mut *op_ctx.response_mut() };
+                let response = unsafe { &mut *irp.response_mut() };
                 match outcome {
                     Ok(written) => {
                         response.IoStatus.Status = STATUS_SUCCESS.0 as u32;
@@ -599,10 +680,7 @@ where
                         response.IoStatus.Status = e.to_ntstatus() as u32;
                     }
                 }
-
-                unsafe {
-                    winfsp_sys::FspFileSystemSendResponse(fs.into_inner(), response);
-                }
+                irp.send();
             };
 
             context.spawn_task(write_ft);
