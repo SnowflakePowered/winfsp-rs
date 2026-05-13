@@ -8,7 +8,6 @@ use std::mem::{offset_of, size_of};
 use std::os::raw::c_void;
 use std::os::windows::fs::MetadataExt;
 use std::path::Path;
-use std::ptr::addr_of;
 use widestring::{U16CString, u16cstr};
 use windows::Wdk::Storage::FileSystem::{
     FILE_CREATE, FILE_DIRECTORY_FILE, FILE_ID_BOTH_DIR_INFORMATION, FILE_NO_EA_KNOWLEDGE,
@@ -144,10 +143,10 @@ impl NtPassthroughContext {
         dir_info.reset();
 
         let file_name_slice = unsafe {
-            let file_name_ptr = addr_of!((*query_info).FileName) as *const u16;
+            let file_name_ptr = &raw const (*query_info).FileName as *const u16;
             std::slice::from_raw_parts(
                 file_name_ptr,
-                addr_of!((*query_info).FileNameLength)
+                (&raw const (*query_info).FileNameLength)
                     .read()
                     .checked_div(std::mem::size_of::<u16>() as u32)
                     .expect("Passed in file name length of 0 from Windows!!")
@@ -159,24 +158,26 @@ impl NtPassthroughContext {
 
         let file_info = dir_info.file_info_mut();
 
-        file_info.file_attributes = unsafe { addr_of!((*query_info).FileAttributes).read() };
+        file_info.file_attributes = unsafe { (&raw const (*query_info).FileAttributes).read() };
         file_info.reparse_tag = if FILE_ATTRIBUTE_REPARSE_POINT.0 & file_info.file_attributes != 0 {
-            unsafe { addr_of!((*query_info).EaSize).read() }
+            unsafe { (&raw const (*query_info).EaSize).read() }
         } else {
             0
         };
 
-        file_info.allocation_size = unsafe { addr_of!((*query_info).AllocationSize).read() } as u64;
-        file_info.file_size = unsafe { addr_of!((*query_info).EndOfFile).read() } as u64;
-        file_info.creation_time = unsafe { addr_of!((*query_info).CreationTime).read() } as u64;
+        file_info.allocation_size =
+            unsafe { (&raw const (*query_info).AllocationSize).read() } as u64;
+        file_info.file_size = unsafe { (&raw const (*query_info).EndOfFile).read() } as u64;
+        file_info.creation_time = unsafe { (&raw const (*query_info).CreationTime).read() } as u64;
         file_info.last_access_time =
-            unsafe { addr_of!((*query_info).LastAccessTime).read() } as u64;
-        file_info.last_write_time = unsafe { addr_of!((*query_info).LastWriteTime).read() } as u64;
-        file_info.change_time = unsafe { addr_of!((*query_info).ChangeTime).read() } as u64;
-        file_info.index_number = unsafe { addr_of!((*query_info).FileId).read() } as u64;
+            unsafe { (&raw const (*query_info).LastAccessTime).read() } as u64;
+        file_info.last_write_time =
+            unsafe { (&raw const (*query_info).LastWriteTime).read() } as u64;
+        file_info.change_time = unsafe { (&raw const (*query_info).ChangeTime).read() } as u64;
+        file_info.index_number = unsafe { (&raw const (*query_info).FileId).read() } as u64;
         file_info.hard_links = 0;
         file_info.ea_size = if FILE_ATTRIBUTE_REPARSE_POINT.0 & file_info.file_attributes != 0 {
-            lfs::lfs_get_ea_size(unsafe { addr_of!((*query_info).EaSize).read() })
+            lfs::lfs_get_ea_size(unsafe { (&raw const (*query_info).EaSize).read() })
         } else {
             0
         };
@@ -235,7 +236,7 @@ impl FileSystemContext for NtPassthroughContext {
         } else {
             0
         };
-        
+
         Ok(FileSecurity {
             reparse: false,
             sz_security_descriptor: needed_size as u64,
@@ -604,7 +605,7 @@ impl FileSystemContext for NtPassthroughContext {
                         dirbuffer.write(&mut dirinfo)?;
 
                         unsafe {
-                            let query_next = addr_of!((*query_info).NextEntryOffset).read();
+                            let query_next = (&raw const (*query_info).NextEntryOffset).read();
                             if query_next == 0 {
                                 break 'inner;
                             }
@@ -770,9 +771,10 @@ impl FileSystemContext for NtPassthroughContext {
             }
 
             unsafe {
-                let name_length = addr_of!((*query_buffer_cursor).StreamNameLength).read();
+                let name_length = (&raw const (*query_buffer_cursor).StreamNameLength).read();
                 let mut stream_name_slice = {
-                    let stream_name_ptr = addr_of!((*query_buffer_cursor).StreamName) as *const u16;
+                    let stream_name_ptr =
+                        &raw const (*query_buffer_cursor).StreamName as *const u16;
                     std::slice::from_raw_parts(
                         stream_name_ptr,
                         name_length
@@ -789,9 +791,10 @@ impl FileSystemContext for NtPassthroughContext {
             }
 
             unsafe {
-                stream_info.stream_size = addr_of!((*query_buffer_cursor).StreamSize).read() as u64;
+                stream_info.stream_size =
+                    (&raw const (*query_buffer_cursor).StreamSize).read() as u64;
                 stream_info.stream_alloc_size =
-                    addr_of!((*query_buffer_cursor).StreamAllocationSize).read() as u64;
+                    (&raw const (*query_buffer_cursor).StreamAllocationSize).read() as u64;
             }
 
             if !stream_info.append_to_buffer(buffer, &mut buffer_cursor) {
@@ -799,7 +802,7 @@ impl FileSystemContext for NtPassthroughContext {
             }
 
             unsafe {
-                let query_next = addr_of!((*query_buffer_cursor).NextEntryOffset).read();
+                let query_next = (&raw const (*query_buffer_cursor).NextEntryOffset).read();
                 if query_next == 0 {
                     break;
                 }
@@ -1012,7 +1015,7 @@ impl AsyncFileSystemContext for NtPassthroughContext {
                         dirbuffer.write(&mut dirinfo)?;
 
                         unsafe {
-                            let query_next = addr_of!((*query_info).NextEntryOffset).read();
+                            let query_next = (&raw const (*query_info).NextEntryOffset).read();
                             if query_next == 0 {
                                 break 'inner;
                             }

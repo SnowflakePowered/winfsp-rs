@@ -1,8 +1,7 @@
-pub(crate) mod async_io;
+﻿pub(crate) mod async_io;
 
 use std::ffi::c_void;
 use std::mem::{MaybeUninit, offset_of, size_of};
-use std::ptr::{addr_of, addr_of_mut};
 use std::slice;
 use windows::Wdk::Foundation::OBJECT_ATTRIBUTES;
 use windows::Wdk::Storage::FileSystem::{
@@ -201,7 +200,7 @@ fn nt_check_pending(
             }
             return Err(FspError::from(STATUS_ABANDONED));
         }
-        let code = unsafe { addr_of!((*iosb.as_ptr()).Anonymous.Status).read() };
+        let code = unsafe { (&raw const (*iosb.as_ptr()).Anonymous.Status).read() };
         Ok(code)
     } else {
         Ok(status)
@@ -599,11 +598,11 @@ pub fn lfs_rename(
     }
 
     unsafe {
-        addr_of_mut!((*rename_info.as_mut_ptr()).RootDirectory).write(root_handle);
-        addr_of_mut!((*rename_info.as_mut_ptr()).FileNameLength).write(file_path_len as u32);
-        addr_of_mut!((*rename_info.as_mut_ptr()).FileName)
+        (&raw mut (*rename_info.as_mut_ptr()).RootDirectory).write(root_handle);
+        (&raw mut (*rename_info.as_mut_ptr()).FileNameLength).write(file_path_len as u32);
+        (&raw mut (*rename_info.as_mut_ptr()).FileName)
             .copy_from(new_file_name.as_ptr().cast(), new_file_name.len());
-        addr_of_mut!((*rename_info.as_mut_ptr()).Anonymous.Flags).write(
+        (&raw mut (*rename_info.as_mut_ptr()).Anonymous.Flags).write(
             if replace_if_exists == LfsRenameSemantics::PosixReplaceSemantics {
                 1
             } else {
