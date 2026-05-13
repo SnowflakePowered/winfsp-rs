@@ -449,13 +449,17 @@ impl<T: FileSystemContext> Drop for FileSystemHost<T> {
             // SAFETY: FSP is stopped and no longer running anything on this
             // filesystem, and the notify timer (if any) has been fully joined
             // above, so nothing else can reach UserContext or fsp_struct.
-            let user_context = self.fsp_struct.as_ref().UserContext as *mut UnsafeCell<T>;
+            // UserContext was allocated as `Box<UnsafeCell<FileSystemUserContext<T>>>`
+            // in `new_filesystem_inner_iface`; the previous cast to
+            // `UnsafeCell<T>` happened to match in layout but reconstructed
+            // the Box with a different type, which is UB.
+            let user_context = self.fsp_struct.as_ref().UserContext
+                as *mut UnsafeCell<FileSystemUserContext<T>>;
             let interface = self.fsp_struct.as_ref().Interface as *mut UnsafeCell<Interface>;
 
             FspFileSystemDelete(self.fsp_struct.as_ptr());
 
-            // user context is an UnsafeCell<T>
-            let user_context = Box::<UnsafeCell<T>>::from_raw(user_context);
+            let user_context = Box::from_raw(user_context);
             drop(user_context);
             let interface = Box::<UnsafeCell<Interface>>::from_raw(interface);
             drop(interface);
