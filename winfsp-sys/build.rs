@@ -113,7 +113,7 @@ impl LinkEnv {
     fn clang_target(self, target_arch: &str) -> Option<&'static str> {
         Some(match (self, target_arch) {
             (Self::Msvc, "x86_64") => "x86_64-pc-windows-msvc",
-            (Self::Msvc, "x86") => "x86-pc-windows-msvc",
+            (Self::Msvc, "x86") => "i686-pc-windows-msvc",
             (Self::Msvc, "aarch64") => "aarch64-pc-windows-msvc",
             (Self::GnuLlvm, "x86_64") => "x86_64-w64-mingw32",
             (Self::GnuLlvm, "x86") => "i686-w64-mingw32",
