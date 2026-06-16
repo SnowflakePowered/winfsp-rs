@@ -183,7 +183,7 @@ unsafe extern "C" fn get_security_by_name<T: FileSystemContext>(
                 {
                     Some(FileSecurity {
                         reparse: true,
-                        sz_security_descriptor: descriptor_len.unwrap_or(0),
+                        sz_security_descriptor: descriptor_len.unwrap_or(0) as u64,
                         attributes: reparse_index,
                     })
                 } else {
@@ -207,7 +207,7 @@ unsafe extern "C" fn get_security_by_name<T: FileSystemContext>(
                     unsafe { file_attributes.write(attributes) }
                 }
                 if !sz_security_descriptor.is_null() {
-                    unsafe { sz_security_descriptor.write(len_desc) }
+                    unsafe { sz_security_descriptor.write(len_desc as winfsp_sys::SIZE_T) }
                 }
                 if reparse {
                     STATUS_REPARSE.0
@@ -422,7 +422,7 @@ unsafe extern "C" fn get_security<T: FileSystemContext>(
     fs: *mut FSP_FILE_SYSTEM,
     fctx: PVOID,
     security_descriptor: *mut c_void,
-    out_descriptor_size: *mut u64,
+    out_descriptor_size: *mut winfsp_sys::SIZE_T,
 ) -> FSP_STATUS {
     catch_panic!({
         require_fctx(fs, fctx, |context, fctx| {
@@ -437,7 +437,7 @@ unsafe extern "C" fn get_security<T: FileSystemContext>(
 
             let desc_size = T::get_security(context, fctx, security_descriptor_slice)?;
             if !out_descriptor_size.is_null() {
-                unsafe { out_descriptor_size.write(desc_size) }
+                unsafe { out_descriptor_size.write(desc_size as winfsp_sys::SIZE_T) }
             }
             Ok(())
         })
@@ -755,7 +755,7 @@ unsafe extern "C" fn get_reparse_point_by_name<T: FileSystemContext>(
                 let bytes_transferred =
                     T::get_reparse_point_by_name(context, file_name, is_directory != 0, buffer)?;
                 // SAFETY: psize not null.
-                unsafe { psize.write(bytes_transferred) };
+                unsafe { psize.write(bytes_transferred as winfsp_sys::SIZE_T) };
             } else {
                 // sometimes GetReparsePointByName is called with a null buffer, in
                 // cases where the caller does not care about the result.
@@ -767,7 +767,7 @@ unsafe extern "C" fn get_reparse_point_by_name<T: FileSystemContext>(
                     &mut buffer,
                 )?;
                 if !psize.is_null() {
-                    unsafe { psize.write(bytes_transferred) };
+                    unsafe { psize.write(bytes_transferred as winfsp_sys::SIZE_T) };
                 }
             }
 
@@ -816,7 +816,7 @@ unsafe extern "C" fn get_reparse_point<T: FileSystemContext>(
             let bytes_transferred = T::get_reparse_point(context, fctx, file_name, buffer)?;
 
             if !psize.is_null() {
-                unsafe { psize.write(bytes_transferred) };
+                unsafe { psize.write(bytes_transferred as winfsp_sys::SIZE_T) };
             }
             Ok(())
         })
@@ -828,7 +828,7 @@ unsafe extern "C" fn set_reparse_point<T: FileSystemContext>(
     fctx: PVOID,
     file_name: *mut u16,
     buffer: PVOID,
-    buffer_len: u64,
+    buffer_len: winfsp_sys::SIZE_T,
 ) -> FSP_STATUS {
     catch_panic!({
         require_fctx(fs, fctx, |context, fctx| {
@@ -846,7 +846,7 @@ unsafe extern "C" fn delete_reparse_point<T: FileSystemContext>(
     fctx: PVOID,
     file_name: *mut u16,
     buffer: PVOID,
-    buffer_len: u64,
+    buffer_len: winfsp_sys::SIZE_T,
 ) -> FSP_STATUS {
     catch_panic!({
         require_fctx(fs, fctx, |context, fctx| {
@@ -1004,7 +1004,7 @@ pub struct Interface {
             fs: *mut FSP_FILE_SYSTEM,
             fctx: PVOID,
             security_descriptor: *mut c_void,
-            out_descriptor_size: *mut u64,
+            out_descriptor_size: *mut winfsp_sys::SIZE_T,
         ) -> FSP_STATUS,
     >,
     get_file_info: Option<
@@ -1138,7 +1138,7 @@ pub struct Interface {
             fctx: PVOID,
             file_name: *mut u16,
             buffer: PVOID,
-            buffer_len: u64,
+            buffer_len: winfsp_sys::SIZE_T,
         ) -> FSP_STATUS,
     >,
     delete_reparse_point: Option<
@@ -1147,7 +1147,7 @@ pub struct Interface {
             fctx: PVOID,
             file_name: *mut u16,
             buffer: PVOID,
-            buffer_len: u64,
+            buffer_len: winfsp_sys::SIZE_T,
         ) -> FSP_STATUS,
     >,
     resolve_reparse_points: Option<
