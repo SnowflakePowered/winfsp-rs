@@ -1,5 +1,5 @@
 use crate::notify::NotifyInfo;
-use winfsp_sys::{FSP_FILE_SYSTEM, FspFileSystemNotify};
+use winfsp_sys::{FSP_FILE_SYSTEM, FspFileSystemNotify, SIZE_T};
 
 /// A notifier used to notify the filesystem of changes.
 pub struct Notifier(pub(crate) *mut FSP_FILE_SYSTEM);
@@ -11,7 +11,7 @@ impl Notifier {
                 self.0,
                 // SAFETY: FspFileSystemNotify calls DeviceIoControl with the buffer specified as [in].
                 (info as *const NotifyInfo<BUFFER_SIZE>).cast_mut().cast(),
-                info.size as u64,
+                info.size as SIZE_T,
             )
         };
     }
