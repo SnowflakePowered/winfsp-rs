@@ -9,7 +9,7 @@ keywords = ["filesystem", "winfsp", "fuse"]
 categories = ["filesystem", "os::windows-apis", "api-bindings"]
 repository = "https://github.com/SnowflakePowered/winfsp-rs"
 
-[dependencies]
+[target.'cfg(windows)'.dependencies]
 winfsp-sys = { path = "../winfsp-sys", version = "0.12" }
 windows = { package = "windows", version = "0.61.1", features = ["Win32_Foundation", "Win32_System_LibraryLoader", "Win32_Security", "Win32_Storage_FileSystem", "Win32_System_WindowsProgramming", "Win32_System_Console", "Win32_System_Threading", "Win32_System_ProcessStatus", "Wdk_Foundation"] }
 

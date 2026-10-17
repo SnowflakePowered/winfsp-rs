@@ -28,33 +28,42 @@
 //! }
 //! ```
 //!
+#[cfg(windows)]
 pub mod constants;
+#[cfg(windows)]
 mod error;
+#[cfg(windows)]
 pub mod filesystem;
+#[cfg(windows)]
 pub mod host;
+#[cfg(windows)]
 mod init;
+#[cfg(windows)]
 pub mod service;
+#[cfg(windows)]
 pub mod util;
+#[cfg(windows)]
 mod vsb;
 
-#[cfg(feature = "notify")]
+#[cfg(all(windows, feature = "notify"))]
 #[cfg_attr(feature = "docsrs", doc(cfg(feature = "notify")))]
 pub mod notify;
 
 // only publicly export notify if feature is enabled.
-#[cfg(not(feature = "notify"))]
+#[cfg(all(windows, not(feature = "notify")))]
 mod notify;
 
+#[cfg(windows)]
 pub use error::FspError;
+#[cfg(windows)]
 pub use error::Result;
 
+#[cfg(windows)]
 pub use init::{FspInit, winfsp_init, winfsp_init_or_die};
 
+#[cfg(windows)]
 pub use widestring::{U16CStr, U16CString};
 
 #[cfg(feature = "delayload")]
 #[cfg_attr(feature = "docsrs", doc(cfg(feature = "build")))]
-pub mod build {
-    //! Build-time helpers to be called from `build.rs`.
-    pub use crate::init::winfsp_link_delayload;
-}
+pub mod build;
