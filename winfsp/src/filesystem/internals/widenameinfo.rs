@@ -1,6 +1,5 @@
 use crate::{Result, U16CStr};
 use std::ffi::OsStr;
-use std::iter;
 use std::os::windows::ffi::OsStrExt;
 use windows::Win32::Foundation::STATUS_INSUFFICIENT_RESOURCES;
 
@@ -66,16 +65,13 @@ pub trait WideNameInfo<const BUFFER_SIZE: usize = 255>:
     /// Write the name of the entry into the name buffer.
     fn set_name<P: AsRef<OsStr>>(&mut self, file_name: P) -> Result<()> {
         let file_name = file_name.as_ref();
-        let file_name = file_name
-            .encode_wide()
-            .chain(iter::once(0))
-            .collect::<Vec<_>>();
+        let file_name = file_name.encode_wide().collect::<Vec<_>>();
         self.set_name_raw(file_name.as_slice())
     }
 
     /// Write the name of the entry into the name buffer with an input wide CStr.
     fn set_name_cstr<P: AsRef<U16CStr>>(&mut self, file_name: P) -> Result<()> {
         let file_name = file_name.as_ref();
-        self.set_name_raw(file_name.as_slice_with_nul())
+        self.set_name_raw(file_name.as_slice())
     }
 }
