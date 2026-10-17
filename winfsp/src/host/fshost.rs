@@ -89,8 +89,10 @@ pub trait OperationGuardStrategy: sealed::Sealed {
 pub enum FineGuard {}
 impl sealed::Sealed for FineGuard {}
 impl OperationGuardStrategy for FineGuard {
+    #[allow(clippy::unnecessary_cast)]
     const RAW: i32 =
-        FSP_FILE_SYSTEM_OPERATION_GUARD_STRATEGY_FSP_FILE_SYSTEM_OPERATION_GUARD_STRATEGY_FINE;
+        FSP_FILE_SYSTEM_OPERATION_GUARD_STRATEGY_FSP_FILE_SYSTEM_OPERATION_GUARD_STRATEGY_FINE
+            as i32;
 }
 
 /// Coarse-grained concurrency strategy.
@@ -104,8 +106,10 @@ impl OperationGuardStrategy for FineGuard {
 pub enum CoarseGuard {}
 impl sealed::Sealed for CoarseGuard {}
 impl OperationGuardStrategy for CoarseGuard {
+    #[allow(clippy::unnecessary_cast)]
     const RAW: i32 =
-        FSP_FILE_SYSTEM_OPERATION_GUARD_STRATEGY_FSP_FILE_SYSTEM_OPERATION_GUARD_STRATEGY_COARSE;
+        FSP_FILE_SYSTEM_OPERATION_GUARD_STRATEGY_FSP_FILE_SYSTEM_OPERATION_GUARD_STRATEGY_COARSE
+            as i32;
 }
 
 /// Options to create the filesystem with.
@@ -272,7 +276,7 @@ impl<T: FileSystemContext, S: OperationGuardStrategy> FileSystemHost<T, S> {
                 FileSystemUserContext::new(context),
             ))) as *mut _;
 
-            FspFileSystemSetOperationGuardStrategyF(fsp_struct, S::RAW);
+            FspFileSystemSetOperationGuardStrategyF(fsp_struct, S::RAW as _);
         }
 
         assert!(!fsp_struct.is_null());
