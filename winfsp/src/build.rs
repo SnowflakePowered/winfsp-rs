@@ -5,6 +5,8 @@
 enum LinkEnv {
     Msvc,
     GnuLlvm,
+    /// Classic MinGW-w64 (`*-pc-windows-gnu`) using GNU ld.
+    Gnu,
 }
 
 impl LinkEnv {
@@ -12,6 +14,7 @@ impl LinkEnv {
         match (target_env, target_abi) {
             ("msvc", _) => Some(Self::Msvc),
             ("gnu", "llvm") => Some(Self::GnuLlvm),
+            ("gnu", _) => Some(Self::Gnu),
             _ => None,
         }
     }
@@ -51,6 +54,10 @@ pub fn winfsp_link_delayload() {
             // the helper itself, and ld.lld in mingw mode requires the
             // GNU-style flag rather than MSVC's `/DELAYLOAD:`.
             println!("cargo:rustc-link-arg=-Wl,--delayload={dll}");
+        }
+        LinkEnv::Gnu => {
+            // GNU ld has no delay-load support; the DLL is loaded at startup.
+            println!("cargo:warning=DELAYLOAD is not supported on *-pc-windows-gnu; {dll} will be loaded at process start.");
         }
     }
 }

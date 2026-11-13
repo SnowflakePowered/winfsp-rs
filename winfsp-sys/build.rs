@@ -99,6 +99,7 @@ fn copy_winfsp_dll(winfsp_lib: &str) {
 enum LinkEnv {
     Msvc,
     GnuLlvm,
+    Gnu,
 }
 
 impl LinkEnv {
@@ -106,6 +107,7 @@ impl LinkEnv {
         match (target_env, target_abi) {
             ("msvc", _) => Some(Self::Msvc),
             ("gnu", "llvm") => Some(Self::GnuLlvm),
+            ("gnu", _) => Some(Self::Gnu),
             _ => None,
         }
     }
@@ -115,9 +117,9 @@ impl LinkEnv {
             (Self::Msvc, "x86_64") => "x86_64-pc-windows-msvc",
             (Self::Msvc, "x86") => "i686-pc-windows-msvc",
             (Self::Msvc, "aarch64") => "aarch64-pc-windows-msvc",
-            (Self::GnuLlvm, "x86_64") => "x86_64-w64-mingw32",
-            (Self::GnuLlvm, "x86") => "i686-w64-mingw32",
-            (Self::GnuLlvm, "aarch64") => "aarch64-w64-mingw32",
+            (Self::GnuLlvm | Self::Gnu, "x86_64") => "x86_64-w64-mingw32",
+            (Self::GnuLlvm | Self::Gnu, "x86") => "i686-w64-mingw32",
+            (Self::GnuLlvm | Self::Gnu, "aarch64") => "aarch64-w64-mingw32",
             _ => return None,
         })
     }
@@ -175,6 +177,14 @@ fn main() {
             // GNU-style flag rather than MSVC's `/DELAYLOAD:`.
             println!("cargo:rustc-link-arg=-Wl,--delayload={}.dll", winfsp_lib);
         }
+        LinkEnv::Gnu => {
+            // GNU ld cannot delay-load DLLs. Link the MSVC-format import
+            // library directly instead.
+            println!(
+                "cargo:warning=DELAYLOAD is not supported on *-pc-windows-gnu; {}.dll will be loaded at process start.",
+                winfsp_lib
+            );
+        }
     }
 
     let bindings_path_str = out_dir.join("bindings.rs");
@@ -206,7 +216,7 @@ fn main() {
         // C11 has it via <assert.h> macro mapping; ensure that mode + the
         // standard headers are pulled in.
         let bindings = match link_env {
-            LinkEnv::GnuLlvm => bindings
+            LinkEnv::GnuLlvm | LinkEnv::Gnu => bindings
                 .clang_arg("-std=c11")
                 .clang_arg("-include")
                 .clang_arg("assert.h"),
